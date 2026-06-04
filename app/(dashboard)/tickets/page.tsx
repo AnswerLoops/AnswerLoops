@@ -42,9 +42,10 @@ export default async function TicketsPage(props: { searchParams: Promise<SearchP
           </select>
           <select name="category" defaultValue={searchParams.category ?? ''} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 bg-white">
             <option value="">All categories</option>
-            <option value="critical_bug">Critical Bug</option>
             <option value="bug">Bug</option>
             <option value="feature_request">Feature Request</option>
+            <option value="documentation">Documentation</option>
+            <option value="how_to">How-to</option>
             <option value="general_question">General Question</option>
           </select>
           <button type="submit" className="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700">
