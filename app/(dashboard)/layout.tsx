@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getUnreadCount } from '@/lib/db/queries/notifications'
 import { NotificationBell } from '@/components/notifications/notification-bell'
+import { AutoRefresh } from '@/components/auto-refresh'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-gray-50">
+      <AutoRefresh intervalMs={5000} />
       {/* Sidebar */}
       <aside className="w-56 shrink-0 border-r border-gray-200 bg-white flex flex-col">
         <div className="px-5 py-4 border-b border-gray-200">
