@@ -1,6 +1,6 @@
 export type Priority = 'critical' | 'high' | 'medium' | 'low'
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
-export type TicketCategory = 'critical_bug' | 'bug' | 'feature_request' | 'general_question'
+export type TicketCategory = 'bug' | 'feature_request' | 'documentation' | 'how_to' | 'general_question'
 export type AIDraftStatus = 'pending' | 'posted' | 'approved' | 'overridden'
 
 export interface Ticket {

@@ -1,16 +1,9 @@
-import Link from 'next/link'
 import { getUnreadCount } from '@/lib/db/queries/notifications'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { AutoRefresh } from '@/components/auto-refresh'
+import { SidebarNav } from '@/components/sidebar-nav'
 
 export const dynamic = 'force-dynamic'
-
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/tickets', label: 'Tickets' },
-  { href: '/faq', label: 'FAQ' },
-  { href: '/settings', label: 'Settings' },
-]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const unreadCount = getUnreadCount()
@@ -23,17 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="px-5 py-4 border-b border-gray-200">
           <span className="text-sm font-bold text-indigo-600 tracking-tight">Community Platform</span>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <SidebarNav />
       </aside>
 
       {/* Main */}
