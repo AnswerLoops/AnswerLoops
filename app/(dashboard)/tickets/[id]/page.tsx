@@ -8,6 +8,7 @@ import { AIDraftPanel } from '@/components/tickets/ai-draft-panel'
 import { getSLAStatus } from '@/lib/sla/engine'
 import { getRelatedTickets } from '@/lib/db/queries/embeddings'
 import { DUPLICATE_THRESHOLD } from '@/lib/ai/related'
+import { getAssessment } from '@/lib/db/queries/assessments'
 
 export default async function TicketDetailPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
@@ -19,6 +20,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const sla = getSLAStatus(ticket)
   const related = getRelatedTickets(ticket.id)
   const duplicateCount = related.filter((r) => r.score >= DUPLICATE_THRESHOLD).length
+  const assessment = getAssessment(ticket.id)
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -43,6 +45,17 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
               <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
                 Asked {duplicateCount + 1}×
               </span>
+            )}
+            {assessment && (
+              assessment.auto_deflected === 1 ? (
+                <span className="text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                  Auto-answered {Math.round(assessment.confidence * 100)}%
+                </span>
+              ) : (
+                <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                  Needs review {Math.round(assessment.confidence * 100)}%
+                </span>
+              )
             )}
           </div>
           <h1 className="text-lg font-semibold text-gray-900">
@@ -75,6 +88,23 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
           {ticket.ai_draft_status === 'pending' && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
               AI agent is generating an answer from GitHub source code…
+            </div>
+          )}
+
+          {/* Confidence assessment */}
+          {assessment && (
+            <div className={`rounded-lg border px-4 py-3 ${assessment.auto_deflected === 1 ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  AI Confidence
+                </span>
+                <span className={`text-xs font-semibold ${assessment.auto_deflected === 1 ? 'text-green-700' : 'text-amber-700'}`}>
+                  {Math.round(assessment.confidence * 100)}% · {assessment.auto_deflected === 1 ? 'auto-answered' : 'needs human review'}
+                </span>
+              </div>
+              {assessment.reasoning && (
+                <p className="text-xs text-gray-600">{assessment.reasoning}</p>
+              )}
             </div>
           )}
 

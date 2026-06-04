@@ -176,8 +176,14 @@ export function getTicketStats() {
   const resolved = (db.prepare("SELECT COUNT(*) as n FROM tickets WHERE status IN ('resolved','closed')").get() as { n: number }).n
   const slaBreaches = (db.prepare('SELECT COUNT(*) as n FROM tickets WHERE sla_response_met = 0 OR sla_resolve_met = 0').get() as { n: number }).n
   const pendingDrafts = (db.prepare("SELECT COUNT(*) as n FROM tickets WHERE ai_draft_status = 'pending' AND status = 'open'").get() as { n: number }).n
+  const needsReview = (db.prepare(`
+    SELECT COUNT(*) as n FROM tickets t
+    JOIN ai_assessments a ON a.ticket_id = t.id
+    WHERE a.auto_deflected = 0 AND t.status = 'open'
+  `).get() as { n: number }).n
+  const autoDeflected = (db.prepare('SELECT COUNT(*) as n FROM ai_assessments WHERE auto_deflected = 1').get() as { n: number }).n
 
-  return { total, open, inProgress, resolved, slaBreaches, pendingDrafts }
+  return { total, open, inProgress, resolved, slaBreaches, pendingDrafts, needsReview, autoDeflected }
 }
 
 export function getSLABreachedTickets(): Ticket[] {

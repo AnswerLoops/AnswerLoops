@@ -5,6 +5,8 @@ import { searchCode, readFile, listFiles } from '@/lib/github/tools'
 import { getConfiguredRepos } from '@/lib/github/app'
 import { updateTicketAIDraft } from '@/lib/db/queries/tickets'
 import { createNotification } from '@/lib/db/queries/notifications'
+import { saveAssessment } from '@/lib/db/queries/assessments'
+import { assessAnswer, shouldAutoDeflect, ASSESS_MODEL } from '@/lib/ai/assess'
 import { sendToChannel } from '@/lib/discord/send'
 import type { PriorAnswer } from '@/types'
 
@@ -78,12 +80,38 @@ Guidelines:
     // Store the draft on the ticket
     updateTicketAIDraft(ticketId, text)
 
-    // Create in-app notification
-    createNotification('ai_draft_ready', `AI draft answer ready for ticket #${ticketId}`, ticketId)
+    // Second pass: grade the answer to decide whether it can be auto-deflected.
+    let assessment
+    try {
+      assessment = await assessAnswer(question, text)
+    } catch (err) {
+      console.error('[agent] assessment failed for ticket', ticketId, '— defaulting to human review', err)
+      assessment = { confidence: 0, answered_fully: false, reasoning: 'Assessment failed; routed to human review.' }
+    }
 
-    // Post to Discord
-    const discordMessage = `**[AI Draft Answer]**\n${text}\n\n*A team member will follow up shortly.*`
-    await sendToChannel(channelId, discordMessage)
+    const autoDeflect = shouldAutoDeflect(assessment)
+    const pct = Math.round(assessment.confidence * 100)
+
+    saveAssessment({
+      ticketId,
+      confidence: assessment.confidence,
+      answeredFully: assessment.answered_fully,
+      autoDeflected: autoDeflect,
+      reasoning: assessment.reasoning,
+      model: ASSESS_MODEL,
+    })
+
+    if (autoDeflect) {
+      // High confidence: answer the community directly (deflection).
+      createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId)
+      const message = `${text}\n\n*If this didn't fully answer your question, a team member will follow up.*`
+      await sendToChannel(channelId, message)
+    } else {
+      // Low confidence: post as a draft and flag for human review.
+      createNotification('ai_draft_ready', `Needs review (${pct}%) — ticket #${ticketId}`, ticketId)
+      const message = `**[AI Draft Answer]**\n${text}\n\n*A team member will follow up shortly.*`
+      await sendToChannel(channelId, message)
+    }
   } catch (err) {
     console.error('[agent] AI agent failed for ticket', ticketId, err)
   }

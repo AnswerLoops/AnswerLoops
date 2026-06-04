@@ -105,6 +105,16 @@ export interface TriageResult {
   reasoning: string
 }
 
+export interface AIAssessment {
+  ticket_id: number
+  confidence: number
+  answered_fully: 0 | 1
+  auto_deflected: 0 | 1
+  reasoning: string | null
+  model: string | null
+  created_at: string
+}
+
 export interface RelatedTicket {
   id: number
   summary: string

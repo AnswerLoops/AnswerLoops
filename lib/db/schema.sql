@@ -113,6 +113,17 @@ CREATE TABLE IF NOT EXISTS ticket_links (
 
 CREATE INDEX IF NOT EXISTS idx_ticket_links_ticket ON ticket_links(ticket_id);
 
+-- Confidence assessment of each AI answer, and whether it was auto-deflected.
+CREATE TABLE IF NOT EXISTS ai_assessments (
+  ticket_id      INTEGER PRIMARY KEY REFERENCES tickets(id),
+  confidence     REAL NOT NULL,
+  answered_fully INTEGER NOT NULL,
+  auto_deflected INTEGER NOT NULL DEFAULT 0,
+  reasoning      TEXT,
+  model          TEXT,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 INSERT OR IGNORE INTO sla_configs (priority, response_hours, resolve_hours) VALUES
   ('critical', 1,   4),
   ('high',     4,   24),
