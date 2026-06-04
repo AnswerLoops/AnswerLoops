@@ -3,12 +3,28 @@ services:
     build: .
     ports:
       - "3000:3000"
-    environment:
-      # Bot configuration (optional for dev)
-      - BOT_TARGET_URL=http://localhost:3000
-      # Add other env vars as needed
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - .:/app
       - /app/node_modules
       - /app/.next
     command: pnpm dev
+
+  bot:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Reach the web app over the compose network, not localhost.
+      # This overrides BOT_TARGET_URL from .env.
+      - BOT_TARGET_URL=http://app:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: pnpm bot
+    depends_on:
+      - app
