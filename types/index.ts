@@ -105,6 +105,20 @@ export interface TriageResult {
   reasoning: string
 }
 
+export interface RelatedTicket {
+  id: number
+  summary: string
+  category: TicketCategory | null
+  status: TicketStatus
+  score: number
+  created_at: string
+}
+
+export interface PriorAnswer {
+  summary: string
+  answer: string
+}
+
 export interface TicketFilters {
   status?: TicketStatus
   priority?: Priority

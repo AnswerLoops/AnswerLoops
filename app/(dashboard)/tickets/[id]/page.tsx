@@ -6,6 +6,8 @@ import { TicketStatusForm } from '@/components/tickets/ticket-status-form'
 import { ReplyForm } from '@/components/tickets/reply-form'
 import { AIDraftPanel } from '@/components/tickets/ai-draft-panel'
 import { getSLAStatus } from '@/lib/sla/engine'
+import { getRelatedTickets } from '@/lib/db/queries/embeddings'
+import { DUPLICATE_THRESHOLD } from '@/lib/ai/related'
 
 export default async function TicketDetailPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
@@ -15,6 +17,8 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const replies = getTicketReplies(ticket.id)
   const events = getTicketEvents(ticket.id)
   const sla = getSLAStatus(ticket)
+  const related = getRelatedTickets(ticket.id)
+  const duplicateCount = related.filter((r) => r.score >= DUPLICATE_THRESHOLD).length
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -34,6 +38,11 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
             <AIDraftBadge status={ticket.ai_draft_status} />
             {sla.anyBreached && (
               <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">SLA breached</span>
+            )}
+            {duplicateCount > 0 && (
+              <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                Asked {duplicateCount + 1}×
+              </span>
             )}
           </div>
           <h1 className="text-lg font-semibold text-gray-900">
@@ -130,6 +139,29 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
               )}
             </dl>
           </div>
+
+          {/* Related questions */}
+          {related.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Related Questions</h2>
+              <ul className="space-y-2.5">
+                {related.map((r) => (
+                  <li key={r.id}>
+                    <Link href={`/tickets/${r.id}`} className="group block">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-xs text-gray-400">#{r.id}</span>
+                        <StatusBadge status={r.status} />
+                        <span className="text-xs text-gray-400 ml-auto">{(r.score * 100).toFixed(0)}% match</span>
+                      </div>
+                      <p className="text-sm text-gray-700 group-hover:text-indigo-600 transition-colors line-clamp-2">
+                        {r.summary}
+                      </p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Update status */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">

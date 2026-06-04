@@ -6,8 +6,14 @@ import { getConfiguredRepos } from '@/lib/github/app'
 import { updateTicketAIDraft } from '@/lib/db/queries/tickets'
 import { createNotification } from '@/lib/db/queries/notifications'
 import { sendToChannel } from '@/lib/discord/send'
+import type { PriorAnswer } from '@/types'
 
-export async function runAIAgent(ticketId: number, question: string, channelId: string): Promise<void> {
+export async function runAIAgent(
+  ticketId: number,
+  question: string,
+  channelId: string,
+  priorAnswers: PriorAnswer[] = []
+): Promise<void> {
   const repos = getConfiguredRepos()
 
   if (repos.length === 0) {
@@ -16,6 +22,13 @@ export async function runAIAgent(ticketId: number, question: string, channelId: 
   }
 
   const repoList = repos.join(', ')
+
+  // Prior resolved answers for similar questions — prefer reusing these.
+  const priorContext = priorAnswers.length
+    ? `\n\nThe team has already answered similar questions before. Prefer reusing and adapting these resolved answers when they fit; only search the source code if they don't fully cover the question:\n${priorAnswers
+        .map((p, i) => `${i + 1}. Q: ${p.summary}\n   A: ${p.answer}`)
+        .join('\n')}`
+    : ''
 
   try {
     const { text } = await generateText({
@@ -26,11 +39,12 @@ You have tools to search and read the project source code on GitHub.
 Configured repositories: ${repoList}
 
 Guidelines:
-- Always search the source code before answering
+- If a prior resolved answer below already covers the question, reuse and adapt it instead of searching
+- Otherwise search the source code before answering
 - Cite specific files and relevant code when applicable
 - Be concise, accurate, and helpful
 - If you cannot find relevant code, say so honestly
-- Format your answer in markdown for Discord`,
+- Format your answer in markdown for Discord${priorContext}`,
       prompt: question,
       tools: {
         searchCode: tool({

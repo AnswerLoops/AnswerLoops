@@ -6,6 +6,9 @@ import { createNotification } from '@/lib/db/queries/notifications'
 import { calculateDeadlines, checkSlaBreaches } from '@/lib/sla/engine'
 import { sendPushToAll } from '@/lib/push/notify'
 import { runAIAgent } from '@/lib/ai/agent'
+import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
+import { findRelated, isDuplicate } from '@/lib/ai/related'
+import { saveEmbedding, getCandidateVectors, replaceLinks, getPriorAnswers } from '@/lib/db/queries/embeddings'
 import type { Priority } from '@/types'
 
 const IngestSchema = z.object({
@@ -80,7 +83,7 @@ export async function POST(request: Request) {
     ticket.id
   )
 
-  // Background work: push notifications, SLA scan, AI agent
+  // Background work: push notifications, SLA scan, semantic enrichment, AI agent
   after(async () => {
     await sendPushToAll({
       title: 'New Community Question',
@@ -90,8 +93,32 @@ export async function POST(request: Request) {
 
     checkSlaBreaches()
 
-    // Run AI agent to generate answer from GitHub source code
-    await runAIAgent(ticket.id, content, thread_id ?? channel_id)
+    // Semantic enrichment: embed, link to nearest prior tickets, flag duplicates.
+    let priorAnswers: { summary: string; answer: string }[] = []
+    try {
+      const vector = await embedText(`${triage.summary}\n\n${content}`)
+      saveEmbedding(ticket.id, vector, EMBEDDING_MODEL)
+
+      const related = findRelated(vector, getCandidateVectors(ticket.id))
+      replaceLinks(ticket.id, related)
+
+      const duplicates = related.filter((m) => isDuplicate(m.score))
+      if (duplicates.length > 0) {
+        createNotification(
+          'new_question',
+          `Possible duplicate (asked ${duplicates.length + 1}×): ${triage.summary}`,
+          ticket.id
+        )
+      }
+
+      // Ground the agent in what the team already answered for these neighbours.
+      priorAnswers = getPriorAnswers(related.map((m) => m.related_id))
+    } catch (err) {
+      console.error('[ingest] semantic enrichment failed for ticket', ticket.id, err)
+    }
+
+    // Run AI agent: prior answers first, then GitHub source code if needed.
+    await runAIAgent(ticket.id, content, thread_id ?? channel_id, priorAnswers)
   })
 
   return Response.json({ ok: true, ticket_id: ticket.id })

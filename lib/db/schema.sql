@@ -94,6 +94,25 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Semantic enrichment: one embedding vector per ticket (JSON float array).
+CREATE TABLE IF NOT EXISTS ticket_embeddings (
+  ticket_id  INTEGER PRIMARY KEY REFERENCES tickets(id),
+  vector     TEXT NOT NULL,
+  model      TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Nearest-neighbour links between tickets (cosine similarity), recomputed at ingest.
+CREATE TABLE IF NOT EXISTS ticket_links (
+  ticket_id  INTEGER NOT NULL REFERENCES tickets(id),
+  related_id INTEGER NOT NULL REFERENCES tickets(id),
+  score      REAL NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (ticket_id, related_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ticket_links_ticket ON ticket_links(ticket_id);
+
 INSERT OR IGNORE INTO sla_configs (priority, response_hours, resolve_hours) VALUES
   ('critical', 1,   4),
   ('high',     4,   24),
