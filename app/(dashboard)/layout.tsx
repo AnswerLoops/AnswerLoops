@@ -2,6 +2,7 @@ import { getUnreadCount } from '@/lib/db/queries/notifications'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { AutoRefresh } from '@/components/auto-refresh'
 import { SidebarNav } from '@/components/sidebar-nav'
+import { logout } from '@/app/actions/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Topnav */}
         <header className="h-12 shrink-0 border-b border-gray-200 bg-white flex items-center justify-end px-6 gap-4">
           <NotificationBell unreadCount={unreadCount} />
+          <form action={logout}>
+            <button
+              type="submit"
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Sign out
+            </button>
+          </form>
         </header>
         <main className="flex-1 overflow-y-auto p-6">
           {children}
