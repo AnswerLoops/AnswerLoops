@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Bot configuration (optional for dev)
+      - BOT_TARGET_URL=http://localhost:3000
+      # Add other env vars as needed
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: pnpm dev
