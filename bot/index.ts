@@ -1,4 +1,15 @@
-import { Client, GatewayIntentBits, Events, Message, ThreadChannel } from 'discord.js'
+import {
+  Client,
+  GatewayIntentBits,
+  Events,
+  Message,
+  ThreadChannel,
+  Partials,
+  MessageReaction,
+  PartialMessageReaction,
+  User,
+  PartialUser,
+} from 'discord.js'
 
 const TARGET_URL = process.env.BOT_TARGET_URL ?? 'http://localhost:3000'
 const BOT_SECRET = process.env.BOT_SECRET ?? ''
@@ -20,7 +31,16 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
   ],
+  // Reactions arrive on messages the bot didn't cache (e.g. an AI answer posted
+  // via the REST API), so we must opt into partials to receive those events.
+  partials: [Partials.Message, Partials.Reaction],
 })
+
+// 👍/👎 emojis the bot treats as feedback votes on an AI answer.
+const VOTE_EMOJI: Record<string, 'up' | 'down'> = {
+  '👍': 'up',
+  '👎': 'down',
+}
 
 client.once(Events.ClientReady, (c) => {
   console.log(`[bot] Logged in as ${c.user.tag}`)
@@ -81,5 +101,52 @@ client.on(Events.MessageCreate, async (message: Message) => {
     console.error('[bot] Failed to forward message:', err)
   }
 })
+
+client.on(
+  Events.MessageReactionAdd,
+  async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
+    if (user.bot) return
+
+    const vote = VOTE_EMOJI[reaction.emoji.name ?? '']
+    if (!vote) return
+
+    // Partial reactions need a fetch to expose the message id.
+    if (reaction.partial) {
+      try {
+        await reaction.fetch()
+      } catch (err) {
+        console.error('[bot] Failed to fetch reaction:', err)
+        return
+      }
+    }
+
+    try {
+      const res = await fetch(`${TARGET_URL}/api/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${BOT_SECRET}`,
+        },
+        body: JSON.stringify({
+          message_id: reaction.message.id,
+          vote,
+          actor: user.id,
+        }),
+      })
+
+      if (!res.ok) {
+        console.error(`[bot] Feedback failed (${res.status}):`, await res.text())
+        return
+      }
+
+      const data = (await res.json()) as { ok: boolean; ticket_id?: number; ignored?: boolean }
+      if (data.ticket_id) {
+        console.log(`[bot] Feedback ${vote} on ticket #${data.ticket_id} from ${user.id}`)
+      }
+    } catch (err) {
+      console.error('[bot] Failed to forward reaction:', err)
+    }
+  }
+)
 
 client.login(process.env.DISCORD_TOKEN)
