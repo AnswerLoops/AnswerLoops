@@ -113,6 +113,40 @@ CREATE TABLE IF NOT EXISTS ticket_links (
 
 CREATE INDEX IF NOT EXISTS idx_ticket_links_ticket ON ticket_links(ticket_id);
 
+-- Feedback loop: 👍/👎 on an AI answer, from Discord reactions or staff.
+-- One vote per (ticket, source, actor) — re-voting updates the existing row.
+CREATE TABLE IF NOT EXISTS ticket_feedback (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id  INTEGER NOT NULL REFERENCES tickets(id),
+  source     TEXT NOT NULL,          -- 'discord' | 'staff'
+  vote       TEXT NOT NULL,          -- 'up' | 'down'
+  actor      TEXT NOT NULL,          -- discord user id or staff name
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(ticket_id, source, actor)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ticket_feedback_ticket ON ticket_feedback(ticket_id);
+
+-- Maps the Discord message id of a posted AI answer back to its ticket, so a
+-- reaction on that message can be attributed to the right ticket.
+CREATE TABLE IF NOT EXISTS answer_messages (
+  discord_message_id TEXT PRIMARY KEY,
+  ticket_id          INTEGER NOT NULL REFERENCES tickets(id),
+  created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Confidence assessment of each AI answer, and whether it was auto-deflected.
+CREATE TABLE IF NOT EXISTS ai_assessments (
+  ticket_id      INTEGER PRIMARY KEY REFERENCES tickets(id),
+  confidence     REAL NOT NULL,
+  answered_fully INTEGER NOT NULL,
+  auto_deflected INTEGER NOT NULL DEFAULT 0,
+  reasoning      TEXT,
+  model          TEXT,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 INSERT OR IGNORE INTO sla_configs (priority, response_hours, resolve_hours) VALUES
   ('critical', 1,   4),
   ('high',     4,   24),

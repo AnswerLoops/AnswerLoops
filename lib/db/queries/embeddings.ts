@@ -52,17 +52,29 @@ export function getRelatedTickets(ticketId: number): RelatedTicket[] {
  * Resolved prior answers among the given ticket ids — used to ground the AI
  * agent in what the team already answered. Falls back to the AI draft when no
  * human resolution note exists.
+ *
+ * Feedback loop: answers whose ticket earned net-negative feedback (more 👎
+ * than 👍) are dropped so the agent stops reusing answers the community
+ * rejected; best-rated answers are surfaced first.
  */
 export function getPriorAnswers(ticketIds: number[]): PriorAnswer[] {
   if (ticketIds.length === 0) return []
   const placeholders = ticketIds.map(() => '?').join(',')
   const rows = getDb().prepare(`
-    SELECT COALESCE(ai_summary, substr(content, 1, 120)) AS summary,
-           COALESCE(resolution_notes, ai_draft) AS answer
-    FROM tickets
-    WHERE id IN (${placeholders})
-      AND status IN ('resolved', 'closed')
-      AND COALESCE(resolution_notes, ai_draft) IS NOT NULL
+    SELECT COALESCE(t.ai_summary, substr(t.content, 1, 120)) AS summary,
+           COALESCE(t.resolution_notes, t.ai_draft) AS answer
+    FROM tickets t
+    LEFT JOIN (
+      SELECT ticket_id,
+             SUM(CASE WHEN vote = 'up' THEN 1 ELSE -1 END) AS net
+      FROM ticket_feedback
+      GROUP BY ticket_id
+    ) f ON f.ticket_id = t.id
+    WHERE t.id IN (${placeholders})
+      AND t.status IN ('resolved', 'closed')
+      AND COALESCE(t.resolution_notes, t.ai_draft) IS NOT NULL
+      AND COALESCE(f.net, 0) >= 0
+    ORDER BY COALESCE(f.net, 0) DESC
   `).all(...ticketIds) as PriorAnswer[]
   return rows
 }
