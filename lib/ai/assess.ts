@@ -1,5 +1,5 @@
 import { generateObject } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { chatModel } from '@/lib/ai/models'
 import { z } from 'zod'
 
 export const ASSESS_MODEL = 'gpt-4o-mini'
@@ -27,7 +27,7 @@ export interface AnswerAssessment {
  */
 export async function assessAnswer(question: string, answer: string): Promise<AnswerAssessment> {
   const { object } = await generateObject({
-    model: openai(ASSESS_MODEL),
+    model: chatModel(ASSESS_MODEL),
     schema: AssessmentSchema,
     prompt: `You are a strict reviewer grading a support answer before it is sent to a community member.
 

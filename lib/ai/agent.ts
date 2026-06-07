@@ -1,5 +1,5 @@
 import { generateText, tool, stepCountIs } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { chatModel } from '@/lib/ai/models'
 import { z } from 'zod'
 import { searchCode, readFile, listFiles } from '@/lib/github/tools'
 import { getConfiguredRepos } from '@/lib/github/app'
@@ -35,7 +35,7 @@ export async function runAIAgent(
 
   try {
     const { text } = await generateText({
-      model: openai('gpt-4o'),
+      model: chatModel('gpt-4o'),
       stopWhen: stepCountIs(5),
       system: `You are a technical support agent for an open source software project.
 You have tools to search and read the project source code on GitHub.
