@@ -26,7 +26,5 @@ export default async function globalSetup() {
      VALUES (?, ?, ?, 0)`
   ).run(1, 'acme', 'demo')
 
-  // Leave the connection open: the same lib/db singleton is reused by the
-  // e2e helpers for read assertions, and it observes the webServer's commits
-  // through SQLite's WAL.
+  db.close()
 }

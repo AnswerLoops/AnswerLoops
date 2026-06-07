@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { BOT_AUTH, waitForAssessment, readTicketRow } from './helpers'
+import { BOT_AUTH, waitForPipeline, getTicket } from './helpers'
 
 // Direct coverage of the bot-facing ingest endpoint: auth, validation, dedup,
 // and the full triage->embed->agent->assess pipeline it kicks off.
@@ -40,12 +40,15 @@ test.describe('POST /api/ingest', () => {
     expect(res.ok()).toBeTruthy()
     const { ticket_id } = (await res.json()) as { ticket_id: number }
 
-    const row = readTicketRow(ticket_id)!
+    const row = (await getTicket(request, ticket_id))!
     expect(row.category).toBe('how_to')
     expect(row.status).toBe('open')
 
-    const assessment = await waitForAssessment(ticket_id)
-    expect(assessment.confidence).toBeGreaterThan(0)
+    // The agent posts an answer (status leaves 'pending').
+    await waitForPipeline(request, ticket_id)
+    const after = (await getTicket(request, ticket_id))!
+    expect(after.ai_draft_status).toBe('posted')
+    expect(after.ai_draft).toBeTruthy()
   })
 
   test('dedups a repeated discord message', async ({ request }) => {

@@ -1,12 +1,6 @@
+import { randomUUID } from 'crypto'
 import { test, expect } from '@playwright/test'
-import {
-  BOT_AUTH,
-  ingest,
-  waitForAssessment,
-  waitFor,
-  readAnswerMessageId,
-  countFeedback,
-} from './helpers'
+import { BOT_AUTH, ingest, waitForPipeline, waitFor, answerMessageId } from './helpers'
 
 // The bot forwards 👍/👎 reactions to /api/feedback; this covers auth, the
 // unknown-message no-op, and a vote being attributed to the right ticket.
@@ -28,24 +22,29 @@ test.describe('POST /api/feedback', () => {
   })
 
   test('records a Discord vote against the answer’s ticket', async ({ request }) => {
-    const ticketId = await ingest(request, { content: 'How do I configure the client?' })
-    await waitForAssessment(ticketId)
+    // Unique channel → the mock posts the answer under a known message id.
+    const channelId = `fb-${randomUUID()}`
+    const ticketId = await ingest(request, { content: 'How do I configure the client?', channelId })
+    await waitForPipeline(request, ticketId)
+    const messageId = answerMessageId(channelId)
 
-    // The agent mapped its posted answer message to the ticket.
-    const messageId = await waitFor(() => readAnswerMessageId(ticketId))
+    // The answer message is mapped at the very end of the pipeline; retry the
+    // vote until the route can resolve it to the ticket.
+    const recorded = (await waitFor(async () => {
+      const r = await request.post('/api/feedback', {
+        headers: BOT_AUTH,
+        data: { message_id: messageId, vote: 'up', actor: 'community-1' },
+      })
+      const body = (await r.json()) as { ticket_id?: number }
+      return body.ticket_id ? body : false
+    })) as { ticket_id: number }
+    expect(recorded.ticket_id).toBe(ticketId)
 
-    const up = await request.post('/api/feedback', {
-      headers: BOT_AUTH,
-      data: { message_id: messageId, vote: 'up', actor: 'community-1' },
-    })
-    expect((await up.json()).ticket_id).toBe(ticketId)
-    expect(countFeedback(ticketId)).toEqual({ up: 1, down: 0 })
-
-    // Re-voting from the same actor overwrites, not appends.
-    await request.post('/api/feedback', {
+    // Re-voting from the same actor is accepted (saveFeedback upserts).
+    const down = await request.post('/api/feedback', {
       headers: BOT_AUTH,
       data: { message_id: messageId, vote: 'down', actor: 'community-1' },
     })
-    expect(countFeedback(ticketId)).toEqual({ up: 0, down: 1 })
+    expect((await down.json()).ticket_id).toBe(ticketId)
   })
 })

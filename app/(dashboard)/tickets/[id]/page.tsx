@@ -12,6 +12,9 @@ import { getAssessment } from '@/lib/db/queries/assessments'
 import { getFeedbackSummary } from '@/lib/db/queries/feedback'
 import { FeedbackButtons } from '@/components/tickets/feedback-buttons'
 
+// Always reflect the latest ticket state (drafts, assessments, feedback).
+export const dynamic = 'force-dynamic'
+
 export default async function TicketDetailPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
   const ticket = getTicketById(Number(id))

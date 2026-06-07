@@ -1,5 +1,9 @@
 import type { NextRequest } from 'next/server'
 import { getTicketById, getTicketReplies, getTicketEvents } from '@/lib/db/queries/tickets'
+import { getAssessment } from '@/lib/db/queries/assessments'
+
+// Live data — never serve a cached snapshot.
+export const dynamic = 'force-dynamic'
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
@@ -8,6 +12,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
   const replies = getTicketReplies(Number(id))
   const events = getTicketEvents(Number(id))
+  const assessment = getAssessment(Number(id))
 
-  return Response.json({ ticket, replies, events })
+  return Response.json({ ticket, replies, events, assessment })
 }
