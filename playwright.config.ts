@@ -19,6 +19,7 @@ export const TEST_ENV = {
   SESSION_SECRET: 'test-session-secret',
   STAFF_PASSWORD: 'test-password',
   OPENAI_API_KEY: 'test-openai-key',
+  VAPID_PUBLIC_KEY: 'BL_test_vapid_public_key',
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: 'BL_test_vapid_public_key',
   VAPID_PRIVATE_KEY: 'test_vapid_private_key',
   VAPID_SUBJECT: 'mailto:test@example.com',

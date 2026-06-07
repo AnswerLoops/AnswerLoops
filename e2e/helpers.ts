@@ -64,6 +64,14 @@ export function readTicketRow(ticketId: number): Record<string, unknown> | undef
   return getDb().prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Record<string, unknown> | undefined
 }
 
+/** The Discord message id of the AI answer posted for a ticket (for feedback). */
+export function readAnswerMessageId(ticketId: number): string | null {
+  const row = getDb()
+    .prepare('SELECT discord_message_id FROM answer_messages WHERE ticket_id = ? LIMIT 1')
+    .get(ticketId) as { discord_message_id: string } | undefined
+  return row?.discord_message_id ?? null
+}
+
 export function countFeedback(ticketId: number): { up: number; down: number } {
   const rows = getDb()
     .prepare('SELECT vote FROM ticket_feedback WHERE ticket_id = ?')
