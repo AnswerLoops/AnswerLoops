@@ -129,6 +129,25 @@ export interface PriorAnswer {
   answer: string
 }
 
+export type FeedbackVote = 'up' | 'down'
+export type FeedbackSource = 'discord' | 'staff'
+
+export interface TicketFeedback {
+  id: number
+  ticket_id: number
+  source: FeedbackSource
+  vote: FeedbackVote
+  actor: string
+  created_at: string
+  updated_at: string
+}
+
+export interface FeedbackSummary {
+  up: number
+  down: number
+  staffVote: FeedbackVote | null
+}
+
 export interface TicketFilters {
   status?: TicketStatus
   priority?: Priority

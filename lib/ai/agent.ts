@@ -6,6 +6,7 @@ import { getConfiguredRepos } from '@/lib/github/app'
 import { updateTicketAIDraft } from '@/lib/db/queries/tickets'
 import { createNotification } from '@/lib/db/queries/notifications'
 import { saveAssessment } from '@/lib/db/queries/assessments'
+import { mapAnswerMessage } from '@/lib/db/queries/feedback'
 import { assessAnswer, shouldAutoDeflect, ASSESS_MODEL } from '@/lib/ai/assess'
 import { sendToChannel } from '@/lib/discord/send'
 import type { PriorAnswer } from '@/types'
@@ -101,17 +102,21 @@ Guidelines:
       model: ASSESS_MODEL,
     })
 
+    let postedMessageId: string | null = null
     if (autoDeflect) {
       // High confidence: answer the community directly (deflection).
       createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId)
-      const message = `${text}\n\n*If this didn't fully answer your question, a team member will follow up.*`
-      await sendToChannel(channelId, message)
+      const message = `${text}\n\n*Was this helpful? React 👍 / 👎. If it didn't fully answer your question, a team member will follow up.*`
+      postedMessageId = await sendToChannel(channelId, message)
     } else {
       // Low confidence: post as a draft and flag for human review.
       createNotification('ai_draft_ready', `Needs review (${pct}%) — ticket #${ticketId}`, ticketId)
       const message = `**[AI Draft Answer]**\n${text}\n\n*A team member will follow up shortly.*`
-      await sendToChannel(channelId, message)
+      postedMessageId = await sendToChannel(channelId, message)
     }
+
+    // Map the posted answer message → ticket so 👍/👎 reactions can be attributed.
+    if (postedMessageId) mapAnswerMessage(postedMessageId, ticketId)
   } catch (err) {
     console.error('[agent] AI agent failed for ticket', ticketId, err)
   }

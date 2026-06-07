@@ -9,6 +9,8 @@ import { getSLAStatus } from '@/lib/sla/engine'
 import { getRelatedTickets } from '@/lib/db/queries/embeddings'
 import { DUPLICATE_THRESHOLD } from '@/lib/ai/related'
 import { getAssessment } from '@/lib/db/queries/assessments'
+import { getFeedbackSummary } from '@/lib/db/queries/feedback'
+import { FeedbackButtons } from '@/components/tickets/feedback-buttons'
 
 export default async function TicketDetailPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
@@ -21,6 +23,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const related = getRelatedTickets(ticket.id)
   const duplicateCount = related.filter((r) => r.score >= DUPLICATE_THRESHOLD).length
   const assessment = getAssessment(ticket.id)
+  const feedback = getFeedbackSummary(ticket.id)
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -105,6 +108,10 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
               {assessment.reasoning && (
                 <p className="text-xs text-gray-600">{assessment.reasoning}</p>
               )}
+              <div className="mt-3 border-t border-gray-200/70 pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Was this answer good?</p>
+                <FeedbackButtons ticketId={ticket.id} summary={feedback} />
+              </div>
             </div>
           )}
 
