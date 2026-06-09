@@ -14,10 +14,12 @@ test.describe('GET /api/tickets', () => {
 
     const open = await request.get('/api/tickets?status=open')
     const openList = (await open.json()) as Array<{ status: string }>
+    expect(openList.length).toBeGreaterThan(0)
     expect(openList.every((t) => t.status === 'open')).toBe(true)
 
-    const resolved = await request.get('/api/tickets?status=resolved')
-    expect((await resolved.json()).length).toBe(0)
+    // Nothing is ever closed by the suite → the filter yields an empty list.
+    const closed = await request.get('/api/tickets?status=closed')
+    expect((await closed.json()).length).toBe(0)
   })
 })
 
