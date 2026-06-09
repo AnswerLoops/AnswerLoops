@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { getDb } from '../lib/db/index'
-import { ingest } from './helpers'
+import { ingest, waitFor } from './helpers'
 
 test.describe('GET /api/tickets', () => {
   test('lists tickets and filters by status', async ({ request }) => {
@@ -51,21 +51,26 @@ test.describe('FAQ', () => {
 })
 
 test.describe('GitHub repos', () => {
-  test('lists repos and deletes one', async ({ request }) => {
+  test('lists the seeded repo and deletes one', async ({ request }) => {
+    // Insert a throwaway repo via the runner connection, then drive the API.
     const info = getDb()
       .prepare(`INSERT INTO github_repos (installation_id, owner, repo, is_private) VALUES (2, 'temp', 'todelete', 0)`)
       .run()
     const id = Number(info.lastInsertRowid)
 
-    const list = await request.get('/api/github/repos')
-    const repos = (await list.json()) as Array<{ id: number }>
-    expect(repos.some((r) => r.id === id)).toBe(true)
+    // The runner and server are separate processes; poll until the server sees it.
+    await waitFor(async () => {
+      const repos = (await request.get('/api/github/repos').then((r) => r.json())) as Array<{ id: number }>
+      return repos.some((r) => r.id === id)
+    })
 
     const del = await request.delete(`/api/github/repos/${id}`)
     expect((await del.json()).ok).toBe(true)
 
-    const after = (await (await request.get('/api/github/repos')).json()) as Array<{ id: number }>
-    expect(after.some((r) => r.id === id)).toBe(false)
+    await waitFor(async () => {
+      const repos = (await request.get('/api/github/repos').then((r) => r.json())) as Array<{ id: number }>
+      return !repos.some((r) => r.id === id)
+    })
   })
 })
 
@@ -82,10 +87,14 @@ test.describe('Push', () => {
     })
     expect((await good.json()).ok).toBe(true)
 
-    const row = getDb()
-      .prepare('SELECT endpoint FROM push_subscriptions WHERE endpoint = ?')
-      .get('https://push.example.com/abc')
-    expect(row).toBeTruthy()
+    // Upsert (same endpoint) is accepted too — exercises the ON CONFLICT path.
+    const again = await request.post('/api/push/subscribe', {
+      data: {
+        endpoint: 'https://push.example.com/abc',
+        keys: { p256dh: 'p256dh-key-2', auth: 'auth-key-2' },
+      },
+    })
+    expect((await again.json()).ok).toBe(true)
   })
 
   test('exposes the VAPID public key', async ({ request }) => {

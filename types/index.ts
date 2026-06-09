@@ -129,6 +129,20 @@ export interface PriorAnswer {
   answer: string
 }
 
+export interface KBArticle {
+  id: number
+  question: string
+  answer: string
+  source_ticket_id: number | null
+  published: 0 | 1
+  created_at: string
+  updated_at: string
+}
+
+export interface KBSearchResult extends KBArticle {
+  score: number
+}
+
 export type FeedbackVote = 'up' | 'down'
 export type FeedbackSource = 'discord' | 'staff'
 

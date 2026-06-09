@@ -147,6 +147,24 @@ CREATE TABLE IF NOT EXISTS ai_assessments (
   created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Knowledge base: resolved answers promoted into a durable, searchable asset.
+-- Each article carries its own embedding (same model as tickets) so the KB can
+-- be semantically searched and used to ground the agent.
+CREATE TABLE IF NOT EXISTS kb_articles (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  question         TEXT NOT NULL,
+  answer           TEXT NOT NULL,
+  embedding        TEXT NOT NULL,        -- JSON float array
+  model            TEXT NOT NULL,
+  source_ticket_id INTEGER REFERENCES tickets(id),
+  published        INTEGER NOT NULL DEFAULT 1,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_kb_articles_published ON kb_articles(published);
+CREATE INDEX IF NOT EXISTS idx_kb_articles_source    ON kb_articles(source_ticket_id);
+
 INSERT OR IGNORE INTO sla_configs (priority, response_hours, resolve_hours) VALUES
   ('critical', 1,   4),
   ('high',     4,   24),
