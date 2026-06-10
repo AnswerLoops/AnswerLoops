@@ -10,6 +10,11 @@
 !.yarn/releases
 !.yarn/versions
 
+# local sqlite database (runtime data, never versioned)
+/data/*.db
+/data/*.db-shm
+/data/*.db-wal
+
 # testing
 /coverage
 /e2e/.tmp

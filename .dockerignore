@@ -2,6 +2,10 @@ node_modules
 npm-debug.log
 .next
 .git
+data
+e2e/.tmp
+test-results
+playwright-report
 .gitignore
 README.md
 .env.local
