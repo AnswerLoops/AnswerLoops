@@ -1,3 +1,34 @@
+-- Multi-tenant foundation. An org is a workspace (solo until teammates are
+-- invited). Every domain row is scoped by org_id; a seeded "default" org (id 1)
+-- owns all data until real auth assigns memberships.
+CREATE TABLE IF NOT EXISTS orgs (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL,
+  slug       TEXT UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  email      TEXT UNIQUE,
+  name       TEXT,
+  image      TEXT,
+  provider   TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS memberships (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  org_id     INTEGER NOT NULL REFERENCES orgs(id),
+  role       TEXT NOT NULL DEFAULT 'owner',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, org_id)
+);
+
+-- Seed the default org so existing single-tenant data has an owner.
+INSERT OR IGNORE INTO orgs (id, name, slug) VALUES (1, 'Default Workspace', 'default');
+
 CREATE TABLE IF NOT EXISTS sla_configs (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   priority       TEXT NOT NULL UNIQUE,
@@ -8,6 +39,7 @@ CREATE TABLE IF NOT EXISTS sla_configs (
 
 CREATE TABLE IF NOT EXISTS tickets (
   id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id                INTEGER NOT NULL DEFAULT 1 REFERENCES orgs(id),
   discord_message_id    TEXT UNIQUE,
   discord_channel_id    TEXT,
   discord_thread_id     TEXT,
@@ -38,6 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_tickets_status   ON tickets(status);
 CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(priority);
 CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category);
 CREATE INDEX IF NOT EXISTS idx_tickets_ai_draft ON tickets(ai_draft_status);
+CREATE INDEX IF NOT EXISTS idx_tickets_org      ON tickets(org_id);
 
 CREATE TABLE IF NOT EXISTS ticket_replies (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,6 +93,7 @@ CREATE TABLE IF NOT EXISTS ticket_events (
 
 CREATE TABLE IF NOT EXISTS github_repos (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id          INTEGER NOT NULL DEFAULT 1 REFERENCES orgs(id),
   installation_id INTEGER NOT NULL,
   owner           TEXT NOT NULL,
   repo            TEXT NOT NULL,
@@ -70,6 +104,7 @@ CREATE TABLE IF NOT EXISTS github_repos (
 
 CREATE TABLE IF NOT EXISTS faq_snapshots (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id       INTEGER NOT NULL DEFAULT 1 REFERENCES orgs(id),
   week_start   TEXT NOT NULL,
   week_end     TEXT NOT NULL,
   content      TEXT NOT NULL,
@@ -79,6 +114,7 @@ CREATE TABLE IF NOT EXISTS faq_snapshots (
 
 CREATE TABLE IF NOT EXISTS notifications (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id     INTEGER NOT NULL DEFAULT 1 REFERENCES orgs(id),
   ticket_id  INTEGER REFERENCES tickets(id),
   type       TEXT NOT NULL,
   message    TEXT NOT NULL,
@@ -88,6 +124,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id       INTEGER NOT NULL DEFAULT 1 REFERENCES orgs(id),
   endpoint     TEXT NOT NULL UNIQUE,
   p256dh       TEXT NOT NULL,
   auth         TEXT NOT NULL,
@@ -152,6 +189,7 @@ CREATE TABLE IF NOT EXISTS ai_assessments (
 -- be semantically searched and used to ground the agent.
 CREATE TABLE IF NOT EXISTS kb_articles (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id           INTEGER NOT NULL DEFAULT 1 REFERENCES orgs(id),
   question         TEXT NOT NULL,
   answer           TEXT NOT NULL,
   embedding        TEXT NOT NULL,        -- JSON float array
