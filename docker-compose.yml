@@ -6,10 +6,16 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      # Keep SQLite on a named volume, outside the bind-mounted source tree, so
+      # the database survives container rebuilds and `docker compose down`
+      # (everything except `down -v`).
+      - DB_PATH=/data/community.db
     volumes:
       - .:/app
       - /app/node_modules
       - /app/.next
+      - community-data:/data
     command: pnpm dev
 
   bot:
@@ -28,3 +34,6 @@ services:
     command: pnpm bot
     depends_on:
       - app
+
+volumes:
+  community-data:

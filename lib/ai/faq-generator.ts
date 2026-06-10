@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { chatModel } from '@/lib/ai/models'
 
 interface TicketSummary {
   id: number
@@ -40,7 +40,7 @@ export async function generateFAQ(tickets: TicketSummary[]): Promise<string> {
   const context = formatForPrompt(tickets)
 
   const { text } = await generateText({
-    model: openai('gpt-4o'),
+    model: chatModel('gpt-4o'),
     maxOutputTokens: 3000,
     prompt: `You are a technical writer creating a community FAQ from resolved support tickets.
 

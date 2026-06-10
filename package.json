@@ -8,7 +8,14 @@
     "start": "next start",
     "lint": "eslint",
     "bot": "tsx watch bot/index.ts",
-    "dev:all": "concurrently \"pnpm dev\" \"pnpm bot\""
+    "dev:all": "concurrently \"pnpm dev\" \"pnpm bot\"",
+    "test:e2e": "playwright test",
+    "test:e2e:typecheck": "tsc --noEmit -p e2e/tsconfig.json",
+    "test:e2e:ui": "playwright test --ui",
+    "test:server": "next start -p 3100"
+  },
+  "engines": {
+    "node": ">=20.9"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.52",
@@ -24,6 +31,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",

@@ -1,5 +1,5 @@
 import { embed } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { embeddingModel } from '@/lib/ai/models'
 
 export const EMBEDDING_MODEL = 'text-embedding-3-small'
 
@@ -9,7 +9,7 @@ export const EMBEDDING_MODEL = 'text-embedding-3-small'
  */
 export async function embedText(text: string): Promise<number[]> {
   const { embedding } = await embed({
-    model: openai.embedding(EMBEDDING_MODEL),
+    model: embeddingModel(EMBEDDING_MODEL),
     value: text,
   })
   return embedding

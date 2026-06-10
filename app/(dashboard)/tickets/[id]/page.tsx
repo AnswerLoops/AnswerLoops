@@ -11,6 +11,11 @@ import { DUPLICATE_THRESHOLD } from '@/lib/ai/related'
 import { getAssessment } from '@/lib/db/queries/assessments'
 import { getFeedbackSummary } from '@/lib/db/queries/feedback'
 import { FeedbackButtons } from '@/components/tickets/feedback-buttons'
+import { getArticleBySourceTicket } from '@/lib/db/queries/kb'
+import { PromoteKBButton } from '@/components/tickets/promote-kb-button'
+
+// Always reflect the latest ticket state (drafts, assessments, feedback).
+export const dynamic = 'force-dynamic'
 
 export default async function TicketDetailPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
@@ -24,6 +29,9 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const duplicateCount = related.filter((r) => r.score >= DUPLICATE_THRESHOLD).length
   const assessment = getAssessment(ticket.id)
   const feedback = getFeedbackSummary(ticket.id)
+  const kbArticle = getArticleBySourceTicket(ticket.id)
+  const resolved = ticket.status === 'resolved' || ticket.status === 'closed'
+  const hasAnswer = Boolean(ticket.resolution_notes || ticket.ai_draft)
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -205,6 +213,17 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Update Status</h2>
             <TicketStatusForm ticketId={ticket.id} currentStatus={ticket.status} />
           </div>
+
+          {/* Knowledge base */}
+          {(resolved && hasAnswer) || kbArticle ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Knowledge Base</h2>
+              <PromoteKBButton ticketId={ticket.id} articleId={kbArticle?.id} />
+              {!kbArticle && (
+                <p className="mt-2 text-xs text-gray-400">Publish this answer as a searchable KB article.</p>
+              )}
+            </div>
+          ) : null}
 
           {/* Event log */}
           {events.length > 0 && (

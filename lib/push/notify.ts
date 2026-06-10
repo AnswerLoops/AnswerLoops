@@ -1,5 +1,6 @@
 import webpush from 'web-push'
 import { getDb } from '@/lib/db'
+import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import type { PushSubscription } from '@/types'
 
 function initWebPush() {
@@ -19,6 +20,10 @@ interface PushPayload {
 }
 
 export async function sendPushToAll(payload: PushPayload): Promise<void> {
+  // Skip real web-push in tests: the VAPID test key is not a valid curve point,
+  // and we never want to hit push endpoints. The /api/push routes are still
+  // covered directly.
+  if (MOCK_EXTERNALS) return
   if (!process.env.VAPID_PUBLIC_KEY) return
 
   initWebPush()

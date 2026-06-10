@@ -9,6 +9,7 @@ import { runAIAgent } from '@/lib/ai/agent'
 import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
 import { findRelated, isDuplicate } from '@/lib/ai/related'
 import { saveEmbedding, getCandidateVectors, replaceLinks, getPriorAnswers } from '@/lib/db/queries/embeddings'
+import { getKBContext } from '@/lib/db/queries/kb'
 import type { Priority } from '@/types'
 
 const IngestSchema = z.object({
@@ -111,8 +112,9 @@ export async function POST(request: Request) {
         )
       }
 
-      // Ground the agent in what the team already answered for these neighbours.
-      priorAnswers = getPriorAnswers(related.map((m) => m.related_id))
+      // Ground the agent: promoted KB articles first (the canonical source),
+      // then resolved answers from the nearest prior tickets.
+      priorAnswers = [...getKBContext(vector), ...getPriorAnswers(related.map((m) => m.related_id))]
     } catch (err) {
       console.error('[ingest] semantic enrichment failed for ticket', ticket.id, err)
     }

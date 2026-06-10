@@ -1,6 +1,16 @@
+import { MOCK_EXTERNALS } from '@/lib/mock-mode'
+
 const DISCORD_API = 'https://discord.com/api/v10'
 
 export async function sendToChannel(channelId: string, content: string): Promise<string | null> {
+  // Under mock mode, return a deterministic fake message id without any network
+  // call — keyed on the channel so a test that controls the channel knows the
+  // posted answer's message id (used to exercise the feedback-by-reaction flow)
+  // without reading the database.
+  if (MOCK_EXTERNALS) {
+    return `mock-msg-${channelId}`
+  }
+
   const token = process.env.DISCORD_TOKEN
   if (!token) {
     console.warn('[discord/send] DISCORD_TOKEN not set — skipping send')

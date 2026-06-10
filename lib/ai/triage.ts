@@ -1,5 +1,5 @@
 import { generateObject } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { chatModel } from '@/lib/ai/models'
 import { z } from 'zod'
 import type { TriageResult } from '@/types'
 
@@ -13,7 +13,7 @@ const TriageSchema = z.object({
 
 export async function triageMessage(content: string): Promise<TriageResult> {
   const { object } = await generateObject({
-    model: openai('gpt-4o-mini'),
+    model: chatModel('gpt-4o-mini'),
     schema: TriageSchema,
     prompt: `You are a support triage assistant for a software product community.
 Classify this community question or report into exactly one category, and assess its severity.

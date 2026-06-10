@@ -1,6 +1,8 @@
 import { getTickets } from '@/lib/db/queries/tickets'
 import type { TicketStatus, Priority, TicketCategory } from '@/types'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const tickets = getTickets({

@@ -2,6 +2,8 @@ import { getTickets } from '@/lib/db/queries/tickets'
 import { TicketList } from '@/components/tickets/ticket-list'
 import type { TicketStatus, Priority, TicketCategory } from '@/types'
 
+export const dynamic = 'force-dynamic'
+
 interface SearchParams {
   status?: string
   priority?: string
