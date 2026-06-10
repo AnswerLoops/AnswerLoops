@@ -1,33 +1,34 @@
 'use client'
 
-import { useActionState } from 'react'
-import { login, type LoginState } from '@/app/actions/auth'
+import { loginWithDiscord, loginWithGoogle } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
+import { useTransition } from 'react'
 
 export function LoginForm() {
-  const [state, action, pending] = useActionState<LoginState, FormData>(login, undefined)
+  const [discordPending, startDiscord] = useTransition()
+  const [googlePending, startGoogle] = useTransition()
 
   return (
-    <form action={action} className="space-y-4">
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-          Staff password
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoFocus
-          autoComplete="current-password"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-      </div>
+    <div className="space-y-3">
+      <form
+        action={() => {
+          startDiscord(() => loginWithDiscord())
+        }}
+      >
+        <Button type="submit" disabled={discordPending} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+          {discordPending ? 'Redirecting…' : 'Continue with Discord'}
+        </Button>
+      </form>
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
-
-      <Button type="submit" disabled={pending} className="w-full">
-        {pending ? 'Signing in…' : 'Sign in'}
-      </Button>
-    </form>
+      <form
+        action={() => {
+          startGoogle(() => loginWithGoogle())
+        }}
+      >
+        <Button type="submit" disabled={googlePending} variant="secondary" className="w-full">
+          {googlePending ? 'Redirecting…' : 'Continue with Google'}
+        </Button>
+      </form>
+    </div>
   )
 }
