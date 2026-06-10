@@ -1,5 +1,11 @@
+import { eq } from 'drizzle-orm'
+import { getDrizzle } from '../drizzle'
 import { getDb } from '../index'
+import { aiAssessments } from '../schema'
 import type { AIAssessment } from '@/types'
+
+function dz() { return getDrizzle() }
+function raw() { return getDb() }
 
 export function saveAssessment(input: {
   ticketId: number
@@ -9,27 +15,29 @@ export function saveAssessment(input: {
   reasoning: string
   model: string
 }): void {
-  getDb().prepare(`
-    INSERT INTO ai_assessments (ticket_id, confidence, answered_fully, auto_deflected, reasoning, model)
-    VALUES (@ticket_id, @confidence, @answered_fully, @auto_deflected, @reasoning, @model)
-    ON CONFLICT(ticket_id) DO UPDATE SET
-      confidence = excluded.confidence,
-      answered_fully = excluded.answered_fully,
-      auto_deflected = excluded.auto_deflected,
-      reasoning = excluded.reasoning,
-      model = excluded.model
-  `).run({
-    ticket_id: input.ticketId,
-    confidence: input.confidence,
-    answered_fully: input.answeredFully ? 1 : 0,
-    auto_deflected: input.autoDeflected ? 1 : 0,
-    reasoning: input.reasoning,
-    model: input.model,
-  })
+  dz()
+    .insert(aiAssessments)
+    .values({
+      ticketId: input.ticketId,
+      confidence: input.confidence,
+      answeredFully: input.answeredFully ? 1 : 0,
+      autoDeflected: input.autoDeflected ? 1 : 0,
+      reasoning: input.reasoning,
+      model: input.model,
+    })
+    .onConflictDoUpdate({
+      target: aiAssessments.ticketId,
+      set: {
+        confidence: input.confidence,
+        answeredFully: input.answeredFully ? 1 : 0,
+        autoDeflected: input.autoDeflected ? 1 : 0,
+        reasoning: input.reasoning,
+        model: input.model,
+      },
+    })
+    .run()
 }
 
 export function getAssessment(ticketId: number): AIAssessment | null {
-  return (getDb()
-    .prepare('SELECT * FROM ai_assessments WHERE ticket_id = ?')
-    .get(ticketId) as AIAssessment) ?? null
+  return (raw().prepare('SELECT * FROM ai_assessments WHERE ticket_id = ?').get(ticketId) as AIAssessment) ?? null
 }

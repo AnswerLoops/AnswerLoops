@@ -1,20 +1,33 @@
+import { eq, and } from 'drizzle-orm'
+import { getDrizzle } from '../drizzle'
 import { getDb } from '../index'
+import { githubRepos, DEFAULT_ORG_ID } from '../schema'
 import type { GitHubRepo } from '@/types'
 
-export function getRepos(): GitHubRepo[] {
-  return getDb().prepare('SELECT * FROM github_repos ORDER BY added_at DESC').all() as GitHubRepo[]
+function dz() { return getDrizzle() }
+function raw() { return getDb() }
+
+export function getRepos(orgId = DEFAULT_ORG_ID): GitHubRepo[] {
+  return raw()
+    .prepare('SELECT * FROM github_repos WHERE org_id = ? ORDER BY added_at DESC')
+    .all(orgId) as GitHubRepo[]
 }
 
-export function addRepo(installationId: number, owner: string, repo: string, isPrivate: boolean): GitHubRepo {
-  const db = getDb()
-  const result = db.prepare(`
-    INSERT INTO github_repos (installation_id, owner, repo, is_private)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(owner, repo) DO UPDATE SET installation_id = excluded.installation_id, is_private = excluded.is_private
-  `).run(installationId, owner, repo, isPrivate ? 1 : 0)
-  return db.prepare('SELECT * FROM github_repos WHERE id = ?').get(result.lastInsertRowid) as GitHubRepo
+export function addRepo(installationId: number, owner: string, repo: string, isPrivate: boolean, orgId = DEFAULT_ORG_ID): GitHubRepo {
+  const result = dz()
+    .insert(githubRepos)
+    .values({ orgId, installationId, owner, repo, isPrivate: isPrivate ? 1 : 0 })
+    .onConflictDoUpdate({
+      target: [githubRepos.owner, githubRepos.repo],
+      set: { installationId, isPrivate: isPrivate ? 1 : 0 },
+    })
+    .run()
+
+  return raw()
+    .prepare('SELECT * FROM github_repos WHERE id = ?')
+    .get(Number(result.lastInsertRowid)) as GitHubRepo
 }
 
 export function removeRepo(id: number): void {
-  getDb().prepare('DELETE FROM github_repos WHERE id = ?').run(id)
+  dz().delete(githubRepos).where(eq(githubRepos.id, id)).run()
 }
