@@ -3,8 +3,9 @@ import type { NextRequest } from 'next/server'
 import { SESSION_COOKIE, verifyToken } from '@/lib/auth/token'
 
 // Public paths that never require a staff session.
-// /api/ingest is authenticated separately via BOT_SECRET (the Discord bot).
-const PUBLIC_PATHS = ['/login', '/api/ingest']
+// /api/ingest and /api/feedback are authenticated separately via BOT_SECRET
+// (the Discord bot posts to both).
+const PUBLIC_PATHS = ['/login', '/api/ingest', '/api/feedback']
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))

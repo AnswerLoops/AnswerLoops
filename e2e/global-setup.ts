@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { getDb } from '../lib/db/index'
+import { signSession, SESSION_COOKIE, MAX_AGE_SECONDS } from '../lib/auth/token'
 
 /**
  * Reset the disposable e2e database to a known baseline before the suite runs.
@@ -27,4 +28,26 @@ export default async function globalSetup() {
   ).run(1, 'acme', 'demo')
 
   db.close()
+
+  // Write a signed staff session into Playwright storage state so every spec
+  // runs authenticated against the proxy gate (the app gates all non-bot routes).
+  const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS
+  fs.writeFileSync(
+    path.join(dir, 'state.json'), // matches STORAGE_STATE in playwright.config.ts
+    JSON.stringify({
+      cookies: [
+        {
+          name: SESSION_COOKIE,
+          value: signSession(exp),
+          domain: 'localhost',
+          path: '/',
+          expires: exp,
+          httpOnly: true,
+          secure: false,
+          sameSite: 'Lax',
+        },
+      ],
+      origins: [],
+    })
+  )
 }

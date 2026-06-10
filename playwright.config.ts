@@ -7,9 +7,17 @@ import path from 'path'
 const TEST_DB = path.join(__dirname, 'e2e', '.tmp', 'test.db')
 process.env.DB_PATH = TEST_DB
 process.env.MOCK_EXTERNALS = '1'
+// globalSetup mints a staff session token with this secret; the server verifies
+// with the same one (see TEST_ENV below). Must match.
+process.env.SESSION_SECRET = 'test-session-secret'
 
 const PORT = 3100
 const BASE_URL = `http://localhost:${PORT}`
+
+// Authenticated browser/request state — globalSetup writes a signed session
+// cookie here so specs run as a logged-in staff member (the app gates every
+// route except the bot endpoints).
+export const STORAGE_STATE = path.join(__dirname, 'e2e', '.tmp', 'state.json')
 
 // Shared by the app under test and the e2e helpers.
 export const TEST_ENV = {
@@ -37,6 +45,7 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: BASE_URL,
+    storageState: STORAGE_STATE,
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
