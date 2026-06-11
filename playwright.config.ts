@@ -7,17 +7,25 @@ import path from 'path'
 const TEST_DB = path.join(__dirname, 'e2e', '.tmp', 'test.db')
 process.env.DB_PATH = TEST_DB
 process.env.MOCK_EXTERNALS = '1'
+// globalSetup mints an Auth.js JWT with this secret; the server verifies with
+// the same one. Must match AUTH_SECRET in TEST_ENV below.
+process.env.AUTH_SECRET = 'test-auth-secret'
+process.env.BOT_SECRET = 'test-bot-secret'
 
 const PORT = 3100
 const BASE_URL = `http://localhost:${PORT}`
+
+// Authenticated browser/request state — globalSetup writes a signed Auth.js
+// session cookie here so specs run as a logged-in staff member.
+export const STORAGE_STATE = path.join(__dirname, 'e2e', '.tmp', 'state.json')
 
 // Shared by the app under test and the e2e helpers.
 export const TEST_ENV = {
   DB_PATH: TEST_DB,
   MOCK_EXTERNALS: '1',
   BOT_SECRET: 'test-bot-secret',
-  SESSION_SECRET: 'test-session-secret',
-  STAFF_PASSWORD: 'test-password',
+  AUTH_SECRET: 'test-auth-secret',
+  AUTH_URL: BASE_URL,
   OPENAI_API_KEY: 'test-openai-key',
   VAPID_PUBLIC_KEY: 'BL_test_vapid_public_key',
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: 'BL_test_vapid_public_key',
@@ -37,6 +45,7 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: BASE_URL,
+    storageState: STORAGE_STATE,
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

@@ -20,6 +20,8 @@ export function getDb(): Database.Database {
     db.pragma('foreign_keys = ON')
     const schema = fs.readFileSync(path.join(process.cwd(), 'lib/db/schema.sql'), 'utf8')
     db.exec(schema)
+    // Idempotent migrations for columns added after initial schema rollout.
+    try { db.exec('ALTER TABLE orgs ADD COLUMN onboarded_at TEXT') } catch (_) {}
     globalForDb.__communityDb = db
   }
   return globalForDb.__communityDb

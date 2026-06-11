@@ -1,6 +1,11 @@
 import fs from 'fs'
 import path from 'path'
 import { getDb } from '../lib/db/index'
+import { DEFAULT_ORG_ID } from '../lib/db/schema'
+
+// Auth.js uses this cookie name in non-secure (http) environments.
+const SESSION_COOKIE = 'authjs.session-token'
+const MAX_AGE_SECONDS = 7 * 24 * 60 * 60 // 7 days
 
 /**
  * Reset the disposable e2e database to a known baseline before the suite runs.
@@ -18,13 +23,74 @@ export default async function globalSetup() {
   // The db layer creates the file and applies schema.sql on first getDb().
   const db = getDb()
 
-  // Seed one configured GitHub repo so the AI agent runs during ingest
-  // (it no-ops when no repos are configured). The repo is never actually
-  // queried — the agent is mocked.
+  // Seed one configured GitHub repo so the AI agent runs during ingest.
   db.prepare(
-    `INSERT OR IGNORE INTO github_repos (installation_id, owner, repo, is_private)
-     VALUES (?, ?, ?, 0)`
-  ).run(1, 'acme', 'demo')
+    `INSERT OR IGNORE INTO github_repos (installation_id, owner, repo, is_private, org_id)
+     VALUES (?, ?, ?, 0, ?)`
+  ).run(1, 'acme', 'demo', DEFAULT_ORG_ID)
+
+  // Mark the default org as onboarded so e2e tests aren't redirected to /onboarding.
+  db.prepare(
+    `UPDATE orgs SET onboarded_at = datetime('now') WHERE id = ?`
+  ).run(DEFAULT_ORG_ID)
+
+  // Seed a test staff user + membership so the Auth.js session has a real userId.
+  db.prepare(
+    `INSERT OR IGNORE INTO users (id, email, name, provider)
+     VALUES (1, 'staff@example.com', 'Test Staff', 'test')`
+  ).run()
+  db.prepare(
+    `INSERT OR IGNORE INTO memberships (user_id, org_id, role)
+     VALUES (1, ?, 'owner')`
+  ).run(DEFAULT_ORG_ID)
+
+  // Seed a Discord integration for the default org so the ingest route can
+  // authenticate the test bot secret and route requests to the correct org.
+  db.prepare(
+    `INSERT OR IGNORE INTO integrations (org_id, platform, bot_secret, channel_ids, enabled)
+     VALUES (?, 'discord', ?, '[]', 1)`
+  ).run(DEFAULT_ORG_ID, process.env.BOT_SECRET ?? 'test-bot-secret')
 
   db.close()
+
+  // Mint a valid Auth.js JWT so every spec runs authenticated. The secret must
+  // match AUTH_SECRET in TEST_ENV (both set to 'test-auth-secret').
+  const authSecret = process.env.AUTH_SECRET!
+  const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS
+
+  // Dynamic import required — next-auth/jwt is ESM-only.
+  const { encode } = await import('next-auth/jwt')
+  const token = await encode({
+    token: {
+      sub: '1',
+      name: 'Test Staff',
+      email: 'staff@example.com',
+      userId: '1',
+      orgId: DEFAULT_ORG_ID,
+      iat: Math.floor(Date.now() / 1000),
+      exp,
+    },
+    secret: authSecret,
+    salt: SESSION_COOKIE,
+    maxAge: MAX_AGE_SECONDS,
+  })
+
+  fs.writeFileSync(
+    path.join(dir, 'state.json'),
+    JSON.stringify({
+      cookies: [
+        {
+          name: SESSION_COOKIE,
+          value: token,
+          domain: 'localhost',
+          path: '/',
+          expires: exp,
+          httpOnly: true,
+          secure: false,
+          sameSite: 'Lax',
+        },
+      ],
+      origins: [],
+    })
+  )
 }

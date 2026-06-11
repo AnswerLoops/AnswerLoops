@@ -1,23 +1,26 @@
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
+import { getIntegration } from '@/lib/db/queries/integrations'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 
-export async function sendToChannel(channelId: string, content: string): Promise<string | null> {
-  // Under mock mode, return a deterministic fake message id without any network
-  // call — keyed on the channel so a test that controls the channel knows the
-  // posted answer's message id (used to exercise the feedback-by-reaction flow)
-  // without reading the database.
+function resolveToken(orgId: number): string | null {
+  // Prefer the org's stored bot token; fall back to env var
+  const integration = getIntegration(orgId, 'discord')
+  return integration?.bot_token ?? process.env.DISCORD_TOKEN ?? null
+}
+
+export async function sendToChannel(channelId: string, content: string, orgId = DEFAULT_ORG_ID): Promise<string | null> {
   if (MOCK_EXTERNALS) {
     return `mock-msg-${channelId}`
   }
 
-  const token = process.env.DISCORD_TOKEN
+  const token = resolveToken(orgId)
   if (!token) {
-    console.warn('[discord/send] DISCORD_TOKEN not set — skipping send')
+    console.warn('[discord/send] No bot token available — skipping send')
     return null
   }
 
-  // Discord messages max 2000 chars — split if needed
   const chunks = splitMessage(content)
   let lastMessageId: string | null = null
 
@@ -32,8 +35,7 @@ export async function sendToChannel(channelId: string, content: string): Promise
     })
 
     if (!res.ok) {
-      const err = await res.text()
-      console.error('[discord/send] Failed to send message:', err)
+      console.error('[discord/send] Failed to send message:', await res.text())
       return null
     }
 
@@ -44,8 +46,8 @@ export async function sendToChannel(channelId: string, content: string): Promise
   return lastMessageId
 }
 
-export async function sendToThread(threadId: string, content: string): Promise<string | null> {
-  return sendToChannel(threadId, content)
+export async function sendToThread(threadId: string, content: string, orgId = DEFAULT_ORG_ID): Promise<string | null> {
+  return sendToChannel(threadId, content, orgId)
 }
 
 function splitMessage(content: string, maxLen = 1990): string[] {
