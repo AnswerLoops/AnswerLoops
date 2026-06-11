@@ -29,6 +29,11 @@ export default async function globalSetup() {
      VALUES (?, ?, ?, 0, ?)`
   ).run(1, 'acme', 'demo', DEFAULT_ORG_ID)
 
+  // Mark the default org as onboarded so e2e tests aren't redirected to /onboarding.
+  db.prepare(
+    `UPDATE orgs SET onboarded_at = datetime('now') WHERE id = ?`
+  ).run(DEFAULT_ORG_ID)
+
   // Seed a test staff user + membership so the Auth.js session has a real userId.
   db.prepare(
     `INSERT OR IGNORE INTO users (id, email, name, provider)

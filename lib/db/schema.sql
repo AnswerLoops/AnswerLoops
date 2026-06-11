@@ -2,10 +2,11 @@
 -- invited). Every domain row is scoped by org_id; a seeded "default" org (id 1)
 -- owns all data until real auth assigns memberships.
 CREATE TABLE IF NOT EXISTS orgs (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  name       TEXT NOT NULL,
-  slug       TEXT UNIQUE,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  name          TEXT NOT NULL,
+  slug          TEXT UNIQUE,
+  onboarded_at  TEXT,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS memberships (
 );
 
 -- Seed the default org so existing single-tenant data has an owner.
-INSERT OR IGNORE INTO orgs (id, name, slug) VALUES (1, 'Default Workspace', 'default');
+-- onboarded_at is set so the default org skips the onboarding flow.
+INSERT OR IGNORE INTO orgs (id, name, slug, onboarded_at) VALUES (1, 'Default Workspace', 'default', datetime('now'));
 
 CREATE TABLE IF NOT EXISTS sla_configs (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,

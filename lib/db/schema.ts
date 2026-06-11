@@ -7,6 +7,7 @@ export const orgs = sqliteTable('orgs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   slug: text('slug').unique(),
+  onboardedAt: text('onboarded_at'),
   createdAt: text('created_at').notNull().default(now),
 })
 
