@@ -10,6 +10,8 @@ import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
 import { findRelated, isDuplicate } from '@/lib/ai/related'
 import { saveEmbedding, getCandidateVectors, replaceLinks, getPriorAnswers } from '@/lib/db/queries/embeddings'
 import { getKBContext } from '@/lib/db/queries/kb'
+import { getIntegrationByBotSecret } from '@/lib/db/queries/integrations'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import type { Priority } from '@/types'
 
 const IngestSchema = z.object({
@@ -29,9 +31,19 @@ function severityToPriority(score: number): Priority {
 }
 
 export async function POST(request: Request) {
-  // Verify internal bot secret
-  const auth = request.headers.get('authorization')
-  if (!auth || auth !== `Bearer ${process.env.BOT_SECRET}`) {
+  const authHeader = request.headers.get('authorization')
+  const bearerSecret = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+  if (!bearerSecret) return new Response('Unauthorized', { status: 401 })
+
+  // Identify which org this request belongs to by looking up the bot_secret.
+  // Fall back to the env-var secret → default org for backward compat.
+  let orgId: number
+  const integration = getIntegrationByBotSecret(bearerSecret)
+  if (integration) {
+    orgId = integration.org_id
+  } else if (process.env.BOT_SECRET && bearerSecret === process.env.BOT_SECRET) {
+    orgId = DEFAULT_ORG_ID
+  } else {
     return new Response('Unauthorized', { status: 401 })
   }
 
@@ -60,7 +72,7 @@ export async function POST(request: Request) {
   const priority = severityToPriority(triage.severity_score)
   const { sla_response_deadline, sla_resolve_deadline } = calculateDeadlines(priority)
 
-  // Create ticket
+  // Create ticket scoped to this org
   const ticket = createTicket({
     discord_message_id: message_id,
     discord_channel_id: channel_id,
@@ -75,13 +87,14 @@ export async function POST(request: Request) {
     priority,
     sla_response_deadline: sla_response_deadline ?? undefined,
     sla_resolve_deadline: sla_resolve_deadline ?? undefined,
-  })
+  }, orgId)
 
   // In-app notification
   createNotification(
     'new_question',
     `New ${triage.category.replace('_', ' ')} from ${author_name}: ${triage.summary}`,
-    ticket.id
+    ticket.id,
+    orgId
   )
 
   // Background work: push notifications, SLA scan, semantic enrichment, AI agent
@@ -94,7 +107,6 @@ export async function POST(request: Request) {
 
     checkSlaBreaches()
 
-    // Semantic enrichment: embed, link to nearest prior tickets, flag duplicates.
     let priorAnswers: { summary: string; answer: string }[] = []
     try {
       const vector = await embedText(`${triage.summary}\n\n${content}`)
@@ -108,19 +120,17 @@ export async function POST(request: Request) {
         createNotification(
           'new_question',
           `Possible duplicate (asked ${duplicates.length + 1}×): ${triage.summary}`,
-          ticket.id
+          ticket.id,
+          orgId
         )
       }
 
-      // Ground the agent: promoted KB articles first (the canonical source),
-      // then resolved answers from the nearest prior tickets.
-      priorAnswers = [...getKBContext(vector), ...getPriorAnswers(related.map((m) => m.related_id))]
+      priorAnswers = [...getKBContext(vector, 3, orgId), ...getPriorAnswers(related.map((m) => m.related_id), orgId)]
     } catch (err) {
       console.error('[ingest] semantic enrichment failed for ticket', ticket.id, err)
     }
 
-    // Run AI agent: prior answers first, then GitHub source code if needed.
-    await runAIAgent(ticket.id, content, thread_id ?? channel_id, priorAnswers)
+    await runAIAgent(ticket.id, content, thread_id ?? channel_id, priorAnswers, orgId)
   })
 
   return Response.json({ ok: true, ticket_id: ticket.id })

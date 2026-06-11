@@ -39,6 +39,13 @@ export default async function globalSetup() {
      VALUES (1, ?, 'owner')`
   ).run(DEFAULT_ORG_ID)
 
+  // Seed a Discord integration for the default org so the ingest route can
+  // authenticate the test bot secret and route requests to the correct org.
+  db.prepare(
+    `INSERT OR IGNORE INTO integrations (org_id, platform, bot_secret, channel_ids, enabled)
+     VALUES (?, 'discord', ?, '[]', 1)`
+  ).run(DEFAULT_ORG_ID, process.env.BOT_SECRET ?? 'test-bot-secret')
+
   db.close()
 
   // Mint a valid Auth.js JWT so every spec runs authenticated. The secret must

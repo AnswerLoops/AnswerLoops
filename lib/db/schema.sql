@@ -208,3 +208,25 @@ INSERT OR IGNORE INTO sla_configs (priority, response_hours, resolve_hours) VALU
   ('high',     4,   24),
   ('medium',   24,  72),
   ('low',      72,  168);
+
+-- Per-org platform integrations. Each integration stores the credentials needed
+-- to connect to a platform (Discord bot token, Slack app credentials, etc.).
+-- bot_secret is the shared secret the bot uses to authenticate ingest calls;
+-- each org generates a unique one, so the ingest endpoint can route to the
+-- correct org without an org_id in the request body.
+CREATE TABLE IF NOT EXISTS integrations (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id      INTEGER NOT NULL REFERENCES orgs(id),
+  platform    TEXT NOT NULL,             -- 'discord' | 'slack'
+  bot_token   TEXT,                      -- Discord bot token / Slack bot token
+  bot_secret  TEXT UNIQUE,               -- shared secret for /api/ingest auth
+  channel_ids TEXT,                      -- JSON array of channel/channel IDs to monitor
+  team_id     TEXT,                      -- Slack workspace team_id
+  enabled     INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(org_id, platform)
+);
+
+CREATE INDEX IF NOT EXISTS idx_integrations_bot_secret ON integrations(bot_secret);
+CREATE INDEX IF NOT EXISTS idx_integrations_org        ON integrations(org_id);

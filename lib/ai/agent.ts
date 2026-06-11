@@ -9,13 +9,15 @@ import { saveAssessment } from '@/lib/db/queries/assessments'
 import { mapAnswerMessage } from '@/lib/db/queries/feedback'
 import { assessAnswer, shouldAutoDeflect, ASSESS_MODEL } from '@/lib/ai/assess'
 import { sendToChannel } from '@/lib/discord/send'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import type { PriorAnswer } from '@/types'
 
 export async function runAIAgent(
   ticketId: number,
   question: string,
   channelId: string,
-  priorAnswers: PriorAnswer[] = []
+  priorAnswers: PriorAnswer[] = [],
+  orgId = DEFAULT_ORG_ID
 ): Promise<void> {
   const repos = getConfiguredRepos()
 
@@ -107,12 +109,12 @@ Guidelines:
       // High confidence: answer the community directly (deflection).
       createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId)
       const message = `${text}\n\n*Was this helpful? React 👍 / 👎. If it didn't fully answer your question, a team member will follow up.*`
-      postedMessageId = await sendToChannel(channelId, message)
+      postedMessageId = await sendToChannel(channelId, message, orgId)
     } else {
       // Low confidence: post as a draft and flag for human review.
       createNotification('ai_draft_ready', `Needs review (${pct}%) — ticket #${ticketId}`, ticketId)
       const message = `**[AI Draft Answer]**\n${text}\n\n*A team member will follow up shortly.*`
-      postedMessageId = await sendToChannel(channelId, message)
+      postedMessageId = await sendToChannel(channelId, message, orgId)
     }
 
     // Map the posted answer message → ticket so 👍/👎 reactions can be attributed.

@@ -179,5 +179,18 @@ export const kbArticles = sqliteTable('kb_articles', {
   updatedAt: text('updated_at').notNull().default(now),
 })
 
+export const integrations = sqliteTable('integrations', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  orgId: integer('org_id').notNull().references(() => orgs.id),
+  platform: text('platform').notNull(),
+  botToken: text('bot_token'),
+  botSecret: text('bot_secret').unique(),
+  channelIds: text('channel_ids'),
+  teamId: text('team_id'),
+  enabled: integer('enabled').notNull().default(1),
+  createdAt: text('created_at').notNull().default(now),
+  updatedAt: text('updated_at').notNull().default(now),
+})
+
 /** The default workspace that owns all data until real auth assigns memberships. */
 export const DEFAULT_ORG_ID = 1

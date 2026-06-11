@@ -10,6 +10,7 @@ process.env.MOCK_EXTERNALS = '1'
 // globalSetup mints an Auth.js JWT with this secret; the server verifies with
 // the same one. Must match AUTH_SECRET in TEST_ENV below.
 process.env.AUTH_SECRET = 'test-auth-secret'
+process.env.BOT_SECRET = 'test-bot-secret'
 
 const PORT = 3100
 const BASE_URL = `http://localhost:${PORT}`

@@ -12,9 +12,9 @@ import type { Ticket, CreateTicketInput, TicketFilters, TicketReply, TicketEvent
 function dz() { return getDrizzle() }
 function raw() { return getDb() }
 
-export function createTicket(input: CreateTicketInput): Ticket {
+export function createTicket(input: CreateTicketInput, orgId = DEFAULT_ORG_ID): Ticket {
   const result = dz().insert(tickets).values({
-    orgId: DEFAULT_ORG_ID,
+    orgId,
     discordMessageId: input.discord_message_id ?? null,
     discordChannelId: input.discord_channel_id ?? null,
     discordThreadId: input.discord_thread_id ?? null,
