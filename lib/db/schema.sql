@@ -221,7 +221,8 @@ CREATE TABLE IF NOT EXISTS integrations (
   bot_token   TEXT,                      -- Discord bot token / Slack bot token
   bot_secret  TEXT UNIQUE,               -- shared secret for /api/ingest auth
   channel_ids TEXT,                      -- JSON array of channel/channel IDs to monitor
-  team_id     TEXT,                      -- Slack workspace team_id
+  team_id        TEXT,                   -- Slack workspace team_id (routes events to org)
+  webhook_secret TEXT,                   -- Slack signing secret for request verification
   enabled     INTEGER NOT NULL DEFAULT 1,
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at  TEXT NOT NULL DEFAULT (datetime('now')),

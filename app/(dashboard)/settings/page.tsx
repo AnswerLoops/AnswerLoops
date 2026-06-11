@@ -4,7 +4,7 @@ import { useActionState } from 'react'
 import { useState, useEffect } from 'react'
 import { updateSLAAction } from '@/app/actions/sla'
 import { addRepoAction, removeRepoAction } from '@/app/actions/github'
-import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction } from '@/app/actions/integrations'
+import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackIntegrationAction, deleteSlackIntegrationAction } from '@/app/actions/integrations'
 import { Button } from '@/components/ui/button'
 import type { SLAConfig, GitHubRepo } from '@/types'
 
@@ -12,6 +12,14 @@ interface DiscordIntegration {
   id: number
   platform: string
   bot_secret: string | null
+  channel_ids: string[]
+  enabled: number
+}
+
+interface SlackIntegration {
+  id: number
+  platform: string
+  team_id: string | null
   channel_ids: string[]
   enabled: number
 }
@@ -172,6 +180,131 @@ function DiscordIntegrationCard() {
   )
 }
 
+function SlackIntegrationCard() {
+  const [integration, setIntegration] = useState<SlackIntegration | null | undefined>(undefined)
+  const [saveState, saveAction, savePending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await saveSlackIntegrationAction(prev, fd)
+      if (!result?.error) {
+        const updated = await fetch('/api/integrations').then((r) => r.json())
+        setIntegration(updated.find((i: SlackIntegration) => i.platform === 'slack') ?? null)
+      }
+      return result
+    },
+    null
+  )
+  const [deleteState, deleteAction, deletePending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await deleteSlackIntegrationAction(prev, fd)
+      if (!result?.error) setIntegration(null)
+      return result
+    },
+    null
+  )
+
+  useEffect(() => {
+    fetch('/api/integrations')
+      .then((r) => r.json())
+      .then((data: SlackIntegration[]) => {
+        setIntegration(data.find((i) => i.platform === 'slack') ?? null)
+      })
+  }, [])
+
+  if (integration === undefined) return <p className="text-sm text-gray-400">Loading…</p>
+
+  const connected = integration !== null && integration.enabled === 1
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-sm font-bold">S</div>
+          <div>
+            <p className="text-sm font-medium text-gray-900">Slack</p>
+            <p className="text-xs text-gray-500">
+              {connected
+                ? `Connected · Team ${integration.team_id ?? '?'} · ${integration.channel_ids.length} channel(s)`
+                : 'Not connected'}
+            </p>
+          </div>
+        </div>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+          {connected ? 'Active' : 'Inactive'}
+        </span>
+      </div>
+
+      <form action={saveAction} className="space-y-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Bot Token</label>
+          <input
+            name="botToken"
+            type="password"
+            placeholder={connected ? '••••••••• (leave blank to keep current)' : 'xoxb-…'}
+            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+            required={!connected}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Signing Secret</label>
+          <input
+            name="signingSecret"
+            type="password"
+            placeholder={connected ? '••••••••• (leave blank to keep current)' : 'From Slack app Basic Information'}
+            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+            required={!connected}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Team ID</label>
+          <input
+            name="teamId"
+            type="text"
+            defaultValue={integration?.team_id ?? ''}
+            placeholder="T01234ABCDE"
+            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Channel IDs (comma-separated)</label>
+          <input
+            name="channelIds"
+            type="text"
+            defaultValue={integration?.channel_ids.join(', ') ?? ''}
+            placeholder="C01234ABCDE, C09876ZYXWV"
+            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+          />
+        </div>
+        {(saveState as { error?: string } | null)?.error && (
+          <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+        )}
+        <div className="flex gap-2">
+          <Button type="submit" size="sm" disabled={savePending}>
+            {savePending ? 'Saving…' : connected ? 'Update' : 'Connect'}
+          </Button>
+          {connected && (
+            <form action={deleteAction}>
+              <Button type="submit" size="sm" variant="danger" disabled={deletePending}>
+                {deletePending ? 'Removing…' : 'Disconnect'}
+              </Button>
+            </form>
+          )}
+        </div>
+      </form>
+
+      {connected && (
+        <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
+          <p className="text-xs text-gray-500 mb-1">Events API endpoint (configure in your Slack app):</p>
+          <code className="text-xs text-gray-700 break-all font-mono">{'{YOUR_DOMAIN}'}/api/slack/events</code>
+        </div>
+      )}
+
+      {(deleteState as { error?: string } | null)?.error && (
+        <p className="text-xs text-red-600">{(deleteState as { error?: string }).error}</p>
+      )}
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   const [slaConfigs, setSlaConfigs] = useState<SLAConfig[]>([])
   const [repos, setRepos] = useState<GitHubRepo[]>([])
@@ -269,7 +402,10 @@ export default function SettingsPage() {
       {/* Integrations */}
       <section>
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Integrations</h2>
-        <DiscordIntegrationCard />
+        <div className="space-y-4">
+          <DiscordIntegrationCard />
+          <SlackIntegrationCard />
+        </div>
       </section>
 
       {/* Environment reminder */}

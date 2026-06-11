@@ -9,7 +9,7 @@ import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 // Auth.js also auto-reads AUTH_DISCORD_ID, AUTH_DISCORD_SECRET,
 // AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET from the environment.
 
-const PUBLIC_PATHS = ['/login', '/api/ingest', '/api/feedback']
+const PUBLIC_PATHS = ['/login', '/api/ingest', '/api/feedback', '/api/slack']
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))

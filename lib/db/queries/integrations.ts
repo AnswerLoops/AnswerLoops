@@ -13,6 +13,7 @@ export interface Integration {
   bot_secret: string | null
   channel_ids: string | null  // JSON array string
   team_id: string | null
+  webhook_secret: string | null
   enabled: number
   created_at: string
   updated_at: string
@@ -29,12 +30,21 @@ export function getIntegration(orgId: number, platform: Platform): Integration |
   ) ?? null
 }
 
-/** Look up which org owns a given bot_secret. Used by /api/ingest to route the request. */
+/** Look up which org owns a given bot_secret. Used by /api/ingest to route Discord requests. */
 export function getIntegrationByBotSecret(botSecret: string): Integration | null {
   return (
     raw()
       .prepare('SELECT * FROM integrations WHERE bot_secret = ? AND enabled = 1')
       .get(botSecret) as Integration
+  ) ?? null
+}
+
+/** Look up which org owns a given Slack team_id. Used by /api/slack/events to route requests. */
+export function getIntegrationByTeamId(teamId: string): Integration | null {
+  return (
+    raw()
+      .prepare("SELECT * FROM integrations WHERE team_id = ? AND platform = 'slack' AND enabled = 1")
+      .get(teamId) as Integration
   ) ?? null
 }
 
@@ -51,6 +61,7 @@ export function upsertIntegration(input: {
   botSecret?: string | null
   channelIds?: string[]
   teamId?: string | null
+  webhookSecret?: string | null
 }): Integration {
   const channelIdsJson = input.channelIds ? JSON.stringify(input.channelIds) : null
 
@@ -59,12 +70,13 @@ export function upsertIntegration(input: {
     raw()
       .prepare(
         `UPDATE integrations SET
-           bot_token  = COALESCE(?, bot_token),
-           bot_secret = COALESCE(?, bot_secret),
-           channel_ids = COALESCE(?, channel_ids),
-           team_id    = COALESCE(?, team_id),
-           enabled    = 1,
-           updated_at = datetime('now')
+           bot_token      = COALESCE(?, bot_token),
+           bot_secret     = COALESCE(?, bot_secret),
+           channel_ids    = COALESCE(?, channel_ids),
+           team_id        = COALESCE(?, team_id),
+           webhook_secret = COALESCE(?, webhook_secret),
+           enabled        = 1,
+           updated_at     = datetime('now')
          WHERE org_id = ? AND platform = ?`
       )
       .run(
@@ -72,6 +84,7 @@ export function upsertIntegration(input: {
         input.botSecret ?? null,
         channelIdsJson ?? null,
         input.teamId ?? null,
+        input.webhookSecret ?? null,
         input.orgId,
         input.platform
       )
@@ -87,6 +100,7 @@ export function upsertIntegration(input: {
       botSecret: input.botSecret ?? null,
       channelIds: channelIdsJson,
       teamId: input.teamId ?? null,
+      webhookSecret: input.webhookSecret ?? null,
     })
     .run()
 

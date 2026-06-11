@@ -187,6 +187,7 @@ export const integrations = sqliteTable('integrations', {
   botSecret: text('bot_secret').unique(),
   channelIds: text('channel_ids'),
   teamId: text('team_id'),
+  webhookSecret: text('webhook_secret'),
   enabled: integer('enabled').notNull().default(1),
   createdAt: text('created_at').notNull().default(now),
   updatedAt: text('updated_at').notNull().default(now),
