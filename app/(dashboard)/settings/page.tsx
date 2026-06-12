@@ -5,8 +5,26 @@ import { useState, useEffect } from 'react'
 import { updateSLAAction } from '@/app/actions/sla'
 import { addRepoAction, removeRepoAction } from '@/app/actions/github'
 import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackIntegrationAction, deleteSlackIntegrationAction } from '@/app/actions/integrations'
+import { sendInviteAction, revokeInviteAction, removeMemberAction } from '@/app/actions/invitations'
 import { Button } from '@/components/ui/button'
 import type { SLAConfig, GitHubRepo } from '@/types'
+
+interface Member {
+  membership_id: number
+  user_id: number
+  role: string
+  joined_at: string
+  email: string | null
+  name: string | null
+}
+
+interface PendingInvite {
+  id: number
+  email: string
+  role: string
+  expires_at: string
+  token: string
+}
 
 interface DiscordIntegration {
   id: number
@@ -305,6 +323,137 @@ function SlackIntegrationCard() {
   )
 }
 
+function TeamSection() {
+  const [members, setMembers] = useState<Member[]>([])
+  const [invites, setInvites] = useState<PendingInvite[]>([])
+  const [copiedToken, setCopiedToken] = useState<string | null>(null)
+
+  const [inviteState, inviteFormAction, invitePending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await sendInviteAction(prev, fd)
+      if (!result?.error) {
+        await reload()
+      }
+      return result
+    },
+    null
+  )
+
+  const reload = async () => {
+    const [m, i] = await Promise.all([
+      fetch('/api/team/members').then((r) => r.json()),
+      fetch('/api/team/invites').then((r) => r.json()),
+    ])
+    setMembers(m)
+    setInvites(i)
+  }
+
+  useEffect(() => { reload() }, [])
+
+  const copyLink = (token: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/invite/${token}`)
+    setCopiedToken(token)
+    setTimeout(() => setCopiedToken(null), 2000)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Current members */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <p className="text-xs font-semibold text-gray-600">Members</p>
+        </div>
+        {members.length === 0 ? (
+          <p className="px-4 py-3 text-sm text-gray-400">No members yet.</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {members.map((m) => (
+              <li key={m.membership_id} className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{m.name ?? m.email ?? 'Unknown'}</p>
+                  <p className="text-xs text-gray-400">{m.email} · <span className="capitalize">{m.role}</span></p>
+                </div>
+                <form action={async (fd) => { await removeMemberAction(null, fd); await reload() }}>
+                  <input type="hidden" name="membershipId" value={m.membership_id} />
+                  <input type="hidden" name="userId" value={m.user_id} />
+                  <Button type="submit" size="sm" variant="ghost">Remove</Button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Pending invites */}
+      {invites.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+            <p className="text-xs font-semibold text-gray-600">Pending Invites</p>
+          </div>
+          <ul className="divide-y divide-gray-100">
+            {invites.map((inv) => (
+              <li key={inv.id} className="flex items-center justify-between px-4 py-3 gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-800 truncate">{inv.email}</p>
+                  <p className="text-xs text-gray-400">
+                    <span className="capitalize">{inv.role}</span> · expires {new Date(inv.expires_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => copyLink(inv.token)}
+                  >
+                    {copiedToken === inv.token ? 'Copied!' : 'Copy link'}
+                  </Button>
+                  <form action={async (fd) => { await revokeInviteAction(null, fd); await reload() }}>
+                    <input type="hidden" name="id" value={inv.id} />
+                    <Button type="submit" size="sm" variant="ghost">Revoke</Button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Invite form */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <p className="text-xs font-semibold text-gray-600 mb-3">Invite a teammate</p>
+        <form action={inviteFormAction} className="flex gap-2 flex-wrap">
+          <input
+            name="email"
+            type="email"
+            placeholder="colleague@example.com"
+            required
+            className="flex-1 min-w-0 rounded border border-gray-200 px-3 py-1.5 text-sm"
+          />
+          <select name="role" className="rounded border border-gray-200 px-2 py-1.5 text-sm bg-white">
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+          <Button type="submit" size="sm" disabled={invitePending}>
+            {invitePending ? 'Sending…' : 'Send invite'}
+          </Button>
+        </form>
+        {(inviteState as { error?: string; inviteUrl?: string } | null)?.error && (
+          <p className="mt-2 text-xs text-red-600">{(inviteState as { error?: string }).error}</p>
+        )}
+        {(inviteState as { inviteUrl?: string } | null)?.inviteUrl && (
+          <div className="mt-2 rounded-md bg-indigo-50 border border-indigo-200 p-2">
+            <p className="text-xs text-indigo-700 mb-1 font-medium">Invite link (copy and send to your teammate):</p>
+            <code className="text-xs text-indigo-900 break-all font-mono">
+              {(inviteState as { inviteUrl: string }).inviteUrl}
+            </code>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   const [slaConfigs, setSlaConfigs] = useState<SLAConfig[]>([])
   const [repos, setRepos] = useState<GitHubRepo[]>([])
@@ -397,6 +546,12 @@ export default function SettingsPage() {
         <p className="mt-2 text-xs text-gray-400">
           Get your Installation ID from: GitHub → Settings → Developer settings → GitHub Apps → your app → Installations
         </p>
+      </section>
+
+      {/* Team */}
+      <section>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">Team</h2>
+        <TeamSection />
       </section>
 
       {/* Integrations */}

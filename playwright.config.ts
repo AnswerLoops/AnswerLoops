@@ -50,7 +50,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'pnpm exec next build && pnpm exec next start -p 3100',
+    command: 'node_modules/.bin/next build && node_modules/.bin/next start -p 3100',
     url: BASE_URL,
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,

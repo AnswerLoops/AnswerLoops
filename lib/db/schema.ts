@@ -194,5 +194,17 @@ export const integrations = sqliteTable('integrations', {
   updatedAt: text('updated_at').notNull().default(now),
 })
 
+export const invitations = sqliteTable('invitations', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  orgId: integer('org_id').notNull().references(() => orgs.id),
+  email: text('email').notNull(),
+  role: text('role').notNull().default('member'),
+  token: text('token').notNull().unique(),
+  invitedBy: integer('invited_by').references(() => users.id),
+  expiresAt: text('expires_at').notNull(),
+  acceptedAt: text('accepted_at'),
+  createdAt: text('created_at').notNull().default(now),
+})
+
 /** The default workspace that owns all data until real auth assigns memberships. */
 export const DEFAULT_ORG_ID = 1
