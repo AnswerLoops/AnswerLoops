@@ -4,10 +4,26 @@ import { LoginForm } from '@/components/login-form'
 
 export const dynamic = 'force-dynamic'
 
-export default async function LoginPage() {
+const ERROR_MESSAGES: Record<string, string> = {
+  OAuthSignin: 'Could not start sign-in. Try again.',
+  OAuthCallback: 'Sign-in was cancelled or failed. Try again.',
+  OAuthCreateAccount: 'Could not create account. Try again.',
+  OAuthAccountNotLinked: 'This email is already linked to another provider.',
+  Callback: 'Sign-in callback failed. Try again.',
+  Default: 'Something went wrong. Try again.',
+}
+
+interface Props {
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>
+}
+
+export default async function LoginPage({ searchParams }: Props) {
   if (await isAuthenticated()) {
     redirect('/dashboard')
   }
+
+  const { error } = await searchParams
+  const errorMessage = error ? (ERROR_MESSAGES[error] ?? ERROR_MESSAGES.Default) : null
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -24,6 +40,12 @@ export default async function LoginPage() {
             <h1 className="text-xl font-semibold text-gray-900">Community Platform</h1>
             <p className="mt-1 text-sm text-gray-500">Sign in to your workspace</p>
           </div>
+
+          {errorMessage && (
+            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
 
           <LoginForm />
 
