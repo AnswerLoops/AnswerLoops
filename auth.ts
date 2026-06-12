@@ -10,8 +10,9 @@ import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 // AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET from the environment.
 
 const PUBLIC_PATHS = ['/login', '/api/ingest', '/api/feedback', '/api/slack']
-// Authenticated users land here; onboarding redirect is suppressed for this path.
 const ONBOARDING_PATH = '/onboarding'
+// Invite acceptance is accessible regardless of onboarding status.
+const INVITE_PREFIX = '/invite/'
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -63,7 +64,7 @@ function provisionUser(
   return { userId: user.id, orgId }
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   providers: [
     Discord,
     Google,
@@ -86,7 +87,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       // Authenticated: enforce onboarding for page routes only
-      if (pathname !== ONBOARDING_PATH && !pathname.startsWith('/api/')) {
+      if (
+        pathname !== ONBOARDING_PATH &&
+        !pathname.startsWith(INVITE_PREFIX) &&
+        !pathname.startsWith('/api/')
+      ) {
         const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
         const org = getDb()
           .prepare('SELECT onboarded_at FROM orgs WHERE id = ?')
@@ -99,7 +104,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return true
     },
 
-    jwt({ token, user, account }) {
+    jwt({ token, user, account, trigger, session: updateData }) {
+      // unstable_update() call — merge new orgId into the token
+      if (trigger === 'update' && updateData) {
+        const data = updateData as { orgId?: number }
+        if (data.orgId) token.orgId = data.orgId
+      }
       // Runs on sign-in (user + account present) and on every session read (token only)
       if (user?.email && account) {
         const { userId, orgId } = provisionUser(

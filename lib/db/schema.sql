@@ -233,3 +233,18 @@ CREATE TABLE IF NOT EXISTS integrations (
 
 CREATE INDEX IF NOT EXISTS idx_integrations_bot_secret ON integrations(bot_secret);
 CREATE INDEX IF NOT EXISTS idx_integrations_org        ON integrations(org_id);
+
+CREATE TABLE IF NOT EXISTS invitations (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id      INTEGER NOT NULL REFERENCES orgs(id),
+  email       TEXT NOT NULL,
+  role        TEXT NOT NULL DEFAULT 'member',
+  token       TEXT NOT NULL UNIQUE,
+  invited_by  INTEGER REFERENCES users(id),
+  expires_at  TEXT NOT NULL,
+  accepted_at TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
+CREATE INDEX IF NOT EXISTS idx_invitations_org   ON invitations(org_id);
