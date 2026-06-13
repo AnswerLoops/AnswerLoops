@@ -373,11 +373,13 @@ function TeamSection() {
                   <p className="text-sm font-medium text-gray-800">{m.name ?? m.email ?? 'Unknown'}</p>
                   <p className="text-xs text-gray-400">{m.email} · <span className="capitalize">{m.role}</span></p>
                 </div>
-                <form action={async (fd) => { await removeMemberAction(null, fd); await reload() }}>
-                  <input type="hidden" name="membershipId" value={m.membership_id} />
-                  <input type="hidden" name="userId" value={m.user_id} />
-                  <Button type="submit" size="sm" variant="ghost">Remove</Button>
-                </form>
+                {m.role !== 'owner' && (
+                  <form action={async (fd) => { await removeMemberAction(null, fd); await reload() }}>
+                    <input type="hidden" name="membershipId" value={m.membership_id} />
+                    <input type="hidden" name="userId" value={m.user_id} />
+                    <Button type="submit" size="sm" variant="ghost">Remove</Button>
+                  </form>
+                )}
               </li>
             ))}
           </ul>

@@ -134,6 +134,11 @@ export async function removeMemberAction(
 
   if (targetUserId === currentUserId) return { error: "You can't remove yourself." }
 
+  const target = getDb()
+    .prepare('SELECT role FROM memberships WHERE id = ? AND org_id = ?')
+    .get(membershipId, orgId) as { role: string } | null
+  if (target?.role === 'owner') return { error: "Owners cannot be removed." }
+
   getDb()
     .prepare('DELETE FROM memberships WHERE id = ? AND org_id = ?')
     .run(membershipId, orgId)
