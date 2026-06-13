@@ -7,14 +7,11 @@ services:
       - path: .env
         required: false
     environment:
-      # Keep SQLite on a named volume, outside the bind-mounted source tree, so
-      # the database survives container rebuilds and `docker compose down`
-      # (everything except `down -v`).
       - DB_PATH=/data/community.db
     volumes:
       - .:/app
-      - /app/node_modules
-      - /app/.next
+      - app_node_modules:/app/node_modules
+      - app_next:/app/.next
       - community-data:/data
     command: sh -c "CI=true pnpm install --no-frozen-lockfile && pnpm dev"
 
@@ -24,16 +21,17 @@ services:
       - path: .env
         required: false
     environment:
-      # Reach the web app over the compose network, not localhost.
-      # This overrides BOT_TARGET_URL from .env.
       - BOT_TARGET_URL=http://app:3000
     volumes:
       - .:/app
-      - /app/node_modules
-      - /app/.next
+      - bot_node_modules:/app/node_modules
+      - community-data:/data
     command: sh -c "CI=true pnpm install --no-frozen-lockfile && pnpm bot"
     depends_on:
       - app
 
 volumes:
-  community-data:
+  community-data:   # SQLite DB — never wipe this unless intentionally resetting
+  app_node_modules: # app deps cache — safe to wipe when packages change
+  app_next:         # Next.js build cache
+  bot_node_modules: # bot deps cache
