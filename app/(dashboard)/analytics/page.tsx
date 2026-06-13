@@ -6,6 +6,7 @@ import {
   getDocGaps,
   getSLAStats,
 } from '@/lib/db/queries/analytics'
+import { getDeflectionAccuracyByCategory } from '@/lib/db/queries/feedback'
 import { computeSavings, deflectionRate } from '@/lib/analytics/roi'
 
 export const dynamic = 'force-dynamic'
@@ -31,6 +32,7 @@ export default function AnalyticsPage() {
   const categories = getCategoryBreakdown()
   const docGaps = getDocGaps()
   const sla = getSLAStats()
+  const accuracyByCategory = getDeflectionAccuracyByCategory()
 
   const trendMax = Math.max(1, ...trend.map((t) => t.answered))
   const catMax = Math.max(1, ...categories.map((c) => c.count))
@@ -120,6 +122,52 @@ export default function AnalyticsPage() {
           </dl>
         </section>
       </div>
+
+      {/* Answer quality by category */}
+      {accuracyByCategory.length > 0 && (
+        <section className="rounded-lg border border-gray-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-1">Answer quality by category</h2>
+          <p className="text-xs text-gray-400 mb-3">
+            👍/👎 feedback on auto-deflected answers, broken down by topic.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 text-gray-400 text-left">
+                  <th className="pb-2 font-medium">Category</th>
+                  <th className="pb-2 font-medium text-right">Deflected</th>
+                  <th className="pb-2 font-medium text-right">👍</th>
+                  <th className="pb-2 font-medium text-right">👎</th>
+                  <th className="pb-2 font-medium text-right">Approval</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {accuracyByCategory.map((row) => {
+                  const rated = row.positive + row.negative
+                  const approval = rated > 0 ? row.positive / rated : null
+                  return (
+                    <tr key={row.category}>
+                      <td className="py-2 capitalize text-gray-700">{row.category.replace(/_/g, ' ')}</td>
+                      <td className="py-2 text-right text-gray-500">{row.deflected}</td>
+                      <td className="py-2 text-right text-green-600">{row.positive}</td>
+                      <td className="py-2 text-right text-red-500">{row.negative}</td>
+                      <td className="py-2 text-right">
+                        {approval === null ? (
+                          <span className="text-gray-300">—</span>
+                        ) : (
+                          <span className={approval >= 0.7 ? 'text-green-600 font-medium' : approval >= 0.4 ? 'text-amber-600 font-medium' : 'text-red-600 font-medium'}>
+                            {pct(approval)}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* Documentation gaps */}
       <section className="rounded-lg border border-gray-200 bg-white p-5">
