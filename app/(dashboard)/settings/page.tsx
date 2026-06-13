@@ -562,24 +562,6 @@ export default function SettingsPage() {
           <SlackIntegrationCard />
         </div>
       </section>
-
-      {/* Environment reminder */}
-      <section className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-        <h2 className="text-xs font-semibold text-amber-800 mb-2">Required Environment Variables</h2>
-        <ul className="text-xs text-amber-700 space-y-0.5 font-mono">
-          <li>AUTH_SECRET=</li>
-          <li>AUTH_DISCORD_ID= (OAuth app id)</li>
-          <li>AUTH_DISCORD_SECRET= (OAuth app secret)</li>
-          <li>AUTH_GOOGLE_ID=</li>
-          <li>AUTH_GOOGLE_SECRET=</li>
-          <li>OPENAI_API_KEY=</li>
-          <li>GITHUB_APP_ID=</li>
-          <li>GITHUB_APP_PRIVATE_KEY= (base64 PEM)</li>
-          <li>VAPID_PUBLIC_KEY= (optional, for push)</li>
-          <li>VAPID_PRIVATE_KEY=</li>
-        </ul>
-        <p className="text-xs text-amber-600 mt-2">Discord bot token and channel IDs are now managed via the Integrations panel above.</p>
-      </section>
     </div>
   )
 }
