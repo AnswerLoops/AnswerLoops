@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { updateSLAAction } from '@/app/actions/sla'
 import { addRepoAction, removeRepoAction } from '@/app/actions/github'
 import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackIntegrationAction, deleteSlackIntegrationAction } from '@/app/actions/integrations'
-import { sendInviteAction, revokeInviteAction, removeMemberAction } from '@/app/actions/invitations'
+import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwnershipAction } from '@/app/actions/invitations'
 import { Button } from '@/components/ui/button'
 import type { SLAConfig, GitHubRepo } from '@/types'
 
@@ -327,6 +327,13 @@ function TeamSection() {
   const [members, setMembers] = useState<Member[]>([])
   const [invites, setInvites] = useState<PendingInvite[]>([])
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch('/api/auth/session').then((r) => r.json()).then((s) => {
+      if (s?.user?.id) setCurrentUserId(Number(s.user.id))
+    })
+  }, [])
 
   const [inviteState, inviteFormAction, invitePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
@@ -367,21 +374,47 @@ function TeamSection() {
           <p className="px-4 py-3 text-sm text-gray-400">No members yet.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {members.map((m) => (
-              <li key={m.membership_id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{m.name ?? m.email ?? 'Unknown'}</p>
-                  <p className="text-xs text-gray-400">{m.email} · <span className="capitalize">{m.role}</span></p>
-                </div>
-                {m.role !== 'owner' && (
-                  <form action={async (fd) => { await removeMemberAction(null, fd); await reload() }}>
-                    <input type="hidden" name="membershipId" value={m.membership_id} />
-                    <input type="hidden" name="userId" value={m.user_id} />
-                    <Button type="submit" size="sm" variant="ghost">Remove</Button>
-                  </form>
-                )}
-              </li>
-            ))}
+            {members.map((m) => {
+              const isCurrentUser = m.user_id === currentUserId
+              const isOwner = m.role === 'owner'
+              const viewerIsOwner = members.find((x) => x.user_id === currentUserId)?.role === 'owner'
+              const hasOtherMembers = members.length > 1
+
+              return (
+                <li key={m.membership_id} className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{m.name ?? m.email ?? 'Unknown'}</p>
+                    <p className="text-xs text-gray-400">{m.email} · <span className="capitalize">{m.role}</span></p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Transfer ownership — owner only, only to non-owner members, only when others exist */}
+                    {viewerIsOwner && isCurrentUser && hasOtherMembers && (
+                      <span className="text-xs text-gray-400 italic">Transfer ownership below</span>
+                    )}
+                    {viewerIsOwner && !isCurrentUser && !isOwner && hasOtherMembers && (
+                      <form action={async (fd) => {
+                        if (!confirm(`Transfer ownership to ${m.name ?? m.email}? You will become a member.`)) return
+                        await transferOwnershipAction(null, fd)
+                        await reload()
+                      }}>
+                        <input type="hidden" name="membershipId" value={m.membership_id} />
+                        <input type="hidden" name="userId" value={m.user_id} />
+                        <Button type="submit" size="sm" variant="ghost" className="text-indigo-600 hover:text-indigo-800">
+                          Transfer Ownership
+                        </Button>
+                      </form>
+                    )}
+                    {!isOwner && (
+                      <form action={async (fd) => { await removeMemberAction(null, fd); await reload() }}>
+                        <input type="hidden" name="membershipId" value={m.membership_id} />
+                        <input type="hidden" name="userId" value={m.user_id} />
+                        <Button type="submit" size="sm" variant="ghost">Remove</Button>
+                      </form>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>

@@ -120,6 +120,41 @@ export async function acceptInviteAction(token: string): Promise<void> {
   redirect('/dashboard')
 }
 
+export async function transferOwnershipAction(
+  _prevState: unknown,
+  formData: FormData
+): Promise<{ error?: string } | null> {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+  const currentUserId = Number(session.user.id)
+
+  const targetMembershipId = Number(formData.get('membershipId'))
+  const targetUserId = Number(formData.get('userId'))
+  if (!targetMembershipId || !targetUserId) return { error: 'Missing target member.' }
+  if (targetUserId === currentUserId) return { error: "Can't transfer to yourself." }
+
+  const db = getDb()
+
+  const currentMembership = db
+    .prepare('SELECT id, role FROM memberships WHERE user_id = ? AND org_id = ?')
+    .get(currentUserId, orgId) as { id: number; role: string } | null
+  if (currentMembership?.role !== 'owner') return { error: 'Only owners can transfer ownership.' }
+
+  const target = db
+    .prepare('SELECT role FROM memberships WHERE id = ? AND org_id = ?')
+    .get(targetMembershipId, orgId) as { role: string } | null
+  if (!target) return { error: 'Member not found.' }
+
+  db.transaction(() => {
+    db.prepare('UPDATE memberships SET role = ? WHERE id = ? AND org_id = ?').run('member', currentMembership.id, orgId)
+    db.prepare('UPDATE memberships SET role = ? WHERE id = ? AND org_id = ?').run('owner', targetMembershipId, orgId)
+  })()
+
+  refresh()
+  return null
+}
+
 export async function removeMemberAction(
   _prevState: unknown,
   formData: FormData
