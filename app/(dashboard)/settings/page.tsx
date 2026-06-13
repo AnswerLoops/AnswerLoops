@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useRef } from 'react'
 import { useState, useEffect } from 'react'
 import { updateSLAAction } from '@/app/actions/sla'
 import { addRepoAction, removeRepoAction } from '@/app/actions/github'
@@ -323,11 +323,65 @@ function SlackIntegrationCard() {
   )
 }
 
+function TransferOwnershipModal({
+  target,
+  onConfirm,
+  onCancel,
+  pending,
+}: {
+  target: Member
+  onConfirm: () => void
+  onCancel: () => void
+  pending: boolean
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null)
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === overlayRef.current) onCancel() }}
+    >
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6 mx-4">
+        <div className="mb-1 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+            <svg className="h-5 w-5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h2 className="text-base font-semibold text-gray-900">Transfer Ownership</h2>
+        </div>
+        <p className="mt-3 text-sm text-gray-600">
+          You are about to transfer ownership of this workspace to{' '}
+          <span className="font-medium text-gray-900">{target.name ?? target.email}</span>.
+        </p>
+        <p className="mt-2 text-sm text-gray-600">
+          You will become a regular member and lose owner privileges. This cannot be undone unless the new owner transfers it back.
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="ghost" size="sm" onClick={onCancel} disabled={pending}>
+            Cancel
+          </Button>
+          <button
+            onClick={onConfirm}
+            disabled={pending}
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-60 transition-colors"
+          >
+            {pending ? 'Transferring…' : 'Yes, transfer ownership'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TeamSection() {
   const [members, setMembers] = useState<Member[]>([])
   const [invites, setInvites] = useState<PendingInvite[]>([])
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
+  const [transferTarget, setTransferTarget] = useState<Member | null>(null)
+  const [transferPending, setTransferPending] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/session').then((r) => r.json()).then((s) => {
@@ -387,22 +441,15 @@ function TeamSection() {
                     <p className="text-xs text-gray-400">{m.email} · <span className="capitalize">{m.role}</span></p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {/* Transfer ownership — owner only, only to non-owner members, only when others exist */}
-                    {viewerIsOwner && isCurrentUser && hasOtherMembers && (
-                      <span className="text-xs text-gray-400 italic">Transfer ownership below</span>
-                    )}
                     {viewerIsOwner && !isCurrentUser && !isOwner && hasOtherMembers && (
-                      <form action={async (fd) => {
-                        if (!confirm(`Transfer ownership to ${m.name ?? m.email}? You will become a member.`)) return
-                        await transferOwnershipAction(null, fd)
-                        await reload()
-                      }}>
-                        <input type="hidden" name="membershipId" value={m.membership_id} />
-                        <input type="hidden" name="userId" value={m.user_id} />
-                        <Button type="submit" size="sm" variant="ghost" className="text-indigo-600 hover:text-indigo-800">
-                          Transfer Ownership
-                        </Button>
-                      </form>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-indigo-600 hover:text-indigo-800"
+                        onClick={() => setTransferTarget(m)}
+                      >
+                        Transfer Ownership
+                      </Button>
                     )}
                     {!isOwner && (
                       <form action={async (fd) => { await removeMemberAction(null, fd); await reload() }}>
@@ -485,6 +532,24 @@ function TeamSection() {
           </div>
         )}
       </div>
+
+      {transferTarget && (
+        <TransferOwnershipModal
+          target={transferTarget}
+          pending={transferPending}
+          onCancel={() => setTransferTarget(null)}
+          onConfirm={async () => {
+            setTransferPending(true)
+            const fd = new FormData()
+            fd.set('membershipId', String(transferTarget.membership_id))
+            fd.set('userId', String(transferTarget.user_id))
+            await transferOwnershipAction(null, fd)
+            setTransferPending(false)
+            setTransferTarget(null)
+            await reload()
+          }}
+        />
+      )}
     </div>
   )
 }
