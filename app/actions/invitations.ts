@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { z } from 'zod'
 import { redirect } from 'next/navigation'
 import { refresh } from 'next/cache'
+import { Resend } from 'resend'
 import { auth, unstable_update } from '@/auth'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import {
@@ -54,6 +55,41 @@ export async function sendInviteAction(
 
   const baseUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const inviteUrl = `${baseUrl}/invite/${token}`
+
+  // Send email if RESEND_API_KEY is configured; skip silently in dev/test
+  if (process.env.RESEND_API_KEY) {
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    const db = getDb()
+    const org = db.prepare('SELECT name FROM orgs WHERE id = ?').get(orgId) as { name: string } | null
+    const inviter = db.prepare('SELECT name, email FROM users WHERE id = ?').get(userId) as { name: string | null; email: string | null } | null
+    const orgName = org?.name ?? 'a workspace'
+    const inviterName = inviter?.name ?? inviter?.email ?? 'Someone'
+    const fromAddress = process.env.RESEND_FROM ?? 'invites@yourdomain.com'
+
+    await resend.emails.send({
+      from: fromAddress,
+      to: email,
+      subject: `${inviterName} invited you to ${orgName}`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+          <h2 style="font-size:20px;font-weight:600;color:#111827;margin-bottom:8px">
+            You're invited to join ${orgName}
+          </h2>
+          <p style="color:#6b7280;font-size:14px;margin-bottom:24px">
+            ${inviterName} has invited you to join their workspace on Community Platform as a <strong>${role}</strong>.
+            This invite expires in ${INVITE_TTL_DAYS} days.
+          </p>
+          <a href="${inviteUrl}"
+             style="display:inline-block;background:#4f46e5;color:#fff;font-size:14px;font-weight:500;padding:10px 20px;border-radius:8px;text-decoration:none">
+            Accept invitation
+          </a>
+          <p style="color:#9ca3af;font-size:12px;margin-top:24px">
+            Or copy this link: ${inviteUrl}
+          </p>
+        </div>
+      `,
+    })
+  }
 
   refresh()
   return { inviteUrl }
