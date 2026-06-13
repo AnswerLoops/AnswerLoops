@@ -16,7 +16,7 @@ services:
       - /app/node_modules
       - /app/.next
       - community-data:/data
-    command: sh -c "CI=true pnpm install && pnpm dev"
+    command: sh -c "pnpm install --no-frozen-lockfile && pnpm dev"
 
   bot:
     build: .
@@ -31,7 +31,7 @@ services:
       - .:/app
       - /app/node_modules
       - /app/.next
-    command: sh -c "CI=true pnpm install && pnpm bot"
+    command: sh -c "pnpm install --no-frozen-lockfile && pnpm bot"
     depends_on:
       - app
 
