@@ -9,7 +9,7 @@ import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 // Auth.js also auto-reads AUTH_DISCORD_ID, AUTH_DISCORD_SECRET,
 // AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET from the environment.
 
-const PUBLIC_PATHS = ['/login', '/api/auth', '/api/ingest', '/api/feedback', '/api/slack']
+const PUBLIC_PATHS = ['/login', '/api/auth', '/api/ingest', '/api/feedback', '/api/slack', '/api/widget', '/widget']
 const ONBOARDING_PATH = '/onboarding'
 // Invite acceptance is accessible regardless of onboarding status.
 const INVITE_PREFIX = '/invite/'

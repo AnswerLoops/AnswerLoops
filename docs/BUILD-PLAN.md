@@ -79,6 +79,7 @@ Run alongside feature phases; none block the others.
 | Item | Why | Effort |
 |------|-----|--------|
 | ✅ **Resend email notifications** | alert admins/owners on new critical/high tickets, ticket resolved, SLA breach; `lib/email/send.ts`; skips silently when `RESEND_API_KEY` absent | S |
+| ✅ **Embeddable chat widget** | public AI chat backed by KB + prior answers; `<script>` tag embed; per-IP rate limiter; `DefaultChatTransport` (AI SDK v6); `widget_token` per org | M |
 | **Tests** | zero today; cover SLA engine, triage, related, assess, ingest | M |
 | **Prod Docker** | compose runs `pnpm dev` + bind-mount; build a real image, `pnpm start`, persistent SQLite volume, gitignore `data/*.db*` | S |
 | **Observability** | AI work runs in `after()` and fails silently; add structured logging + retry/dead-letter for agent/embeds | M |
@@ -94,8 +95,9 @@ Run alongside feature phases; none block the others.
 1. ~~**E — Feedback loop.**~~ ✅ Done (PR #9).
 2. ~~**G — Analytics.**~~ ✅ Done (PR #13).
 3. ~~**F — KB surface.**~~ ✅ Done (PR #12).
-4. ~~**Resend email notifications.**~~ ✅ Done (this PR).
-5. **Hardening — Prod Docker + observability + rate-limit** before deployment.
+4. ~~**Resend email notifications.**~~ ✅ Done (PR #18).
+5. ~~**Embeddable chat widget.**~~ ✅ Done (this PR).
+6. **Hardening — Prod Docker + observability + rate-limit** before deployment.
 
 ---
 
