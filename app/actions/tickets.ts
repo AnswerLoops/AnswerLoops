@@ -9,6 +9,9 @@ import {
 } from '@/lib/db/queries/tickets'
 import { sendToChannel } from '@/lib/discord/send'
 import { getTicketById } from '@/lib/db/queries/tickets'
+import { auth } from '@/auth'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { sendTicketResolvedEmail } from '@/lib/email/send'
 
 const UpdateStatusSchema = z.object({
   ticketId: z.coerce.number(),
@@ -32,6 +35,17 @@ export async function updateTicketStatusAction(
     updateTicketStatus(ticketId, status, staffName, resolutionNotes)
   } catch (err) {
     return { error: String(err) }
+  }
+
+  if (status === 'resolved' || status === 'closed') {
+    const session = await auth()
+    const orgId = session?.orgId ?? DEFAULT_ORG_ID
+    const ticket = getTicketById(ticketId)
+    if (ticket) {
+      sendTicketResolvedEmail(ticket, staffName, orgId).catch((err) =>
+        console.error('[email] sendTicketResolvedEmail failed', err)
+      )
+    }
   }
 
   refresh()

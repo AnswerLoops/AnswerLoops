@@ -4,6 +4,7 @@ import { createTicket, getTicketByDiscordMessageId } from '@/lib/db/queries/tick
 import { createNotification } from '@/lib/db/queries/notifications'
 import { calculateDeadlines, checkSlaBreaches } from '@/lib/sla/engine'
 import { sendPushToAll } from '@/lib/push/notify'
+import { sendNewTicketEmail, sendSlaBreachEmails } from '@/lib/email/send'
 import { runAIAgent } from '@/lib/ai/agent'
 import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
 import { findRelated, isDuplicate } from '@/lib/ai/related'
@@ -86,7 +87,10 @@ export async function processCommunityMessage(
       url: `/tickets/${ticket.id}`,
     })
 
-    checkSlaBreaches()
+    await sendNewTicketEmail(ticket, orgId)
+
+    const breached = checkSlaBreaches()
+    await sendSlaBreachEmails(breached, orgId)
 
     let priorAnswers: { summary: string; answer: string }[] = []
     try {
