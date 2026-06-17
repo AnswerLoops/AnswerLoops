@@ -163,6 +163,7 @@ function DiscordIntegrationCard() {
           <input
             name="botToken"
             type="password"
+            autoComplete="new-password"
             placeholder={connected ? '••••••••• (leave blank to keep current)' : 'Bot token from Discord Developer Portal'}
             className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
             required={!connected}
@@ -257,6 +258,7 @@ function SlackIntegrationCard() {
           <input
             name="botToken"
             type="password"
+            autoComplete="new-password"
             placeholder={connected ? '••••••••• (leave blank to keep current)' : 'xoxb-…'}
             className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
             required={!connected}
@@ -267,6 +269,7 @@ function SlackIntegrationCard() {
           <input
             name="signingSecret"
             type="password"
+            autoComplete="new-password"
             placeholder={connected ? '••••••••• (leave blank to keep current)' : 'From Slack app Basic Information'}
             className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
             required={!connected}
