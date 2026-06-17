@@ -117,7 +117,7 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
         <form action={discordAction} className="space-y-4">
           <BackButton onClick={() => setPlatform(null)} />
           <Field label="Bot Token">
-            <input name="botToken" type="password" placeholder="Bot token from Discord Developer Portal" className={inputCls} required />
+            <input name="botToken" type="password" autoComplete="new-password" placeholder="Bot token from Discord Developer Portal" className={inputCls} required />
           </Field>
           <Field label="Channel IDs (comma-separated)">
             <input name="channelIds" type="text" placeholder="123456789, 987654321" className={inputCls} required />
@@ -133,10 +133,10 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
         <form action={slackAction} className="space-y-4">
           <BackButton onClick={() => setPlatform(null)} />
           <Field label="Bot Token">
-            <input name="botToken" type="password" placeholder="xoxb-…" className={inputCls} required />
+            <input name="botToken" type="password" autoComplete="new-password" placeholder="xoxb-…" className={inputCls} required />
           </Field>
           <Field label="Signing Secret">
-            <input name="signingSecret" type="password" placeholder="From Slack app Basic Information" className={inputCls} required />
+            <input name="signingSecret" type="password" autoComplete="new-password" placeholder="From Slack app Basic Information" className={inputCls} required />
           </Field>
           <Field label="Team ID">
             <input name="teamId" type="text" placeholder="T01234ABCDE" className={inputCls} required />

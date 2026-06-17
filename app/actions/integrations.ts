@@ -6,9 +6,16 @@ import { refresh } from 'next/cache'
 import { auth } from '@/auth'
 import { upsertIntegration, deleteIntegration, getIntegration } from '@/lib/db/queries/integrations'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { MOCK_EXTERNALS } from '@/lib/mock-mode'
+
+// Discord bot tokens: base64(snowflake).timestamp.hmac
+const DISCORD_TOKEN_RE = /^[A-Za-z0-9_-]{20,30}\.[A-Za-z0-9_-]{4,8}\.[A-Za-z0-9_-]{25,50}$/
 
 const DiscordIntegrationSchema = z.object({
-  botToken: z.string().min(1, 'Bot token is required'),
+  botToken: z
+    .string()
+    .min(1, 'Bot token is required')
+    .regex(DISCORD_TOKEN_RE, 'Invalid Discord bot token format'),
   channelIds: z.string().min(1, 'At least one channel ID is required'),
 })
 
@@ -28,6 +35,16 @@ export async function saveDiscordIntegrationAction(
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
+
+  // Verify token against Discord API before storing
+  if (!MOCK_EXTERNALS) {
+    const verify = await fetch('https://discord.com/api/v10/users/@me', {
+      headers: { Authorization: `Bot ${botToken}` },
+    })
+    if (!verify.ok) {
+      return { error: 'Discord rejected this token — check it and try again' }
+    }
+  }
 
   // Generate a new bot_secret only if one doesn't already exist
   const existing = getIntegration(orgId, 'discord')
@@ -63,9 +80,16 @@ export async function deleteDiscordIntegrationAction(
 // ── Slack ─────────────────────────────────────────────────────────────────────
 
 const SlackIntegrationSchema = z.object({
-  botToken: z.string().min(1, 'Bot token is required'),
-  signingSecret: z.string().min(1, 'Signing secret is required'),
-  teamId: z.string().min(1, 'Team ID is required'),
+  botToken: z
+    .string()
+    .min(1, 'Bot token is required')
+    .startsWith('xoxb-', 'Slack bot token must start with xoxb-'),
+  signingSecret: z
+    .string()
+    .min(32, 'Signing secret appears too short — check Slack app Basic Information'),
+  teamId: z
+    .string()
+    .regex(/^T[A-Z0-9]{8,}$/, 'Team ID must start with T followed by uppercase letters/numbers'),
   channelIds: z.string().min(1, 'At least one channel ID is required'),
 })
 

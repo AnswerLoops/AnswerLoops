@@ -2,6 +2,7 @@ import { eq, and } from 'drizzle-orm'
 import { getDrizzle } from '../drizzle'
 import { getDb } from '../index'
 import { integrations, DEFAULT_ORG_ID } from '../schema'
+import { encryptToken, decryptToken } from '@/lib/crypto/tokens'
 
 export type Platform = 'discord' | 'slack'
 
@@ -22,36 +23,48 @@ export interface Integration {
 function dz() { return getDrizzle() }
 function raw() { return getDb() }
 
+function decryptRow(row: Integration): Integration {
+  return {
+    ...row,
+    bot_token: row.bot_token ? decryptToken(row.bot_token) : null,
+    webhook_secret: row.webhook_secret ? decryptToken(row.webhook_secret) : null,
+  }
+}
+
 export function getIntegration(orgId: number, platform: Platform): Integration | null {
-  return (
+  const row = (
     raw()
       .prepare('SELECT * FROM integrations WHERE org_id = ? AND platform = ?')
       .get(orgId, platform) as Integration
   ) ?? null
+  return row ? decryptRow(row) : null
 }
 
 /** Look up which org owns a given bot_secret. Used by /api/ingest to route Discord requests. */
 export function getIntegrationByBotSecret(botSecret: string): Integration | null {
-  return (
+  const row = (
     raw()
       .prepare('SELECT * FROM integrations WHERE bot_secret = ? AND enabled = 1')
       .get(botSecret) as Integration
   ) ?? null
+  return row ? decryptRow(row) : null
 }
 
 /** Look up which org owns a given Slack team_id. Used by /api/slack/events to route requests. */
 export function getIntegrationByTeamId(teamId: string): Integration | null {
-  return (
+  const row = (
     raw()
       .prepare("SELECT * FROM integrations WHERE team_id = ? AND platform = 'slack' AND enabled = 1")
       .get(teamId) as Integration
   ) ?? null
+  return row ? decryptRow(row) : null
 }
 
 export function listIntegrations(orgId: number): Integration[] {
-  return raw()
+  const rows = raw()
     .prepare('SELECT * FROM integrations WHERE org_id = ? ORDER BY platform ASC')
     .all(orgId) as Integration[]
+  return rows.map(decryptRow)
 }
 
 export function upsertIntegration(input: {
@@ -64,6 +77,8 @@ export function upsertIntegration(input: {
   webhookSecret?: string | null
 }): Integration {
   const channelIdsJson = input.channelIds ? JSON.stringify(input.channelIds) : null
+  const encryptedBotToken = input.botToken ? encryptToken(input.botToken) : null
+  const encryptedWebhookSecret = input.webhookSecret ? encryptToken(input.webhookSecret) : null
 
   const existing = getIntegration(input.orgId, input.platform)
   if (existing) {
@@ -80,11 +95,11 @@ export function upsertIntegration(input: {
          WHERE org_id = ? AND platform = ?`
       )
       .run(
-        input.botToken ?? null,
+        encryptedBotToken,
         input.botSecret ?? null,
         channelIdsJson ?? null,
         input.teamId ?? null,
-        input.webhookSecret ?? null,
+        encryptedWebhookSecret,
         input.orgId,
         input.platform
       )
@@ -96,17 +111,19 @@ export function upsertIntegration(input: {
     .values({
       orgId: input.orgId,
       platform: input.platform,
-      botToken: input.botToken ?? null,
+      botToken: encryptedBotToken,
       botSecret: input.botSecret ?? null,
       channelIds: channelIdsJson,
       teamId: input.teamId ?? null,
-      webhookSecret: input.webhookSecret ?? null,
+      webhookSecret: encryptedWebhookSecret ?? null,
     })
     .run()
 
-  return raw()
-    .prepare('SELECT * FROM integrations WHERE id = ?')
-    .get(Number(result.lastInsertRowid)) as Integration
+  return decryptRow(
+    raw()
+      .prepare('SELECT * FROM integrations WHERE id = ?')
+      .get(Number(result.lastInsertRowid)) as Integration
+  )
 }
 
 export function disableIntegration(orgId: number, platform: Platform): void {
