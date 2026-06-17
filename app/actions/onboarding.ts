@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { redirect } from 'next/navigation'
-import { auth } from '@/auth'
+import { auth, unstable_update } from '@/auth'
 import { updateOrgName, setOrgOnboarded } from '@/lib/db/queries/orgs'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
@@ -31,5 +31,7 @@ export async function completeOnboardingAction(): Promise<void> {
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
   setOrgOnboarded(orgId)
+  // Stamp the JWT so a future DB wipe won't force the user back through onboarding.
+  await unstable_update({ onboarded: true })
   redirect('/dashboard')
 }
