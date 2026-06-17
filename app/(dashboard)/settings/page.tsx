@@ -6,6 +6,7 @@ import { updateSLAAction } from '@/app/actions/sla'
 import { addRepoAction, removeRepoAction } from '@/app/actions/github'
 import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackIntegrationAction, deleteSlackIntegrationAction } from '@/app/actions/integrations'
 import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwnershipAction } from '@/app/actions/invitations'
+import { getWidgetTokenAction } from '@/app/actions/widget'
 import { Button } from '@/components/ui/button'
 import type { SLAConfig, GitHubRepo } from '@/types'
 
@@ -562,6 +563,74 @@ function TeamSection() {
   )
 }
 
+function WidgetSection() {
+  const [token, setToken] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  async function loadToken() {
+    setLoading(true)
+    const result = await getWidgetTokenAction()
+    if ('token' in result) setToken(result.token)
+    setLoading(false)
+  }
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const embedCode = token
+    ? `<script src="${baseUrl}/widget.js" data-widget-id="${token}"></script>`
+    : ''
+
+  function copyEmbed() {
+    if (!embedCode) return
+    navigator.clipboard.writeText(embedCode).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+      <div>
+        <p className="text-xs text-gray-600 mb-3">
+          Add a chat widget to any website. Visitors can ask questions and get answers from your knowledge base automatically.
+        </p>
+        {!token ? (
+          <Button size="sm" onClick={loadToken} disabled={loading}>
+            {loading ? 'Generating…' : 'Generate embed code'}
+          </Button>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1.5">Paste this before <code className="text-indigo-600">&lt;/body&gt;</code></p>
+              <div className="relative">
+                <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 font-mono overflow-x-auto whitespace-pre-wrap break-all">{embedCode}</pre>
+                <button
+                  onClick={copyEmbed}
+                  className="absolute top-2 right-2 rounded px-2 py-1 text-[10px] font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  {copied ? '✓ Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1">Preview</p>
+              <a
+                href={`/widget/${token}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:underline"
+              >
+                Open widget in new tab ↗
+              </a>
+            </div>
+            <p className="text-[10px] text-gray-400">Widget token: <code className="font-mono">{token.slice(0, 8)}…</code></p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   const [slaConfigs, setSlaConfigs] = useState<SLAConfig[]>([])
   const [repos, setRepos] = useState<GitHubRepo[]>([])
@@ -669,6 +738,12 @@ export default function SettingsPage() {
           <DiscordIntegrationCard />
           <SlackIntegrationCard />
         </div>
+      </section>
+
+      {/* Website Widget */}
+      <section>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">Website Widget</h2>
+        <WidgetSection />
       </section>
     </div>
   )

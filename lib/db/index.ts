@@ -22,6 +22,8 @@ export function getDb(): Database.Database {
     db.exec(schema)
     // Idempotent migrations for columns added after initial schema rollout.
     try { db.exec('ALTER TABLE orgs ADD COLUMN onboarded_at TEXT') } catch (_) {}
+    try { db.exec('ALTER TABLE orgs ADD COLUMN widget_token TEXT') } catch (_) {}
+    try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS orgs_widget_token ON orgs(widget_token)') } catch (_) {}
     globalForDb.__communityDb = db
   }
   return globalForDb.__communityDb
