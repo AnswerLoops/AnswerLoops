@@ -11,7 +11,10 @@ import { assessAnswer, shouldAutoDeflect, ASSESS_MODEL } from '@/lib/ai/assess'
 import { sendToChannel } from '@/lib/discord/send'
 import { sendToSlackChannel } from '@/lib/slack/send'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { logger } from '@/lib/logger'
 import type { PriorAnswer } from '@/types'
+
+const MOD = 'ai/agent'
 
 type Platform = 'discord' | 'slack'
 
@@ -32,7 +35,7 @@ export async function runAIAgent(
   const repos = await getConfiguredRepos()
 
   if (repos.length === 0) {
-    console.log('[agent] No GitHub repos configured — skipping AI agent answer')
+    logger.info('no GitHub repos configured — skipping agent', { module: MOD, ticketId })
     return
   }
 
@@ -46,6 +49,7 @@ export async function runAIAgent(
     : ''
 
   try {
+    const t0 = Date.now()
     const { text } = await generateText({
       model: await chatModel('gpt-4o', orgId),
       stopWhen: stepCountIs(5),
@@ -90,15 +94,14 @@ Guidelines:
       },
     })
 
-    // Store the draft on the ticket
+    logger.info('agent answer generated', { module: MOD, ticketId, durationMs: Date.now() - t0 })
     await updateTicketAIDraft(ticketId, text)
 
-    // Second pass: grade the answer to decide whether it can be auto-deflected.
     let assessment
     try {
       assessment = await assessAnswer(question, text, orgId)
     } catch (err) {
-      console.error('[agent] assessment failed for ticket', ticketId, '— defaulting to human review', err)
+      logger.error('assessment failed — defaulting to human review', { module: MOD, ticketId, error: err })
       assessment = { confidence: 0, answered_fully: false, reasoning: 'Assessment failed; routed to human review.' }
     }
 
@@ -114,22 +117,23 @@ Guidelines:
       model: ASSESS_MODEL,
     })
 
+    logger.info('assessment complete', { module: MOD, ticketId, confidence: pct, autoDeflect })
+
     let postedMessageId: string | null = null
     if (autoDeflect) {
-      // High confidence: answer the community directly (deflection).
       await createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId)
       const message = `${text}\n\n*Was this helpful? React 👍 / 👎. If it didn't fully answer your question, a team member will follow up.*`
       postedMessageId = await postReply(channelId, message, orgId, platform)
+      logger.info('auto-deflected', { module: MOD, ticketId, confidence: pct, platform })
     } else {
-      // Low confidence: post as a draft and flag for human review.
       await createNotification('ai_draft_ready', `Needs review (${pct}%) — ticket #${ticketId}`, ticketId)
       const message = `**[AI Draft Answer]**\n${text}\n\n*A team member will follow up shortly.*`
       postedMessageId = await postReply(channelId, message, orgId, platform)
+      logger.info('routed to human review', { module: MOD, ticketId, confidence: pct, platform })
     }
 
-    // Map the posted answer message → ticket so 👍/👎 reactions can be attributed.
     if (postedMessageId) await mapAnswerMessage(postedMessageId, ticketId)
   } catch (err) {
-    console.error('[agent] AI agent failed for ticket', ticketId, err)
+    logger.error('agent failed', { module: MOD, ticketId, error: err })
   }
 }
