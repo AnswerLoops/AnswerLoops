@@ -1,0 +1,7 @@
+allowBuilds:
+  better-sqlite3: false
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@mendable/firecrawl-js@4.28.1'
