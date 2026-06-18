@@ -24,6 +24,7 @@ export function getDb(): Database.Database {
     try { db.exec('ALTER TABLE orgs ADD COLUMN onboarded_at TEXT') } catch (_) {}
     try { db.exec('ALTER TABLE orgs ADD COLUMN widget_token TEXT') } catch (_) {}
     try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS orgs_widget_token ON orgs(widget_token)') } catch (_) {}
+    try { db.exec('ALTER TABLE orgs ADD COLUMN widget_token_expires_at TEXT') } catch (_) {}
     globalForDb.__communityDb = db
   }
   return globalForDb.__communityDb

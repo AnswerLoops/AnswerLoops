@@ -6,7 +6,7 @@ import { updateSLAAction } from '@/app/actions/sla'
 import { addRepoAction, removeRepoAction } from '@/app/actions/github'
 import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackIntegrationAction, deleteSlackIntegrationAction } from '@/app/actions/integrations'
 import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwnershipAction } from '@/app/actions/invitations'
-import { getWidgetTokenAction } from '@/app/actions/widget'
+import { getWidgetTokenAction, regenerateWidgetTokenAction } from '@/app/actions/widget'
 import { Button } from '@/components/ui/button'
 import type { SLAConfig, GitHubRepo } from '@/types'
 
@@ -573,20 +573,39 @@ function TeamSection() {
 
 function WidgetSection() {
   const [token, setToken] = useState<string | null>(null)
+  const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [rotating, setRotating] = useState(false)
+  const [confirmRotate, setConfirmRotate] = useState(false)
 
   async function loadToken() {
     setLoading(true)
     const result = await getWidgetTokenAction()
-    if ('token' in result) setToken(result.token)
+    if (result.token) { setToken(result.token); setExpiresAt(result.expiresAt ?? null) }
     setLoading(false)
+  }
+
+  useEffect(() => { loadToken() }, [])
+
+  async function regenerate() {
+    setRotating(true)
+    setConfirmRotate(false)
+    const result = await regenerateWidgetTokenAction()
+    if (result.token) { setToken(result.token); setExpiresAt(result.expiresAt ?? null) }
+    setRotating(false)
   }
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
   const embedCode = token
     ? `<script src="${baseUrl}/widget.js" data-widget-id="${token}"></script>`
     : ''
+
+  const daysLeft = expiresAt
+    ? Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000)
+    : null
+
+  const expiringSoon = daysLeft !== null && daysLeft <= 14
 
   function copyEmbed() {
     if (!embedCode) return
@@ -598,43 +617,70 @@ function WidgetSection() {
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
-      <div>
-        <p className="text-xs text-gray-600 mb-3">
-          Add a chat widget to any website. Visitors can ask questions and get answers from your knowledge base automatically.
-        </p>
-        {!token ? (
-          <Button size="sm" onClick={loadToken} disabled={loading}>
-            {loading ? 'Generating…' : 'Generate embed code'}
-          </Button>
-        ) : (
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs font-medium text-gray-600 mb-1.5">Paste this before <code className="text-indigo-600">&lt;/body&gt;</code></p>
-              <div className="relative">
-                <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 font-mono overflow-x-auto whitespace-pre-wrap break-all">{embedCode}</pre>
-                <button
-                  onClick={copyEmbed}
-                  className="absolute top-2 right-2 rounded px-2 py-1 text-[10px] font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  {copied ? '✓ Copied' : 'Copy'}
-                </button>
-              </div>
+      <p className="text-xs text-gray-600">
+        Add a chat widget to any website. Visitors can ask questions and get answers from your knowledge base automatically.
+      </p>
+
+      {loading ? (
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : !token ? (
+        <p className="text-sm text-red-500">Failed to load widget token.</p>
+      ) : (
+        <div className="space-y-3">
+          {expiringSoon && (
+            <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
+              <p className="text-xs text-amber-800 font-medium">
+                Token expires in {daysLeft} day{daysLeft === 1 ? '' : 's'} — regenerate it before it expires or the widget will stop working.
+              </p>
             </div>
-            <div>
-              <p className="text-xs font-medium text-gray-600 mb-1">Preview</p>
+          )}
+
+          <div>
+            <p className="text-xs font-medium text-gray-600 mb-1.5">Paste this before <code className="text-indigo-600">&lt;/body&gt;</code></p>
+            <div className="relative">
+              <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 font-mono overflow-x-auto whitespace-pre-wrap break-all">{embedCode}</pre>
+              <button
+                onClick={copyEmbed}
+                className="absolute top-2 right-2 rounded px-2 py-1 text-[10px] font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                {copied ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
               <a
                 href={`/widget/${token}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:underline"
+                className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
               >
-                Open widget in new tab ↗
+                Preview widget ↗
               </a>
+              {expiresAt && (
+                <p className={`text-[10px] ${expiringSoon ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+                  Expires {new Date(expiresAt).toLocaleDateString()} ({daysLeft}d left)
+                </p>
+              )}
             </div>
-            <p className="text-[10px] text-gray-400">Widget token: <code className="font-mono">{token.slice(0, 8)}…</code></p>
+
+            {confirmRotate ? (
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-red-600">Old token breaks immediately.</p>
+                <Button size="sm" variant="danger" onClick={regenerate} disabled={rotating}>
+                  {rotating ? 'Rotating…' : 'Confirm rotate'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setConfirmRotate(false)}>Cancel</Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="secondary" onClick={() => setConfirmRotate(true)} disabled={rotating}>
+                Regenerate token
+              </Button>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
-import { streamText } from 'ai'
+import { streamText, convertToModelMessages } from 'ai'
+import type { UIMessage } from 'ai'
 import { chatModel } from '@/lib/ai/models'
-import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
+import { embedText } from '@/lib/ai/embed'
 import { getKBContext } from '@/lib/db/queries/kb'
 import { getPriorAnswers, getCandidateVectors } from '@/lib/db/queries/embeddings'
 import { findRelated } from '@/lib/ai/related'
@@ -51,9 +52,20 @@ export async function POST(request: Request) {
     return new Response('Invalid widget token', { status: 404 })
   }
 
-  // Get the last user message to build context
-  const lastUser = [...messages].reverse().find((m: unknown) => (m as { role: string }).role === 'user') as { role: string; content: string } | undefined
-  const query = lastUser?.content ?? ''
+  // AI SDK v6: UIMessage[] → ModelMessage[] via official converter
+  const uiMessages = messages as UIMessage[]
+  const modelMessages = await convertToModelMessages(uiMessages)
+
+  if (modelMessages.length === 0) {
+    return new Response('No valid messages', { status: 400 })
+  }
+
+  // Extract last user text for KB context lookup
+  const lastUserMsg = [...uiMessages].reverse().find((m) => m.role === 'user')
+  const query = lastUserMsg?.parts
+    ?.filter((p) => p.type === 'text')
+    .map((p) => (p as { type: 'text'; text: string }).text)
+    .join('') ?? ''
 
   let kbContext: { summary: string; answer: string }[] = []
   let priorContext: { summary: string; answer: string }[] = []
@@ -82,7 +94,7 @@ export async function POST(request: Request) {
 Answer questions concisely and accurately based on the knowledge base context provided.
 If you don't know the answer or it's not covered in the context, say so honestly and suggest the user contact support directly.
 Keep responses brief and friendly. Format with markdown when helpful.${contextBlock}`,
-    messages: messages as NonNullable<Parameters<typeof streamText>[0]['messages']>,
+    messages: modelMessages,
     maxOutputTokens: 600,
   })
 
