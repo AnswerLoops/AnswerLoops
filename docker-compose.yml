@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: deps   # dev: deps only, source is bind-mounted and run via pnpm dev
     ports:
       - "3000:3000"
     env_file:
@@ -16,7 +18,9 @@ services:
     command: sh -c "CI=true pnpm install --no-frozen-lockfile && pnpm dev"
 
   bot:
-    build: .
+    build:
+      context: .
+      target: deps
     env_file:
       - path: .env
         required: false

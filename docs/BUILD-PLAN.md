@@ -81,12 +81,12 @@ Run alongside feature phases; none block the others.
 | ✅ **Resend email notifications** | alert admins/owners on new critical/high tickets, ticket resolved, SLA breach; `lib/email/send.ts`; skips silently when `RESEND_API_KEY` absent | S |
 | ✅ **Embeddable chat widget** | public AI chat backed by KB + prior answers; `<script>` tag embed; per-IP rate limiter; `DefaultChatTransport` (AI SDK v6); `widget_token` per org | M |
 | **Tests** | zero today; cover SLA engine, triage, related, assess, ingest | M |
-| **Prod Docker** | compose runs `pnpm dev` + bind-mount; build a real image, `pnpm start`, persistent SQLite volume, gitignore `data/*.db*` | S |
+| ✅ **Prod Docker** | multi-stage `Dockerfile` (`deps`→`build`→`runner`, no toolchain in final), non-root user, `docker-compose.prod.yml` with built image + named SQLite volume + no bind-mount, `bot:start` (no watch); dev compose targets `deps` stage | S |
 | **Observability** | AI work runs in `after()` and fails silently; add structured logging + retry/dead-letter for agent/embeds | M |
 | **Rate limiting + input caps** | ingest takes unbounded content = AI cost + DoS risk | S |
 | **Migrations** | schema applied via `IF NOT EXISTS`; need a real migration story before the next schema change that isn't a new side table | M |
 | **Auth v2** | shared password → GitHub/Google OAuth (proxy stays; swap session source) | M |
-| **Node version** | Next 16 needs Node ≥ 20.9; pin via `.nvmrc` / `engines` | S |
+| ✅ **Node version** | `engines.node >= 20.9` + `.nvmrc` (20) | S |
 
 ---
 
