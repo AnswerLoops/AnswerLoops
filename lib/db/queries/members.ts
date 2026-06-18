@@ -1,4 +1,7 @@
-import { getDb } from '@/lib/db/index'
+import { eq, and } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
+import { getDb } from '../drizzle'
+import { memberships, users } from '../schema'
 
 export interface Member {
   membership_id: number
@@ -11,36 +14,43 @@ export interface Member {
   image: string | null
 }
 
-export function getOrgMembers(orgId: number): Member[] {
-  return getDb()
-    .prepare(
-      `SELECT m.id AS membership_id, m.user_id, m.org_id, m.role, m.created_at AS joined_at,
-              u.email, u.name, u.image
-       FROM memberships m
-       JOIN users u ON u.id = m.user_id
-       WHERE m.org_id = ?
-       ORDER BY m.created_at ASC`
-    )
-    .all(orgId) as Member[]
+export async function getOrgMembers(orgId: number): Promise<Member[]> {
+  const rows = await getDb()
+    .select({
+      membership_id: memberships.id,
+      user_id: memberships.userId,
+      org_id: memberships.orgId,
+      role: memberships.role,
+      joined_at: memberships.createdAt,
+      email: users.email,
+      name: users.name,
+      image: users.image,
+    })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .where(eq(memberships.orgId, orgId))
+    .orderBy(memberships.createdAt)
+  return rows
 }
 
-export function removeMember(membershipId: number, orgId: number): void {
-  getDb()
-    .prepare('DELETE FROM memberships WHERE id = ? AND org_id = ?')
-    .run(membershipId, orgId)
+export async function removeMember(membershipId: number, orgId: number): Promise<void> {
+  await getDb()
+    .delete(memberships)
+    .where(and(eq(memberships.id, membershipId), eq(memberships.orgId, orgId)))
 }
 
-export function addMember(userId: number, orgId: number, role: string): void {
-  getDb()
-    .prepare(
-      `INSERT OR IGNORE INTO memberships (user_id, org_id, role) VALUES (?, ?, ?)`
-    )
-    .run(userId, orgId, role)
+export async function addMember(userId: number, orgId: number, role: string): Promise<void> {
+  await getDb()
+    .insert(memberships)
+    .values({ userId, orgId, role })
+    .onConflictDoNothing()
 }
 
-export function isMember(userId: number, orgId: number): boolean {
-  const row = getDb()
-    .prepare('SELECT id FROM memberships WHERE user_id = ? AND org_id = ?')
-    .get(userId, orgId)
+export async function isMember(userId: number, orgId: number): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(and(eq(memberships.userId, userId), eq(memberships.orgId, orgId)))
+    .limit(1)
   return !!row
 }

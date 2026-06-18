@@ -7,14 +7,14 @@ import type { EmbeddingModel, LanguageModel } from 'ai'
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import { getOrgAIConfig } from '@/lib/db/queries/ai-config'
 
-export function chatModel(defaultId: string, orgId?: number): LanguageModel {
+export async function chatModel(defaultId: string, orgId?: number): Promise<LanguageModel> {
   if (MOCK_EXTERNALS) {
     return (require('./mock') as typeof import('./mock')).mockLanguageModel(defaultId)
   }
 
   if (orgId !== undefined) {
     try {
-      const cfg = getOrgAIConfig(orgId)
+      const cfg = await getOrgAIConfig(orgId)
       if (cfg?.chat_api_key || cfg?.chat_provider === 'openai-compatible') {
         return buildChatProvider(cfg.chat_provider, cfg.chat_api_key, cfg.chat_base_url)(cfg.chat_model || defaultId)
       }
@@ -26,14 +26,14 @@ export function chatModel(defaultId: string, orgId?: number): LanguageModel {
   return openai(defaultId)
 }
 
-export function embeddingModel(defaultId: string, orgId?: number): EmbeddingModel {
+export async function embeddingModel(defaultId: string, orgId?: number): Promise<EmbeddingModel> {
   if (MOCK_EXTERNALS) {
     return (require('./mock') as typeof import('./mock')).mockEmbeddingModel(defaultId)
   }
 
   if (orgId !== undefined) {
     try {
-      const cfg = getOrgAIConfig(orgId)
+      const cfg = await getOrgAIConfig(orgId)
       if (cfg) {
         const embKey = cfg.embedding_api_key ?? (cfg.chat_provider === 'openai' ? cfg.chat_api_key : null)
         if (embKey || cfg.embedding_base_url) {

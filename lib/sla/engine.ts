@@ -1,9 +1,10 @@
-import { getDb } from '@/lib/db'
+import { sql } from 'drizzle-orm'
+import { getDb } from '@/lib/db/drizzle'
 import { getSLAConfig } from '@/lib/db/queries/sla'
 import type { Priority } from '@/types'
 
-export function calculateDeadlines(priority: Priority, createdAt: Date = new Date()) {
-  const config = getSLAConfig(priority)
+export async function calculateDeadlines(priority: Priority, createdAt: Date = new Date()) {
+  const config = await getSLAConfig(priority)
   if (!config) {
     return { sla_response_deadline: null, sla_resolve_deadline: null }
   }
@@ -17,38 +18,35 @@ export function calculateDeadlines(priority: Priority, createdAt: Date = new Dat
   }
 }
 
-export function checkSlaBreaches(): number[] {
+export async function checkSlaBreaches(): Promise<number[]> {
   const db = getDb()
   const now = new Date().toISOString()
 
-  // Mark response SLA breaches: open tickets past response deadline with no response
-  db.prepare(`
+  await db.execute(sql`
     UPDATE tickets
-    SET sla_response_met = 0, updated_at = datetime('now')
+    SET sla_response_met = 0, updated_at = ${now}
     WHERE status = 'open'
       AND sla_response_deadline IS NOT NULL
-      AND sla_response_deadline < ?
+      AND sla_response_deadline < ${now}
       AND sla_response_met IS NULL
-  `).run(now)
+  `)
 
-  // Mark resolve SLA breaches: unresolved tickets past resolve deadline
-  db.prepare(`
+  await db.execute(sql`
     UPDATE tickets
-    SET sla_resolve_met = 0, updated_at = datetime('now')
+    SET sla_resolve_met = 0, updated_at = ${now}
     WHERE status NOT IN ('resolved', 'closed')
       AND sla_resolve_deadline IS NOT NULL
-      AND sla_resolve_deadline < ?
+      AND sla_resolve_deadline < ${now}
       AND sla_resolve_met IS NULL
-  `).run(now)
+  `)
 
-  // Return IDs of tickets that just got marked as breached (updated in last minute)
-  const breached = db.prepare(`
+  const cutoff = new Date(Date.now() - 60_000).toISOString()
+  const rows = await db.execute(sql`
     SELECT id FROM tickets
     WHERE (sla_response_met = 0 OR sla_resolve_met = 0)
-      AND updated_at > datetime('now', '-1 minute')
-  `).all() as { id: number }[]
-
-  return breached.map((r) => r.id)
+      AND updated_at > ${cutoff}
+  `)
+  return (rows as unknown as { id: number }[]).map((r) => r.id)
 }
 
 export function getSLAStatus(ticket: {

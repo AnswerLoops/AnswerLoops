@@ -4,9 +4,8 @@ import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 
-function resolveToken(orgId: number): string | null {
-  // Prefer the org's stored bot token; fall back to env var
-  const integration = getIntegration(orgId, 'discord')
+async function resolveToken(orgId: number): Promise<string | null> {
+  const integration = await getIntegration(orgId, 'discord')
   return integration?.bot_token ?? process.env.DISCORD_TOKEN ?? null
 }
 
@@ -15,7 +14,7 @@ export async function sendToChannel(channelId: string, content: string, orgId = 
     return `mock-msg-${channelId}`
   }
 
-  const token = resolveToken(orgId)
+  const token = await resolveToken(orgId)
   if (!token) {
     console.warn('[discord/send] No bot token available — skipping send')
     return null

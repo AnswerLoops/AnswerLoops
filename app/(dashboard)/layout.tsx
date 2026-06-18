@@ -6,8 +6,8 @@ import { logout } from '@/app/actions/auth'
 
 export const dynamic = 'force-dynamic'
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const unreadCount = getUnreadCount()
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const unreadCount = await getUnreadCount()
 
   return (
     <div className="flex h-screen bg-gray-50">

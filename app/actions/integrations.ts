@@ -47,10 +47,10 @@ export async function saveDiscordIntegrationAction(
   }
 
   // Generate a new bot_secret only if one doesn't already exist
-  const existing = getIntegration(orgId, 'discord')
+  const existing = await getIntegration(orgId, 'discord')
   const botSecret = existing?.bot_secret ?? crypto.randomBytes(32).toString('hex')
 
-  upsertIntegration({
+  await upsertIntegration({
     orgId,
     platform: 'discord',
     botToken,
@@ -72,7 +72,7 @@ export async function deleteDiscordIntegrationAction(
   if (!session?.user) return { error: 'Unauthorized' }
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
-  deleteIntegration(orgId, 'discord')
+  await deleteIntegration(orgId, 'discord')
   refresh()
   return null
 }
@@ -110,7 +110,7 @@ export async function saveSlackIntegrationAction(
     .map((s) => s.trim())
     .filter(Boolean)
 
-  upsertIntegration({
+  await upsertIntegration({
     orgId,
     platform: 'slack',
     botToken,
@@ -131,7 +131,7 @@ export async function deleteSlackIntegrationAction(
   if (!session?.user) return { error: 'Unauthorized' }
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
-  deleteIntegration(orgId, 'slack')
+  await deleteIntegration(orgId, 'slack')
   refresh()
   return null
 }

@@ -1,5 +1,7 @@
 import crypto from 'crypto'
-import { getDb } from '../index'
+import { eq } from 'drizzle-orm'
+import { getDb } from '../drizzle'
+import { orgs } from '../schema'
 
 export interface WidgetOrg {
   id: number
@@ -9,7 +11,7 @@ export interface WidgetOrg {
 
 export interface WidgetTokenInfo {
   token: string
-  expiresAt: string // ISO string
+  expiresAt: string
 }
 
 const TOKEN_TTL_DAYS = 90
@@ -20,35 +22,43 @@ function expiryFromNow(): string {
   return d.toISOString()
 }
 
-export function getOrgByWidgetToken(token: string): WidgetOrg | null {
-  const row = getDb()
-    .prepare('SELECT id, name, widget_token, widget_token_expires_at FROM orgs WHERE widget_token = ?')
-    .get(token) as (WidgetOrg & { widget_token_expires_at: string | null }) | undefined
+export async function getOrgByWidgetToken(token: string): Promise<WidgetOrg | null> {
+  const [row] = await getDb()
+    .select({
+      id: orgs.id,
+      name: orgs.name,
+      widget_token: orgs.widgetToken,
+      widget_token_expires_at: orgs.widgetTokenExpiresAt,
+    })
+    .from(orgs)
+    .where(eq(orgs.widgetToken, token))
+    .limit(1)
 
   if (!row) return null
   if (row.widget_token_expires_at && new Date(row.widget_token_expires_at) < new Date()) return null
-  return row
+  return { id: row.id, name: row.name, widget_token: row.widget_token! }
 }
 
-export function ensureWidgetToken(orgId: number): WidgetTokenInfo {
-  const db = getDb()
-  const row = db
-    .prepare('SELECT widget_token, widget_token_expires_at FROM orgs WHERE id = ?')
-    .get(orgId) as { widget_token: string | null; widget_token_expires_at: string | null }
+export async function ensureWidgetToken(orgId: number): Promise<WidgetTokenInfo> {
+  const [row] = await getDb()
+    .select({ widgetToken: orgs.widgetToken, widgetTokenExpiresAt: orgs.widgetTokenExpiresAt })
+    .from(orgs)
+    .where(eq(orgs.id, orgId))
+    .limit(1)
 
-  // Return existing token if still valid
-  if (row?.widget_token && row.widget_token_expires_at && new Date(row.widget_token_expires_at) > new Date()) {
-    return { token: row.widget_token, expiresAt: row.widget_token_expires_at }
+  if (row?.widgetToken && row.widgetTokenExpiresAt && new Date(row.widgetTokenExpiresAt) > new Date()) {
+    return { token: row.widgetToken, expiresAt: row.widgetTokenExpiresAt }
   }
 
   return rotateWidgetToken(orgId)
 }
 
-export function rotateWidgetToken(orgId: number): WidgetTokenInfo {
+export async function rotateWidgetToken(orgId: number): Promise<WidgetTokenInfo> {
   const token = crypto.randomBytes(24).toString('hex')
   const expiresAt = expiryFromNow()
-  getDb()
-    .prepare('UPDATE orgs SET widget_token = ?, widget_token_expires_at = ? WHERE id = ?')
-    .run(token, expiresAt, orgId)
+  await getDb()
+    .update(orgs)
+    .set({ widgetToken: token, widgetTokenExpiresAt: expiresAt })
+    .where(eq(orgs.id, orgId))
   return { token, expiresAt }
 }

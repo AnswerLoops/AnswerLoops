@@ -1,30 +1,48 @@
-import { getDb } from '@/lib/db/index'
+import { eq } from 'drizzle-orm'
+import { getDb } from '../drizzle'
+import { orgs } from '../schema'
 
 export interface Org {
   id: number
   name: string
   slug: string | null
   onboarded_at: string | null
+  widget_token: string | null
+  widget_token_expires_at: string | null
   created_at: string
 }
 
-export function getOrg(orgId: number): Org | null {
-  return (getDb().prepare('SELECT * FROM orgs WHERE id = ?').get(orgId) as Org | undefined) ?? null
+export async function getOrg(orgId: number): Promise<Org | null> {
+  const db = getDb()
+  const [row] = await db.select().from(orgs).where(eq(orgs.id, orgId)).limit(1)
+  if (!row) return null
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    onboarded_at: row.onboardedAt,
+    widget_token: row.widgetToken,
+    widget_token_expires_at: row.widgetTokenExpiresAt,
+    created_at: row.createdAt,
+  }
 }
 
-export function updateOrgName(orgId: number, name: string): void {
-  getDb().prepare('UPDATE orgs SET name = ? WHERE id = ?').run(name, orgId)
+export async function updateOrgName(orgId: number, name: string): Promise<void> {
+  await getDb().update(orgs).set({ name }).where(eq(orgs.id, orgId))
 }
 
-export function setOrgOnboarded(orgId: number): void {
-  getDb()
-    .prepare("UPDATE orgs SET onboarded_at = datetime('now') WHERE id = ? AND onboarded_at IS NULL")
-    .run(orgId)
+export async function setOrgOnboarded(orgId: number): Promise<void> {
+  await getDb()
+    .update(orgs)
+    .set({ onboardedAt: new Date().toISOString() })
+    .where(eq(orgs.id, orgId))
 }
 
-export function isOrgOnboarded(orgId: number): boolean {
-  const row = getDb()
-    .prepare('SELECT onboarded_at FROM orgs WHERE id = ?')
-    .get(orgId) as { onboarded_at: string | null } | undefined
-  return !!row?.onboarded_at
+export async function isOrgOnboarded(orgId: number): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ onboardedAt: orgs.onboardedAt })
+    .from(orgs)
+    .where(eq(orgs.id, orgId))
+    .limit(1)
+  return !!row?.onboardedAt
 }

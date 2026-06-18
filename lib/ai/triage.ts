@@ -13,7 +13,7 @@ const TriageSchema = z.object({
 
 export async function triageMessage(content: string, orgId?: number): Promise<TriageResult> {
   const { object } = await generateObject({
-    model: chatModel('gpt-4o-mini', orgId),
+    model: await chatModel('gpt-4o-mini', orgId),
     schema: TriageSchema,
     prompt: `You are a support triage assistant for a software product community.
 Classify this community question or report into exactly one category, and assess its severity.

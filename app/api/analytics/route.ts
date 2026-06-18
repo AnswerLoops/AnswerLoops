@@ -12,15 +12,15 @@ export const dynamic = 'force-dynamic'
 
 // ROI bundle: the numbers that prove the platform's value over time.
 export async function GET() {
-  const stats = getDeflectionStats()
+  const stats = await getDeflectionStats()
   return Response.json({
     stats,
     rate: deflectionRate(stats.deflected, stats.answered),
     savings: computeSavings(stats.deflected),
-    trend: getDeflectionTrend(),
-    categories: getCategoryBreakdown(),
-    docGaps: getDocGaps(),
-    sla: getSLAStats(),
-    accuracy: getDeflectionAccuracyByCategory(),
+    trend: await getDeflectionTrend(),
+    categories: await getCategoryBreakdown(),
+    docGaps: await getDocGaps(),
+    sla: await getSLAStats(),
+    accuracy: await getDeflectionAccuracyByCategory(),
   })
 }

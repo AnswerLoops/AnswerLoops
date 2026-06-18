@@ -9,7 +9,7 @@ export async function GET() {
   if (!session?.user) return new Response('Unauthorized', { status: 401 })
 
   const orgId = session.orgId ?? DEFAULT_ORG_ID
-  const rows = listIntegrations(orgId)
+  const rows = await listIntegrations(orgId)
 
   // Strip bot_token from response — never expose it client-side
   const safe = rows.map(({ bot_token: _t, ...row }) => ({

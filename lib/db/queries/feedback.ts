@@ -1,19 +1,15 @@
-import { eq, and } from 'drizzle-orm'
-import { getDrizzle } from '../drizzle'
-import { getDb } from '../index'
-import { ticketFeedback, answerMessages, DEFAULT_ORG_ID } from '../schema'
+import { eq, and, sql } from 'drizzle-orm'
+import { getDb } from '../drizzle'
+import { ticketFeedback, answerMessages, tickets, aiAssessments, DEFAULT_ORG_ID } from '../schema'
 import type { FeedbackSource, FeedbackSummary, FeedbackVote } from '@/types'
 
-function dz() { return getDrizzle() }
-function raw() { return getDb() }
-
-export function saveFeedback(input: {
+export async function saveFeedback(input: {
   ticketId: number
   source: FeedbackSource
   vote: FeedbackVote
   actor: string
-}): void {
-  dz()
+}): Promise<void> {
+  await getDb()
     .insert(ticketFeedback)
     .values({
       ticketId: input.ticketId,
@@ -25,64 +21,66 @@ export function saveFeedback(input: {
       target: [ticketFeedback.ticketId, ticketFeedback.source, ticketFeedback.actor],
       set: { vote: input.vote, updatedAt: new Date().toISOString() },
     })
-    .run()
 }
 
-export function getFeedbackSummary(ticketId: number): FeedbackSummary {
-  const rows = raw()
-    .prepare('SELECT vote FROM ticket_feedback WHERE ticket_id = ?')
-    .all(ticketId) as { vote: FeedbackVote }[]
+export async function getFeedbackSummary(ticketId: number): Promise<FeedbackSummary> {
+  const rows = await getDb()
+    .select({ vote: ticketFeedback.vote })
+    .from(ticketFeedback)
+    .where(eq(ticketFeedback.ticketId, ticketId))
 
   const up = rows.filter((r) => r.vote === 'up').length
   const down = rows.filter((r) => r.vote === 'down').length
 
-  const staff = raw()
-    .prepare("SELECT vote FROM ticket_feedback WHERE ticket_id = ? AND source = 'staff' LIMIT 1")
-    .get(ticketId) as { vote: FeedbackVote } | undefined
+  const [staff] = await getDb()
+    .select({ vote: ticketFeedback.vote })
+    .from(ticketFeedback)
+    .where(and(eq(ticketFeedback.ticketId, ticketId), eq(ticketFeedback.source, 'staff')))
+    .limit(1)
 
-  return { up, down, staffVote: staff?.vote ?? null }
+  return { up, down, staffVote: staff?.vote as FeedbackVote ?? null }
 }
 
-export function getTicketIdByAnswerMessage(discordMessageId: string): number | null {
-  const row = raw()
-    .prepare('SELECT ticket_id FROM answer_messages WHERE discord_message_id = ?')
-    .get(discordMessageId) as { ticket_id: number } | undefined
-  return row?.ticket_id ?? null
+export async function getTicketIdByAnswerMessage(discordMessageId: string): Promise<number | null> {
+  const [row] = await getDb()
+    .select({ ticketId: answerMessages.ticketId })
+    .from(answerMessages)
+    .where(eq(answerMessages.discordMessageId, discordMessageId))
+    .limit(1)
+  return row?.ticketId ?? null
 }
 
-export function mapAnswerMessage(discordMessageId: string, ticketId: number): void {
-  dz()
+export async function mapAnswerMessage(discordMessageId: string, ticketId: number): Promise<void> {
+  await getDb()
     .insert(answerMessages)
     .values({ discordMessageId, ticketId })
     .onConflictDoUpdate({
       target: answerMessages.discordMessageId,
       set: { ticketId },
     })
-    .run()
 }
 
-export function getDeflectionAccuracyByCategory(orgId = DEFAULT_ORG_ID): {
+export async function getDeflectionAccuracyByCategory(orgId = DEFAULT_ORG_ID): Promise<{
   category: string
   deflected: number
   positive: number
   negative: number
-}[] {
-  return raw()
-    .prepare(
-      `SELECT t.category AS category,
-              COUNT(*) AS deflected,
-              SUM(CASE WHEN f.net > 0 THEN 1 ELSE 0 END) AS positive,
-              SUM(CASE WHEN f.net < 0 THEN 1 ELSE 0 END) AS negative
-       FROM ai_assessments a
-       JOIN tickets t ON t.id = a.ticket_id
-       LEFT JOIN (
-         SELECT ticket_id,
-                SUM(CASE WHEN vote = 'up' THEN 1 ELSE -1 END) AS net
-         FROM ticket_feedback GROUP BY ticket_id
-       ) f ON f.ticket_id = a.ticket_id
-       WHERE a.auto_deflected = 1
-         AND t.org_id = ?
-       GROUP BY t.category`
-    )
-    .all(orgId) as { category: string; deflected: number; positive: number; negative: number }[]
+}[]> {
+  const rows = await getDb().execute(sql`
+    SELECT t.category AS category,
+           COUNT(*) AS deflected,
+           SUM(CASE WHEN f.net > 0 THEN 1 ELSE 0 END) AS positive,
+           SUM(CASE WHEN f.net < 0 THEN 1 ELSE 0 END) AS negative
+    FROM ai_assessments a
+    JOIN tickets t ON t.id = a.ticket_id
+    LEFT JOIN (
+      SELECT ticket_id,
+             SUM(CASE WHEN vote = 'up' THEN 1 ELSE -1 END) AS net
+      FROM ticket_feedback GROUP BY ticket_id
+    ) f ON f.ticket_id = a.ticket_id
+    WHERE a.auto_deflected = 1
+      AND t.org_id = ${orgId}
+    GROUP BY t.category
+  `)
+  return rows as unknown as { category: string; deflected: number; positive: number; negative: number }[]
 }

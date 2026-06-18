@@ -32,7 +32,7 @@ export async function updateTicketStatusAction(
   const { ticketId, status, staffName, resolutionNotes } = parsed.data
 
   try {
-    updateTicketStatus(ticketId, status, staffName, resolutionNotes)
+    await updateTicketStatus(ticketId, status, staffName, resolutionNotes)
   } catch (err) {
     return { error: String(err) }
   }
@@ -40,7 +40,7 @@ export async function updateTicketStatusAction(
   if (status === 'resolved' || status === 'closed') {
     const session = await auth()
     const orgId = session?.orgId ?? DEFAULT_ORG_ID
-    const ticket = getTicketById(ticketId)
+    const ticket = await getTicketById(ticketId)
     if (ticket) {
       sendTicketResolvedEmail(ticket, staffName, orgId).catch((err) =>
         console.error('[email] sendTicketResolvedEmail failed', err)
@@ -68,7 +68,7 @@ export async function postReplyAction(
   }
 
   const { ticketId, staffName, content } = parsed.data
-  const ticket = getTicketById(ticketId)
+  const ticket = await getTicketById(ticketId)
   if (!ticket) return { error: 'Ticket not found' }
 
   // Post to Discord
@@ -82,7 +82,7 @@ export async function postReplyAction(
   }
 
   // Save reply
-  addTicketReply(ticketId, staffName, content, discordMsgId)
+  await addTicketReply(ticketId, staffName, content, discordMsgId)
 
   refresh()
   return null
@@ -102,15 +102,15 @@ export async function updateAIDraftAction(
   if (!parsed.success) return { error: 'Invalid input' }
 
   const { ticketId, action, newDraft } = parsed.data
-  const ticket = getTicketById(ticketId)
+  const ticket = await getTicketById(ticketId)
   if (!ticket) return { error: 'Ticket not found' }
 
   if (action === 'approve') {
-    updateTicketAIDraftStatus(ticketId, 'approved')
+    await updateTicketAIDraftStatus(ticketId, 'approved')
   } else if (action === 'override') {
-    updateTicketAIDraftStatus(ticketId, 'overridden')
+    await updateTicketAIDraftStatus(ticketId, 'overridden')
   } else if (action === 'edit' && newDraft) {
-    updateTicketAIDraftStatus(ticketId, 'approved', newDraft)
+    await updateTicketAIDraftStatus(ticketId, 'approved', newDraft)
     // Post edited draft to Discord
     const channelId = ticket.discord_thread_id ?? ticket.discord_channel_id
     if (channelId) {

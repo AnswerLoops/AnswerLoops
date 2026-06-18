@@ -14,7 +14,7 @@ export async function getWidgetTokenAction(): Promise<WidgetTokenResult> {
   const session = await auth()
   if (!session?.user) return { error: 'Unauthorized' }
   const orgId = session.orgId ?? DEFAULT_ORG_ID
-  const info = ensureWidgetToken(orgId)
+  const info = await ensureWidgetToken(orgId)
   return { token: info.token, expiresAt: info.expiresAt }
 }
 
@@ -22,6 +22,6 @@ export async function regenerateWidgetTokenAction(): Promise<WidgetTokenResult> 
   const session = await auth()
   if (!session?.user) return { error: 'Unauthorized' }
   const orgId = session.orgId ?? DEFAULT_ORG_ID
-  const info = rotateWidgetToken(orgId)
+  const info = await rotateWidgetToken(orgId)
   return { token: info.token, expiresAt: info.expiresAt }
 }

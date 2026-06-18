@@ -6,10 +6,10 @@ import { StatusBadge, CategoryBadge } from '@/components/ui/badge'
 
 export const dynamic = 'force-dynamic'
 
-export default function DashboardPage() {
-  const stats = getTicketStats()
-  const breachedTickets = getSLABreachedTickets()
-  const recentTickets = getTickets({ status: 'open' }).slice(0, 5)
+export default async function DashboardPage() {
+  const stats = await getTicketStats()
+  const breachedTickets = await getSLABreachedTickets()
+  const recentTickets = (await getTickets({ status: 'open' })).slice(0, 5)
 
   return (
     <div className="space-y-6 max-w-5xl">

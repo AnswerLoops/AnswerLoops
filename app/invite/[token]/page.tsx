@@ -1,8 +1,10 @@
+import { eq } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { getInvitationByToken } from '@/lib/db/queries/invitations'
 import { getOrg } from '@/lib/db/queries/orgs'
-import { getDb } from '@/lib/db/index'
+import { getDb } from '@/lib/db/drizzle'
+import { users } from '@/lib/db/schema'
 import { acceptInviteAction } from '@/app/actions/invitations'
 import { Button } from '@/components/ui/button'
 
@@ -35,23 +37,23 @@ export default async function InvitePage({ params, searchParams }: Props) {
     )
   }
 
-  const invite = getInvitationByToken(token)
+  const invite = await getInvitationByToken(token)
 
   if (!invite || invite.accepted_at) {
     return <InviteShell><ErrorCard message={ERROR_MESSAGES.invalid} /></InviteShell>
   }
 
-  const db = getDb()
-  const now = db.prepare("SELECT datetime('now') AS t").get() as { t: string }
-  if (invite.expires_at < now.t) {
+  if (invite.expires_at < new Date().toISOString()) {
     return <InviteShell><ErrorCard message={ERROR_MESSAGES.expired} /></InviteShell>
   }
 
-  const org = getOrg(invite.org_id)
+  const org = await getOrg(invite.org_id)
   const inviter = invite.invited_by
-    ? (db
-        .prepare('SELECT name, email FROM users WHERE id = ?')
-        .get(invite.invited_by) as { name: string | null; email: string | null } | undefined)
+    ? (await getDb()
+        .select({ name: users.name, email: users.email })
+        .from(users)
+        .where(eq(users.id, invite.invited_by))
+        .limit(1))[0] ?? null
     : null
 
   const boundAction = acceptInviteAction.bind(null, token)

@@ -1,64 +1,68 @@
 import fs from 'fs'
 import path from 'path'
-import { getDb } from '../lib/db/index'
+import { eq, sql } from 'drizzle-orm'
+import { getDb } from '../lib/db/drizzle'
+import { runMigrations } from '../lib/db/migrate'
+import { users, memberships, orgs, githubRepos, integrations } from '../lib/db/schema'
 import { DEFAULT_ORG_ID } from '../lib/db/schema'
 
-// Auth.js uses this cookie name in non-secure (http) environments.
 const SESSION_COOKIE = 'authjs.session-token'
 const MAX_AGE_SECONDS = 7 * 24 * 60 * 60 // 7 days
 
-/**
- * Reset the disposable e2e database to a known baseline before the suite runs.
- * Runs in the Playwright runner process, which already has DB_PATH/MOCK_EXTERNALS
- * set by playwright.config.ts.
- */
 export default async function globalSetup() {
-  const dbPath = process.env.DB_PATH!
-  const dir = path.dirname(dbPath)
+  const stateDir = path.join(__dirname, '.tmp')
+  fs.mkdirSync(stateDir, { recursive: true })
 
-  // Start from a clean slate (drop any WAL/SHM siblings too).
-  fs.rmSync(dir, { recursive: true, force: true })
-  fs.mkdirSync(dir, { recursive: true })
-
-  // The db layer creates the file and applies schema.sql on first getDb().
+  // Apply migrations and wipe test data to a clean baseline.
+  await runMigrations()
   const db = getDb()
 
-  // Seed one configured GitHub repo so the AI agent runs during ingest.
-  db.prepare(
-    `INSERT OR IGNORE INTO github_repos (installation_id, owner, repo, is_private, org_id)
-     VALUES (?, ?, ?, 0, ?)`
-  ).run(1, 'acme', 'demo', DEFAULT_ORG_ID)
+  // Truncate all tables (order matters for FK constraints)
+  await db.execute(sql`
+    TRUNCATE integrations, github_repos, ticket_feedback, answer_messages,
+      ticket_links, ticket_embeddings, kb_articles, faq_snapshots,
+      notifications, ticket_events, ticket_replies, tickets,
+      ai_assessments, ai_configs, push_subscriptions, sla_configs,
+      invitations, memberships, users, orgs
+    RESTART IDENTITY CASCADE
+  `)
 
-  // Mark the default org as onboarded so e2e tests aren't redirected to /onboarding.
-  db.prepare(
-    `UPDATE orgs SET onboarded_at = datetime('now') WHERE id = ?`
-  ).run(DEFAULT_ORG_ID)
+  // Seed default org
+  await db.execute(sql`
+    INSERT INTO orgs (id, name, slug, onboarded_at)
+    VALUES (${DEFAULT_ORG_ID}, 'Test Workspace', 'test-workspace', NOW())
+    ON CONFLICT (id) DO UPDATE SET onboarded_at = NOW()
+  `)
 
-  // Seed a test staff user + membership so the Auth.js session has a real userId.
-  db.prepare(
-    `INSERT OR IGNORE INTO users (id, email, name, provider)
-     VALUES (1, 'staff@example.com', 'Test Staff', 'test')`
-  ).run()
-  db.prepare(
-    `INSERT OR IGNORE INTO memberships (user_id, org_id, role)
-     VALUES (1, ?, 'owner')`
-  ).run(DEFAULT_ORG_ID)
+  // Seed a configured GitHub repo so the AI agent runs during ingest.
+  await db
+    .insert(githubRepos)
+    .values({ installationId: 1, owner: 'acme', repo: 'demo', isPrivate: 0, orgId: DEFAULT_ORG_ID })
+    .onConflictDoNothing()
 
-  // Seed a Discord integration for the default org so the ingest route can
-  // authenticate the test bot secret and route requests to the correct org.
-  db.prepare(
-    `INSERT OR IGNORE INTO integrations (org_id, platform, bot_secret, channel_ids, enabled)
-     VALUES (?, 'discord', ?, '[]', 1)`
-  ).run(DEFAULT_ORG_ID, process.env.BOT_SECRET ?? 'test-bot-secret')
+  // Seed a test staff user + membership
+  await db.execute(sql`
+    INSERT INTO users (id, email, name, provider)
+    VALUES (1, 'staff@example.com', 'Test Staff', 'test')
+    ON CONFLICT (email) DO NOTHING
+  `)
 
-  db.close()
+  await db
+    .insert(memberships)
+    .values({ userId: 1, orgId: DEFAULT_ORG_ID, role: 'owner' })
+    .onConflictDoNothing()
 
-  // Mint a valid Auth.js JWT so every spec runs authenticated. The secret must
-  // match AUTH_SECRET in TEST_ENV (both set to 'test-auth-secret').
+  // Seed a Discord integration for the default org
+  const botSecret = process.env.BOT_SECRET ?? 'test-bot-secret'
+  await db.execute(sql`
+    INSERT INTO integrations (org_id, platform, bot_secret, channel_ids, enabled)
+    VALUES (${DEFAULT_ORG_ID}, 'discord', ${botSecret}, '[]', 1)
+    ON CONFLICT DO NOTHING
+  `)
+
   const authSecret = process.env.AUTH_SECRET!
   const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS
 
-  // Dynamic import required — next-auth/jwt is ESM-only.
   const { encode } = await import('next-auth/jwt')
   const token = await encode({
     token: {
@@ -76,7 +80,7 @@ export default async function globalSetup() {
   })
 
   fs.writeFileSync(
-    path.join(dir, 'state.json'),
+    path.join(stateDir, 'state.json'),
     JSON.stringify({
       cookies: [
         {

@@ -29,7 +29,7 @@ export async function runAIAgent(
   orgId = DEFAULT_ORG_ID,
   platform: Platform = 'discord'
 ): Promise<void> {
-  const repos = getConfiguredRepos()
+  const repos = await getConfiguredRepos()
 
   if (repos.length === 0) {
     console.log('[agent] No GitHub repos configured — skipping AI agent answer')
@@ -47,7 +47,7 @@ export async function runAIAgent(
 
   try {
     const { text } = await generateText({
-      model: chatModel('gpt-4o', orgId),
+      model: await chatModel('gpt-4o', orgId),
       stopWhen: stepCountIs(5),
       system: `You are a technical support agent for an open source software project.
 You have tools to search and read the project source code on GitHub.
@@ -91,7 +91,7 @@ Guidelines:
     })
 
     // Store the draft on the ticket
-    updateTicketAIDraft(ticketId, text)
+    await updateTicketAIDraft(ticketId, text)
 
     // Second pass: grade the answer to decide whether it can be auto-deflected.
     let assessment
@@ -105,7 +105,7 @@ Guidelines:
     const autoDeflect = shouldAutoDeflect(assessment)
     const pct = Math.round(assessment.confidence * 100)
 
-    saveAssessment({
+    await saveAssessment({
       ticketId,
       confidence: assessment.confidence,
       answeredFully: assessment.answered_fully,
@@ -117,18 +117,18 @@ Guidelines:
     let postedMessageId: string | null = null
     if (autoDeflect) {
       // High confidence: answer the community directly (deflection).
-      createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId)
+      await createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId)
       const message = `${text}\n\n*Was this helpful? React 👍 / 👎. If it didn't fully answer your question, a team member will follow up.*`
       postedMessageId = await postReply(channelId, message, orgId, platform)
     } else {
       // Low confidence: post as a draft and flag for human review.
-      createNotification('ai_draft_ready', `Needs review (${pct}%) — ticket #${ticketId}`, ticketId)
+      await createNotification('ai_draft_ready', `Needs review (${pct}%) — ticket #${ticketId}`, ticketId)
       const message = `**[AI Draft Answer]**\n${text}\n\n*A team member will follow up shortly.*`
       postedMessageId = await postReply(channelId, message, orgId, platform)
     }
 
     // Map the posted answer message → ticket so 👍/👎 reactions can be attributed.
-    if (postedMessageId) mapAnswerMessage(postedMessageId, ticketId)
+    if (postedMessageId) await mapAnswerMessage(postedMessageId, ticketId)
   } catch (err) {
     console.error('[agent] AI agent failed for ticket', ticketId, err)
   }

@@ -1,30 +1,44 @@
-import { eq, and } from 'drizzle-orm'
+import { eq, and, desc, sql } from 'drizzle-orm'
 import { cosineSimilarity } from 'ai'
-import { getDrizzle } from '../drizzle'
-import { getDb } from '../index'
+import { getDb } from '../drizzle'
 import { kbArticles, DEFAULT_ORG_ID } from '../schema'
 import type { KBArticle, KBSearchResult, PriorAnswer } from '@/types'
 
 export const KB_MATCH_THRESHOLD = 0.45
 
-function dz() { return getDrizzle() }
-function raw() { return getDb() }
+function toArticle(row: typeof kbArticles.$inferSelect): KBArticle {
+  return {
+    id: row.id,
+    question: row.question,
+    answer: row.answer,
+    source_ticket_id: row.sourceTicketId,
+    published: row.published as 0 | 1,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  }
+}
 
-const ARTICLE_COLS = 'id, question, answer, source_ticket_id, published, created_at, updated_at'
+export async function createArticle(
+  input: {
+    question: string
+    answer: string
+    embedding: number[]
+    model: string
+    sourceTicketId?: number
+  },
+  orgId = DEFAULT_ORG_ID
+): Promise<KBArticle> {
+  const db = getDb()
 
-export function createArticle(input: {
-  question: string
-  answer: string
-  embedding: number[]
-  model: string
-  sourceTicketId?: number
-}, orgId = DEFAULT_ORG_ID): KBArticle {
   if (input.sourceTicketId != null) {
-    const existing = raw()
-      .prepare('SELECT id FROM kb_articles WHERE source_ticket_id = ? AND org_id = ?')
-      .get(input.sourceTicketId, orgId) as { id: number } | undefined
+    const [existing] = await db
+      .select({ id: kbArticles.id })
+      .from(kbArticles)
+      .where(and(eq(kbArticles.sourceTicketId, input.sourceTicketId), eq(kbArticles.orgId, orgId)))
+      .limit(1)
+
     if (existing) {
-      dz()
+      await db
         .update(kbArticles)
         .set({
           question: input.question,
@@ -35,12 +49,11 @@ export function createArticle(input: {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(kbArticles.id, existing.id))
-        .run()
-      return getArticle(existing.id)!
+      return (await getArticle(existing.id))!
     }
   }
 
-  const result = dz()
+  const [row] = await db
     .insert(kbArticles)
     .values({
       orgId,
@@ -50,58 +63,67 @@ export function createArticle(input: {
       model: input.model,
       sourceTicketId: input.sourceTicketId ?? null,
     })
-    .run()
+    .returning()
 
-  return getArticle(Number(result.lastInsertRowid))!
+  return toArticle(row)
 }
 
-export function getArticle(id: number): KBArticle | null {
-  return (raw().prepare(`SELECT ${ARTICLE_COLS} FROM kb_articles WHERE id = ?`).get(id) as KBArticle) ?? null
+export async function getArticle(id: number): Promise<KBArticle | null> {
+  const [row] = await getDb()
+    .select()
+    .from(kbArticles)
+    .where(eq(kbArticles.id, id))
+    .limit(1)
+  return row ? toArticle(row) : null
 }
 
-export function countArticles(orgId = DEFAULT_ORG_ID): number {
-  const row = raw()
-    .prepare('SELECT COUNT(*) AS n FROM kb_articles WHERE org_id = ?')
-    .get(orgId) as { n: number }
-  return row.n
+export async function countArticles(orgId = DEFAULT_ORG_ID): Promise<number> {
+  const [row] = await getDb()
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(kbArticles)
+    .where(eq(kbArticles.orgId, orgId))
+  return row?.n ?? 0
 }
 
-export function getArticleBySourceTicket(ticketId: number, orgId = DEFAULT_ORG_ID): KBArticle | null {
-  return (
-    raw()
-      .prepare(`SELECT ${ARTICLE_COLS} FROM kb_articles WHERE source_ticket_id = ? AND org_id = ?`)
-      .get(ticketId, orgId) as KBArticle
-  ) ?? null
+export async function getArticleBySourceTicket(ticketId: number, orgId = DEFAULT_ORG_ID): Promise<KBArticle | null> {
+  const [row] = await getDb()
+    .select()
+    .from(kbArticles)
+    .where(and(eq(kbArticles.sourceTicketId, ticketId), eq(kbArticles.orgId, orgId)))
+    .limit(1)
+  return row ? toArticle(row) : null
 }
 
-export function listArticles(publishedOnly = true, orgId = DEFAULT_ORG_ID): KBArticle[] {
-  const where = publishedOnly
-    ? 'WHERE published = 1 AND org_id = ?'
-    : 'WHERE org_id = ?'
-  return raw()
-    .prepare(`SELECT ${ARTICLE_COLS} FROM kb_articles ${where} ORDER BY updated_at DESC`)
-    .all(orgId) as KBArticle[]
+export async function listArticles(publishedOnly = true, orgId = DEFAULT_ORG_ID): Promise<KBArticle[]> {
+  const conditions = publishedOnly
+    ? and(eq(kbArticles.published, 1), eq(kbArticles.orgId, orgId))
+    : eq(kbArticles.orgId, orgId)
+
+  const rows = await getDb()
+    .select()
+    .from(kbArticles)
+    .where(conditions)
+    .orderBy(desc(kbArticles.updatedAt))
+  return rows.map(toArticle)
 }
 
-interface EmbeddedRow extends KBArticle {
-  embedding: string
-}
-
-export function searchArticles(vector: number[], limit = 10, orgId = DEFAULT_ORG_ID): KBSearchResult[] {
-  const rows = raw()
-    .prepare(`SELECT ${ARTICLE_COLS}, embedding FROM kb_articles WHERE published = 1 AND org_id = ?`)
-    .all(orgId) as EmbeddedRow[]
+export async function searchArticles(vector: number[], limit = 10, orgId = DEFAULT_ORG_ID): Promise<KBSearchResult[]> {
+  const rows = await getDb()
+    .select()
+    .from(kbArticles)
+    .where(and(eq(kbArticles.published, 1), eq(kbArticles.orgId, orgId)))
 
   return rows
-    .map(({ embedding, ...article }) => ({
-      ...article,
-      score: cosineSimilarity(vector, JSON.parse(embedding) as number[]),
+    .map((row) => ({
+      ...toArticle(row),
+      score: cosineSimilarity(vector, JSON.parse(row.embedding) as number[]),
     }))
     .filter((r) => r.score >= KB_MATCH_THRESHOLD)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
 }
 
-export function getKBContext(vector: number[], k = 3, orgId = DEFAULT_ORG_ID): PriorAnswer[] {
-  return searchArticles(vector, k, orgId).map((a) => ({ summary: a.question, answer: a.answer }))
+export async function getKBContext(vector: number[], k = 3, orgId = DEFAULT_ORG_ID): Promise<PriorAnswer[]> {
+  const results = await searchArticles(vector, k, orgId)
+  return results.map((a) => ({ summary: a.question, answer: a.answer }))
 }

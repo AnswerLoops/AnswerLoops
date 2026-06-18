@@ -2,66 +2,64 @@ import NextAuth from 'next-auth'
 import Discord from 'next-auth/providers/discord'
 import Google from 'next-auth/providers/google'
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/index'
+import { eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/drizzle'
+import { users, memberships, orgs } from '@/lib/db/schema'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
-
-// Env vars read at module level so missing values surface early.
-// Auth.js also auto-reads AUTH_DISCORD_ID, AUTH_DISCORD_SECRET,
-// AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET from the environment.
 
 const PUBLIC_PATHS = ['/login', '/api/auth', '/api/ingest', '/api/feedback', '/api/slack', '/api/widget', '/widget']
 const ONBOARDING_PATH = '/onboarding'
-// Invite acceptance is accessible regardless of onboarding status.
 const INVITE_PREFIX = '/invite/'
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 }
 
-/**
- * Upsert the user, then find or create their org workspace.
- * New users get a fresh org; returning users land back in their existing one.
- */
-function provisionUser(
+async function provisionUser(
   email: string,
   name: string | null,
   image: string | null,
   provider: string
-): { userId: number; orgId: number } {
+): Promise<{ userId: number; orgId: number }> {
   const db = getDb()
 
   // Upsert user
-  db.prepare(
-    `INSERT INTO users (email, name, image, provider)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(email) DO UPDATE SET
-       name = COALESCE(excluded.name, name),
-       image = COALESCE(excluded.image, image)`
-  ).run(email, name ?? null, image ?? null, provider)
+  await db
+    .insert(users)
+    .values({ email, name, image, provider })
+    .onConflictDoUpdate({
+      target: users.email,
+      set: {
+        name: name ?? undefined,
+        image: image ?? undefined,
+      },
+    })
 
-  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number }
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
 
   // Returning user: find existing membership
-  const existing = db
-    .prepare('SELECT org_id FROM memberships WHERE user_id = ? LIMIT 1')
-    .get(user.id) as { org_id: number } | null
+  const [existing] = await db
+    .select({ orgId: memberships.orgId })
+    .from(memberships)
+    .where(eq(memberships.userId, user.id))
+    .limit(1)
 
   if (existing) {
-    return { userId: user.id, orgId: existing.org_id }
+    return { userId: user.id, orgId: existing.orgId }
   }
 
-  // New user: create a fresh org workspace (unboarded until they complete the wizard)
-  const orgResult = db
-    .prepare(`INSERT INTO orgs (name, slug) VALUES ('My Workspace', ?)`)
-    .run(`org-${user.id}-${Date.now()}`)
+  // New user: create a fresh org workspace
+  const [newOrg] = await db
+    .insert(orgs)
+    .values({ name: 'My Workspace', slug: `org-${user.id}-${Date.now()}` })
+    .returning({ id: orgs.id })
 
-  const orgId = Number(orgResult.lastInsertRowid)
-  db.prepare(`INSERT OR IGNORE INTO memberships (user_id, org_id, role) VALUES (?, ?, 'owner')`).run(
-    user.id,
-    orgId
-  )
+  await db
+    .insert(memberships)
+    .values({ userId: user.id, orgId: newOrg.id, role: 'owner' })
+    .onConflictDoNothing()
 
-  return { userId: user.id, orgId }
+  return { userId: user.id, orgId: newOrg.id }
 }
 
 export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
@@ -76,7 +74,7 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   },
 
   callbacks: {
-    authorized({ request, auth: session }) {
+    async authorized({ request, auth: session }) {
       const { pathname } = request.nextUrl
       if (isPublic(pathname)) return true
 
@@ -84,12 +82,9 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
-        return false // redirects to /login
+        return false
       }
 
-      // Authenticated: enforce onboarding for page routes only.
-      // Check JWT flag first (set on wizard completion) so a DB wipe doesn't
-      // force already-onboarded users back through the wizard.
       if (
         pathname !== ONBOARDING_PATH &&
         !pathname.startsWith(INVITE_PREFIX) &&
@@ -97,17 +92,17 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
       ) {
         if (!(session as { onboarded?: boolean }).onboarded) {
           const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
-          const org = getDb()
-            .prepare('SELECT onboarded_at, id FROM orgs WHERE id = ?')
-            .get(orgId) as { id: number; onboarded_at: string | null } | undefined
+          const [org] = await getDb()
+            .select({ id: orgs.id, onboardedAt: orgs.onboardedAt })
+            .from(orgs)
+            .where(eq(orgs.id, orgId))
+            .limit(1)
 
           if (!org) {
-            // Org row missing — DB was wiped while session JWT still has stale orgId.
-            // Sign out so re-auth triggers provisionUser() which creates a valid new org.
             return NextResponse.redirect(new URL('/api/auth/signout?callbackUrl=/login', request.nextUrl))
           }
 
-          if (!org.onboarded_at) {
+          if (!org.onboardedAt) {
             return NextResponse.redirect(new URL(ONBOARDING_PATH, request.nextUrl))
           }
         }
@@ -116,16 +111,14 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
       return true
     },
 
-    jwt({ token, user, account, trigger, session: updateData }) {
-      // unstable_update() calls — merge orgId or onboarded flag into the token
+    async jwt({ token, user, account, trigger, session: updateData }) {
       if (trigger === 'update' && updateData) {
         const data = updateData as { orgId?: number; onboarded?: boolean }
         if (data.orgId) token.orgId = data.orgId
         if (data.onboarded) token.onboarded = true
       }
-      // Runs on sign-in (user + account present) and on every session read (token only)
       if (user?.email && account) {
-        const { userId, orgId } = provisionUser(
+        const { userId, orgId } = await provisionUser(
           user.email,
           user.name ?? null,
           user.image ?? null,

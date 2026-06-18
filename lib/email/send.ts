@@ -11,8 +11,9 @@ function from() {
   return process.env.RESEND_FROM ?? 'notifications@yourdomain.com'
 }
 
-function getAdminEmails(orgId: number): string[] {
-  return getOrgMembers(orgId)
+async function getAdminEmails(orgId: number): Promise<string[]> {
+  const members = await getOrgMembers(orgId)
+  return members
     .filter((m) => m.email && ['owner', 'admin'].includes(m.role))
     .map((m) => m.email as string)
 }
@@ -40,7 +41,7 @@ export async function sendNewTicketEmail(ticket: Ticket, orgId: number): Promise
   if (MOCK_EXTERNALS || !process.env.RESEND_API_KEY) return
   if (!['critical', 'high'].includes(ticket.priority)) return
 
-  const to = getAdminEmails(orgId)
+  const to = await getAdminEmails(orgId)
   if (to.length === 0) return
 
   const summary = ticket.ai_summary ?? ticket.content.slice(0, 120)
@@ -76,7 +77,7 @@ export async function sendTicketResolvedEmail(
 ): Promise<void> {
   if (MOCK_EXTERNALS || !process.env.RESEND_API_KEY) return
 
-  const to = getAdminEmails(orgId)
+  const to = await getAdminEmails(orgId)
   if (to.length === 0) return
 
   const summary = ticket.ai_summary ?? ticket.content.slice(0, 120)
@@ -108,7 +109,7 @@ export async function sendSlaBreachEmails(ticketIds: number[], orgId: number): P
   if (MOCK_EXTERNALS || !process.env.RESEND_API_KEY) return
   if (ticketIds.length === 0) return
 
-  const to = getAdminEmails(orgId)
+  const to = await getAdminEmails(orgId)
   if (to.length === 0) return
 
   const base = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'

@@ -9,7 +9,7 @@ export async function GET() {
   if (!session?.user) return new Response('Unauthorized', { status: 401 })
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
-  const config = getOrgAIConfig(orgId)
+  const config = await getOrgAIConfig(orgId)
   if (!config) return Response.json(null)
 
   // Never expose raw API keys to the client — return masked presence only

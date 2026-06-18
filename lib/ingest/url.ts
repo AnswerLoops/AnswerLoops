@@ -85,7 +85,7 @@ function applyImportCaps(chunks: Chunk[]): Chunk[] {
 
 // Embed and persist chunks, enforcing the per-org article ceiling.
 async function saveChunks(chunks: Chunk[], orgId: number): Promise<number> {
-  const existing = countArticles(orgId)
+  const existing = await countArticles(orgId)
   if (existing >= MAX_ARTICLES_PER_ORG) {
     throw new IngestLimitError(
       `Knowledge base is full (${MAX_ARTICLES_PER_ORG} articles). Delete some before importing more.`,

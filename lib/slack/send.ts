@@ -4,8 +4,8 @@ import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 const SLACK_API = 'https://slack.com/api'
 
-function resolveToken(orgId: number): string | null {
-  const integration = getIntegration(orgId, 'slack')
+async function resolveToken(orgId: number): Promise<string | null> {
+  const integration = await getIntegration(orgId, 'slack')
   return integration?.bot_token ?? null
 }
 
@@ -22,7 +22,7 @@ export async function sendToSlackChannel(
     return `mock-slack-${channelId}`
   }
 
-  const token = resolveToken(orgId)
+  const token = await resolveToken(orgId)
   if (!token) {
     console.warn('[slack/send] No bot token for org', orgId, '— skipping send')
     return null

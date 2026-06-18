@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     return new Response('Missing messages', { status: 400 })
   }
 
-  const org = getOrgByWidgetToken(widgetToken)
+  const org = await getOrgByWidgetToken(widgetToken)
   if (!org) {
     return new Response('Invalid widget token', { status: 404 })
   }
@@ -73,9 +73,9 @@ export async function POST(request: Request) {
   if (query.trim()) {
     try {
       const vector = await embedText(query, org.id)
-      kbContext = getKBContext(vector, 4, org.id)
-      const related = findRelated(vector, getCandidateVectors(0))
-      priorContext = getPriorAnswers(related.map((r) => r.related_id), org.id)
+      kbContext = await getKBContext(vector, 4, org.id)
+      const related = findRelated(vector, await getCandidateVectors(0))
+      priorContext = await getPriorAnswers(related.map((r) => r.related_id), org.id)
     } catch {
       // Proceed without context if embedding fails
     }
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     : ''
 
   const result = streamText({
-    model: chatModel('gpt-4o-mini', org.id),
+    model: await chatModel('gpt-4o-mini', org.id),
     system: `You are a helpful support assistant for ${org.name}.
 Answer questions concisely and accurately based on the knowledge base context provided.
 If you don't know the answer or it's not covered in the context, say so honestly and suggest the user contact support directly.

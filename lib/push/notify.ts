@@ -1,7 +1,8 @@
 import webpush from 'web-push'
-import { getDb } from '@/lib/db'
+import { eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/drizzle'
+import { pushSubscriptions } from '@/lib/db/schema'
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
-import type { PushSubscription } from '@/types'
 
 function initWebPush() {
   if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -20,20 +21,16 @@ interface PushPayload {
 }
 
 export async function sendPushToAll(payload: PushPayload): Promise<void> {
-  // Skip real web-push in tests: the VAPID test key is not a valid curve point,
-  // and we never want to hit push endpoints. The /api/push routes are still
-  // covered directly.
   if (MOCK_EXTERNALS) return
   if (!process.env.VAPID_PUBLIC_KEY) return
 
   initWebPush()
 
-  const subscriptions = getDb()
-    .prepare('SELECT * FROM push_subscriptions')
-    .all() as PushSubscription[]
+  const db = getDb()
+  const subs = await db.select().from(pushSubscriptions)
 
   const results = await Promise.allSettled(
-    subscriptions.map((sub) =>
+    subs.map((sub) =>
       webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         JSON.stringify(payload)
@@ -42,14 +39,13 @@ export async function sendPushToAll(payload: PushPayload): Promise<void> {
   )
 
   // Remove expired subscriptions (410 Gone)
-  results.forEach((result, i) => {
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i]
     if (result.status === 'rejected') {
       const err = result.reason as { statusCode?: number }
       if (err?.statusCode === 410) {
-        getDb()
-          .prepare('DELETE FROM push_subscriptions WHERE endpoint = ?')
-          .run(subscriptions[i].endpoint)
+        await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, subs[i].endpoint))
       }
     }
-  })
+  }
 }

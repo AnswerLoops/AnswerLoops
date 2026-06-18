@@ -2,11 +2,14 @@
 
 import crypto from 'crypto'
 import { z } from 'zod'
+import { eq, and, sql } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { refresh } from 'next/cache'
 import { Resend } from 'resend'
 import { auth, unstable_update } from '@/auth'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { getDb } from '@/lib/db/drizzle'
+import { users, orgs, memberships, tickets } from '@/lib/db/schema'
 import {
   createInvitation,
   getInvitationByToken,
@@ -14,7 +17,6 @@ import {
   revokeInvitation,
 } from '@/lib/db/queries/invitations'
 import { addMember, isMember } from '@/lib/db/queries/members'
-import { getDb } from '@/lib/db/index'
 
 const INVITE_TTL_DAYS = 7
 
@@ -37,31 +39,29 @@ export async function sendInviteAction(
 
   const { email, role } = parsed.data
 
-  // Don't invite someone who's already a member
-  const existingUser = getDb()
-    .prepare('SELECT id FROM users WHERE email = ?')
-    .get(email) as { id: number } | null
-  if (existingUser && isMember(existingUser.id, orgId)) {
+  const db = getDb()
+
+  const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
+  if (existingUser && await isMember(existingUser.id, orgId)) {
     return { error: 'This person is already a member of your workspace.' }
   }
 
   const token = crypto.randomBytes(32).toString('hex')
-  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .replace('T', ' ')
-    .slice(0, 19)
+  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString()
 
-  createInvitation({ orgId, email, role, token, invitedBy: userId, expiresAt })
+  await createInvitation({ orgId, email, role, token, invitedBy: userId, expiresAt })
 
   const baseUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const inviteUrl = `${baseUrl}/invite/${token}`
 
-  // Send email if RESEND_API_KEY is configured; skip silently in dev/test
   if (process.env.RESEND_API_KEY) {
     const resend = new Resend(process.env.RESEND_API_KEY)
-    const db = getDb()
-    const org = db.prepare('SELECT name FROM orgs WHERE id = ?').get(orgId) as { name: string } | null
-    const inviter = db.prepare('SELECT name, email FROM users WHERE id = ?').get(userId) as { name: string | null; email: string | null } | null
+    const [org] = await db.select({ name: orgs.name }).from(orgs).where(eq(orgs.id, orgId)).limit(1)
+    const [inviter] = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
     const orgName = org?.name ?? 'a workspace'
     const inviterName = inviter?.name ?? inviter?.email ?? 'Someone'
     const fromAddress = process.env.RESEND_FROM ?? 'invites@yourdomain.com'
@@ -106,7 +106,7 @@ export async function revokeInviteAction(
   const id = Number(formData.get('id'))
   if (!id) return { error: 'Missing invite ID' }
 
-  revokeInvitation(id, orgId)
+  await revokeInvitation(id, orgId)
   refresh()
   return null
 }
@@ -115,43 +115,44 @@ export async function acceptInviteAction(token: string): Promise<void> {
   const session = await auth()
   if (!session?.user) redirect(`/login?callbackUrl=/invite/${token}`)
 
-  const invite = getInvitationByToken(token)
+  const invite = await getInvitationByToken(token)
   if (!invite || invite.accepted_at) {
     redirect(`/invite/${token}?error=invalid`)
   }
 
-  const db = getDb()
-  const now = db.prepare("SELECT datetime('now') AS t").get() as { t: string }
-  if (invite.expires_at < now.t) {
+  if (invite.expires_at < new Date().toISOString()) {
     redirect(`/invite/${token}?error=expired`)
   }
 
   const userId = Number(session.user.id)
 
-  if (isMember(userId, invite.org_id)) {
+  if (await isMember(userId, invite.org_id)) {
     redirect('/dashboard')
   }
 
-  // Add to the invited org
-  addMember(userId, invite.org_id, invite.role)
-  acceptInvitation(token)
+  await addMember(userId, invite.org_id, invite.role)
+  await acceptInvitation(token)
 
   // Clean up the user's empty personal org if it was freshly created (unboarded, no data)
   const currentOrgId = session.orgId ?? DEFAULT_ORG_ID
   if (currentOrgId !== invite.org_id && currentOrgId !== DEFAULT_ORG_ID) {
-    const hasData = db
-      .prepare('SELECT COUNT(*) AS c FROM tickets WHERE org_id = ?')
-      .get(currentOrgId) as { c: number }
-    const currentOrg = db
-      .prepare('SELECT onboarded_at FROM orgs WHERE id = ?')
-      .get(currentOrgId) as { onboarded_at: string | null } | undefined
-    if (!currentOrg?.onboarded_at && hasData.c === 0) {
-      db.prepare('DELETE FROM memberships WHERE user_id = ? AND org_id = ?').run(userId, currentOrgId)
-      db.prepare('DELETE FROM orgs WHERE id = ?').run(currentOrgId)
+    const db = getDb()
+    const [hasData] = await db
+      .select({ c: sql<number>`COUNT(*)::int` })
+      .from(tickets)
+      .where(eq(tickets.orgId, currentOrgId))
+    const [currentOrg] = await db
+      .select({ onboardedAt: orgs.onboardedAt })
+      .from(orgs)
+      .where(eq(orgs.id, currentOrgId))
+      .limit(1)
+
+    if (!currentOrg?.onboardedAt && (hasData?.c ?? 0) === 0) {
+      await db.delete(memberships).where(and(eq(memberships.userId, userId), eq(memberships.orgId, currentOrgId)))
+      await db.delete(orgs).where(eq(orgs.id, currentOrgId))
     }
   }
 
-  // Update session to point at the invited org
   await unstable_update({ orgId: invite.org_id })
   redirect('/dashboard')
 }
@@ -172,20 +173,30 @@ export async function transferOwnershipAction(
 
   const db = getDb()
 
-  const currentMembership = db
-    .prepare('SELECT id, role FROM memberships WHERE user_id = ? AND org_id = ?')
-    .get(currentUserId, orgId) as { id: number; role: string } | null
+  const [currentMembership] = await db
+    .select({ id: memberships.id, role: memberships.role })
+    .from(memberships)
+    .where(and(eq(memberships.userId, currentUserId), eq(memberships.orgId, orgId)))
+    .limit(1)
   if (currentMembership?.role !== 'owner') return { error: 'Only owners can transfer ownership.' }
 
-  const target = db
-    .prepare('SELECT role FROM memberships WHERE id = ? AND org_id = ?')
-    .get(targetMembershipId, orgId) as { role: string } | null
+  const [target] = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(and(eq(memberships.id, targetMembershipId), eq(memberships.orgId, orgId)))
+    .limit(1)
   if (!target) return { error: 'Member not found.' }
 
-  db.transaction(() => {
-    db.prepare('UPDATE memberships SET role = ? WHERE id = ? AND org_id = ?').run('member', currentMembership.id, orgId)
-    db.prepare('UPDATE memberships SET role = ? WHERE id = ? AND org_id = ?').run('owner', targetMembershipId, orgId)
-  })()
+  await db.transaction(async (tx) => {
+    await tx
+      .update(memberships)
+      .set({ role: 'member' })
+      .where(and(eq(memberships.id, currentMembership.id), eq(memberships.orgId, orgId)))
+    await tx
+      .update(memberships)
+      .set({ role: 'owner' })
+      .where(and(eq(memberships.id, targetMembershipId), eq(memberships.orgId, orgId)))
+  })
 
   refresh()
   return null
@@ -205,14 +216,15 @@ export async function removeMemberAction(
 
   if (targetUserId === currentUserId) return { error: "You can't remove yourself." }
 
-  const target = getDb()
-    .prepare('SELECT role FROM memberships WHERE id = ? AND org_id = ?')
-    .get(membershipId, orgId) as { role: string } | null
-  if (target?.role === 'owner') return { error: "Owners cannot be removed." }
+  const db = getDb()
+  const [target] = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(and(eq(memberships.id, membershipId), eq(memberships.orgId, orgId)))
+    .limit(1)
+  if (target?.role === 'owner') return { error: 'Owners cannot be removed.' }
 
-  getDb()
-    .prepare('DELETE FROM memberships WHERE id = ? AND org_id = ?')
-    .run(membershipId, orgId)
+  await db.delete(memberships).where(and(eq(memberships.id, membershipId), eq(memberships.orgId, orgId)))
 
   refresh()
   return null

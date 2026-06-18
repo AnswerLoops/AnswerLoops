@@ -40,7 +40,7 @@ export async function generateFAQ(tickets: TicketSummary[], orgId?: number): Pro
   const context = formatForPrompt(tickets)
 
   const { text } = await generateText({
-    model: chatModel('gpt-4o', orgId),
+    model: await chatModel('gpt-4o', orgId),
     maxOutputTokens: 3000,
     prompt: `You are a technical writer creating a community FAQ from resolved support tickets.
 

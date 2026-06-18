@@ -24,15 +24,15 @@ function Bar({ value, max, className = 'bg-indigo-500' }: { value: number; max: 
   )
 }
 
-export default function AnalyticsPage() {
-  const stats = getDeflectionStats()
+export default async function AnalyticsPage() {
+  const stats = await getDeflectionStats()
   const rate = deflectionRate(stats.deflected, stats.answered)
   const savings = computeSavings(stats.deflected)
-  const trend = getDeflectionTrend()
-  const categories = getCategoryBreakdown()
-  const docGaps = getDocGaps()
-  const sla = getSLAStats()
-  const accuracyByCategory = getDeflectionAccuracyByCategory()
+  const trend = await getDeflectionTrend()
+  const categories = await getCategoryBreakdown()
+  const docGaps = await getDocGaps()
+  const sla = await getSLAStats()
+  const accuracyByCategory = await getDeflectionAccuracyByCategory()
 
   const trendMax = Math.max(1, ...trend.map((t) => t.answered))
   const catMax = Math.max(1, ...categories.map((c) => c.count))

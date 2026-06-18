@@ -1,7 +1,6 @@
 import { eq, and } from 'drizzle-orm'
-import { getDrizzle } from '../drizzle'
-import { getDb } from '../index'
-import { integrations, DEFAULT_ORG_ID } from '../schema'
+import { getDb } from '../drizzle'
+import { integrations } from '../schema'
 import { encryptToken, decryptToken } from '@/lib/crypto/tokens'
 
 export type Platform = 'discord' | 'slack'
@@ -12,7 +11,7 @@ export interface Integration {
   platform: string
   bot_token: string | null
   bot_secret: string | null
-  channel_ids: string | null  // JSON array string
+  channel_ids: string | null
   team_id: string | null
   webhook_secret: string | null
   enabled: number
@@ -20,8 +19,21 @@ export interface Integration {
   updated_at: string
 }
 
-function dz() { return getDrizzle() }
-function raw() { return getDb() }
+function toIntegration(row: typeof integrations.$inferSelect): Integration {
+  return {
+    id: row.id,
+    org_id: row.orgId,
+    platform: row.platform,
+    bot_token: row.botToken,
+    bot_secret: row.botSecret,
+    channel_ids: row.channelIds,
+    team_id: row.teamId,
+    webhook_secret: row.webhookSecret,
+    enabled: row.enabled,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  }
+}
 
 function decryptRow(row: Integration): Integration {
   return {
@@ -31,43 +43,49 @@ function decryptRow(row: Integration): Integration {
   }
 }
 
-export function getIntegration(orgId: number, platform: Platform): Integration | null {
-  const row = (
-    raw()
-      .prepare('SELECT * FROM integrations WHERE org_id = ? AND platform = ?')
-      .get(orgId, platform) as Integration
-  ) ?? null
-  return row ? decryptRow(row) : null
+export async function getIntegration(orgId: number, platform: Platform): Promise<Integration | null> {
+  const [row] = await getDb()
+    .select()
+    .from(integrations)
+    .where(and(eq(integrations.orgId, orgId), eq(integrations.platform, platform)))
+    .limit(1)
+  return row ? decryptRow(toIntegration(row)) : null
 }
 
-/** Look up which org owns a given bot_secret. Used by /api/ingest to route Discord requests. */
-export function getIntegrationByBotSecret(botSecret: string): Integration | null {
-  const row = (
-    raw()
-      .prepare('SELECT * FROM integrations WHERE bot_secret = ? AND enabled = 1')
-      .get(botSecret) as Integration
-  ) ?? null
-  return row ? decryptRow(row) : null
+export async function getIntegrationByBotSecret(botSecret: string): Promise<Integration | null> {
+  const [row] = await getDb()
+    .select()
+    .from(integrations)
+    .where(and(eq(integrations.botSecret, botSecret), eq(integrations.enabled, 1)))
+    .limit(1)
+  return row ? decryptRow(toIntegration(row)) : null
 }
 
-/** Look up which org owns a given Slack team_id. Used by /api/slack/events to route requests. */
-export function getIntegrationByTeamId(teamId: string): Integration | null {
-  const row = (
-    raw()
-      .prepare("SELECT * FROM integrations WHERE team_id = ? AND platform = 'slack' AND enabled = 1")
-      .get(teamId) as Integration
-  ) ?? null
-  return row ? decryptRow(row) : null
+export async function getIntegrationByTeamId(teamId: string): Promise<Integration | null> {
+  const [row] = await getDb()
+    .select()
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.teamId, teamId),
+        eq(integrations.platform, 'slack'),
+        eq(integrations.enabled, 1)
+      )
+    )
+    .limit(1)
+  return row ? decryptRow(toIntegration(row)) : null
 }
 
-export function listIntegrations(orgId: number): Integration[] {
-  const rows = raw()
-    .prepare('SELECT * FROM integrations WHERE org_id = ? ORDER BY platform ASC')
-    .all(orgId) as Integration[]
-  return rows.map(decryptRow)
+export async function listIntegrations(orgId: number): Promise<Integration[]> {
+  const rows = await getDb()
+    .select()
+    .from(integrations)
+    .where(eq(integrations.orgId, orgId))
+    .orderBy(integrations.platform)
+  return rows.map((r) => decryptRow(toIntegration(r)))
 }
 
-export function upsertIntegration(input: {
+export async function upsertIntegration(input: {
   orgId: number
   platform: Platform
   botToken?: string | null
@@ -75,38 +93,29 @@ export function upsertIntegration(input: {
   channelIds?: string[]
   teamId?: string | null
   webhookSecret?: string | null
-}): Integration {
+}): Promise<Integration> {
   const channelIdsJson = input.channelIds ? JSON.stringify(input.channelIds) : null
   const encryptedBotToken = input.botToken ? encryptToken(input.botToken) : null
   const encryptedWebhookSecret = input.webhookSecret ? encryptToken(input.webhookSecret) : null
 
-  const existing = getIntegration(input.orgId, input.platform)
+  const existing = await getIntegration(input.orgId, input.platform)
   if (existing) {
-    raw()
-      .prepare(
-        `UPDATE integrations SET
-           bot_token      = COALESCE(?, bot_token),
-           bot_secret     = COALESCE(?, bot_secret),
-           channel_ids    = COALESCE(?, channel_ids),
-           team_id        = COALESCE(?, team_id),
-           webhook_secret = COALESCE(?, webhook_secret),
-           enabled        = 1,
-           updated_at     = datetime('now')
-         WHERE org_id = ? AND platform = ?`
-      )
-      .run(
-        encryptedBotToken,
-        input.botSecret ?? null,
-        channelIdsJson ?? null,
-        input.teamId ?? null,
-        encryptedWebhookSecret,
-        input.orgId,
-        input.platform
-      )
-    return getIntegration(input.orgId, input.platform)!
+    await getDb()
+      .update(integrations)
+      .set({
+        botToken: encryptedBotToken ?? undefined,
+        botSecret: input.botSecret ?? undefined,
+        channelIds: channelIdsJson ?? undefined,
+        teamId: input.teamId ?? undefined,
+        webhookSecret: encryptedWebhookSecret ?? undefined,
+        enabled: 1,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(and(eq(integrations.orgId, input.orgId), eq(integrations.platform, input.platform)))
+    return (await getIntegration(input.orgId, input.platform))!
   }
 
-  const result = dz()
+  const [row] = await getDb()
     .insert(integrations)
     .values({
       orgId: input.orgId,
@@ -117,30 +126,24 @@ export function upsertIntegration(input: {
       teamId: input.teamId ?? null,
       webhookSecret: encryptedWebhookSecret ?? null,
     })
-    .run()
+    .returning()
 
-  return decryptRow(
-    raw()
-      .prepare('SELECT * FROM integrations WHERE id = ?')
-      .get(Number(result.lastInsertRowid)) as Integration
-  )
+  return decryptRow(toIntegration(row))
 }
 
-export function disableIntegration(orgId: number, platform: Platform): void {
-  dz()
+export async function disableIntegration(orgId: number, platform: Platform): Promise<void> {
+  await getDb()
     .update(integrations)
     .set({ enabled: 0, updatedAt: new Date().toISOString() })
     .where(and(eq(integrations.orgId, orgId), eq(integrations.platform, platform)))
-    .run()
 }
 
-export function deleteIntegration(orgId: number, platform: Platform): void {
-  raw()
-    .prepare('DELETE FROM integrations WHERE org_id = ? AND platform = ?')
-    .run(orgId, platform)
+export async function deleteIntegration(orgId: number, platform: Platform): Promise<void> {
+  await getDb()
+    .delete(integrations)
+    .where(and(eq(integrations.orgId, orgId), eq(integrations.platform, platform)))
 }
 
-/** Parse channel_ids JSON field into a string array. */
 export function parseChannelIds(integration: Integration): string[] {
   if (!integration.channel_ids) return []
   try {

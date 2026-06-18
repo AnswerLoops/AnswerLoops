@@ -12,7 +12,7 @@ interface SearchParams {
 
 export default async function TicketsPage(props: { searchParams: Promise<SearchParams> }) {
   const searchParams = await props.searchParams
-  const tickets = getTickets({
+  const tickets = await getTickets({
     status: searchParams.status as TicketStatus | undefined,
     priority: searchParams.priority as Priority | undefined,
     category: searchParams.category as TicketCategory | undefined,
