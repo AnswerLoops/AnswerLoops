@@ -1,0 +1,37 @@
+# Production stack: built image, no source bind-mount, no dev server.
+#   docker compose -f docker-compose.prod.yml up -d --build
+# The app and bot share one image and differ only by command.
+services:
+  app:
+    build:
+      context: .
+      target: runner
+    image: community-platform:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/data/community.db
+    volumes:
+      - community-data:/data
+    command: ["pnpm", "start"]
+
+  bot:
+    image: community-platform:latest
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      - BOT_TARGET_URL=http://app:3000
+    command: ["pnpm", "bot:start"]
+    depends_on:
+      - app
+
+volumes:
+  community-data:   # SQLite DB — the only stateful volume; back this up

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "bot": "tsx watch bot/index.ts",
+    "bot:start": "tsx bot/index.ts",
     "dev:all": "concurrently \"pnpm dev\" \"pnpm bot\"",
     "test:e2e": "playwright test",
     "test:e2e:typecheck": "tsc --noEmit -p e2e/tsconfig.json",
