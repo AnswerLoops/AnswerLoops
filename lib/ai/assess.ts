@@ -25,9 +25,9 @@ export interface AnswerAssessment {
  * pass — a different prompt grading the first pass's output — to decide whether
  * the answer is safe to auto-deflect or needs a human.
  */
-export async function assessAnswer(question: string, answer: string): Promise<AnswerAssessment> {
+export async function assessAnswer(question: string, answer: string, orgId?: number): Promise<AnswerAssessment> {
   const { object } = await generateObject({
-    model: chatModel(ASSESS_MODEL),
+    model: chatModel(ASSESS_MODEL, orgId),
     schema: AssessmentSchema,
     prompt: `You are a strict reviewer grading a support answer before it is sent to a community member.
 

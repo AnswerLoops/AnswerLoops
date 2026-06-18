@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   if (!q) return Response.json([])
 
   try {
-    const vector = await embedText(q)
+    const vector = await embedText(q, orgId)
     return Response.json(searchArticles(vector, 10, orgId))
   } catch (err) {
     console.error('[kb/search] failed:', err)

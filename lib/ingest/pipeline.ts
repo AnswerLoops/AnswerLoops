@@ -53,7 +53,7 @@ export async function processCommunityMessage(
     return { ticket_id: existing.id, duplicate: true }
   }
 
-  const triage = await triageMessage(content)
+  const triage = await triageMessage(content, orgId)
   const priority = severityToPriority(triage.severity_score)
   const { sla_response_deadline, sla_resolve_deadline } = calculateDeadlines(priority)
 
@@ -94,7 +94,7 @@ export async function processCommunityMessage(
 
     let priorAnswers: { summary: string; answer: string }[] = []
     try {
-      const vector = await embedText(`${triage.summary}\n\n${content}`)
+      const vector = await embedText(`${triage.summary}\n\n${content}`, orgId)
       saveEmbedding(ticket.id, vector, EMBEDDING_MODEL)
 
       const related = findRelated(vector, getCandidateVectors(ticket.id))

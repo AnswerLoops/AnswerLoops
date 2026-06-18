@@ -24,6 +24,22 @@ export function getDb(): Database.Database {
     try { db.exec('ALTER TABLE orgs ADD COLUMN onboarded_at TEXT') } catch (_) {}
     try { db.exec('ALTER TABLE orgs ADD COLUMN widget_token TEXT') } catch (_) {}
     try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS orgs_widget_token ON orgs(widget_token)') } catch (_) {}
+    try {
+      db.exec(`CREATE TABLE IF NOT EXISTS ai_configs (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id             INTEGER NOT NULL UNIQUE REFERENCES orgs(id),
+        chat_provider      TEXT NOT NULL DEFAULT 'openai',
+        chat_model         TEXT NOT NULL DEFAULT 'gpt-4o',
+        chat_api_key       TEXT,
+        chat_base_url      TEXT,
+        embedding_provider TEXT NOT NULL DEFAULT 'openai',
+        embedding_model    TEXT NOT NULL DEFAULT 'text-embedding-3-small',
+        embedding_api_key  TEXT,
+        embedding_base_url TEXT,
+        created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
+      )`)
+    } catch (_) {}
     globalForDb.__communityDb = db
   }
   return globalForDb.__communityDb
