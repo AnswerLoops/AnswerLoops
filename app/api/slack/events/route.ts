@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   let webhookSecret: string | null = null
 
   if (teamId) {
-    const integration = getIntegrationByTeamId(teamId)
+    const integration = await getIntegrationByTeamId(teamId)
     if (integration) {
       orgId = integration.org_id
       webhookSecret = integration.webhook_secret
@@ -116,10 +116,10 @@ export async function POST(request: Request) {
     if (!item || item.type !== 'message') return Response.json({ ok: true })
 
     const messageTs = item.ts as string
-    const ticketId = getTicketIdByAnswerMessage(messageTs)
+    const ticketId = await getTicketIdByAnswerMessage(messageTs)
     if (!ticketId) return Response.json({ ok: true })
 
-    saveFeedback({
+    await saveFeedback({
       ticketId,
       source: 'discord',  // reuses the feedback source enum; 'community' would be more accurate but requires schema change
       vote,

@@ -7,7 +7,7 @@ export async function POST() {
   const session = await auth()
   const orgId = session?.orgId ?? DEFAULT_ORG_ID
 
-  const tickets = getResolvedTicketsThisWeek()
+  const tickets = await getResolvedTicketsThisWeek()
 
   const now = new Date()
   const weekStart = new Date(now)
@@ -18,7 +18,7 @@ export async function POST() {
   weekEnd.setDate(weekStart.getDate() + 6) // Sunday
 
   const content = await generateFAQ(tickets, orgId)
-  const snapshot = insertFAQSnapshot(
+  const snapshot = await insertFAQSnapshot(
     weekStart.toISOString().split('T')[0],
     weekEnd.toISOString().split('T')[0],
     content,

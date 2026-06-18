@@ -29,11 +29,11 @@ export async function POST(request: Request) {
   const { message_id, vote, actor } = parsed.data
 
   // Only AI answer messages map to a ticket; reactions on anything else are ignored.
-  const ticketId = getTicketIdByAnswerMessage(message_id)
+  const ticketId = await getTicketIdByAnswerMessage(message_id)
   if (ticketId === null) {
     return Response.json({ ok: true, ignored: true })
   }
 
-  saveFeedback({ ticketId, source: 'discord', vote, actor })
+  await saveFeedback({ ticketId, source: 'discord', vote, actor })
   return Response.json({ ok: true, ticket_id: ticketId })
 }

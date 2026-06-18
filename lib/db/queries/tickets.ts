@@ -1,85 +1,144 @@
-import { eq, and } from 'drizzle-orm'
-import { getDrizzle } from '../drizzle'
-import { getDb } from '../index'
+import { eq, and, inArray, sql, desc } from 'drizzle-orm'
+import { getDb } from '../drizzle'
 import {
   tickets,
   ticketReplies,
   ticketEvents,
+  aiAssessments,
   DEFAULT_ORG_ID,
 } from '../schema'
 import type { Ticket, CreateTicketInput, TicketFilters, TicketReply, TicketEvent } from '@/types'
 
-function dz() { return getDrizzle() }
-function raw() { return getDb() }
-
-export function createTicket(input: CreateTicketInput, orgId = DEFAULT_ORG_ID): Ticket {
-  const result = dz().insert(tickets).values({
-    orgId,
-    discordMessageId: input.discord_message_id ?? null,
-    discordChannelId: input.discord_channel_id ?? null,
-    discordThreadId: input.discord_thread_id ?? null,
-    discordAuthorId: input.discord_author_id ?? null,
-    discordAuthorName: input.discord_author_name ?? null,
-    content: input.content,
-    category: input.category ?? null,
-    severityScore: input.severity_score ?? null,
-    aiSummary: input.ai_summary ?? null,
-    aiSuggestedPriority: input.ai_suggested_priority ?? null,
-    priority: input.priority,
-    slaResponseDeadline: input.sla_response_deadline ?? null,
-    slaResolveDeadline: input.sla_resolve_deadline ?? null,
-  }).run()
-
-  const id = Number(result.lastInsertRowid)
-
-  dz().insert(ticketEvents).values({ ticketId: id, eventType: 'created', actor: 'system' }).run()
-
-  return getTicketById(id)!
+function toTicket(row: typeof tickets.$inferSelect): Ticket {
+  return {
+    id: row.id,
+    discord_message_id: row.discordMessageId,
+    discord_channel_id: row.discordChannelId,
+    discord_thread_id: row.discordThreadId,
+    discord_author_id: row.discordAuthorId,
+    discord_author_name: row.discordAuthorName,
+    content: row.content,
+    category: row.category as Ticket['category'],
+    severity_score: row.severityScore,
+    ai_summary: row.aiSummary,
+    ai_suggested_priority: row.aiSuggestedPriority as Ticket['ai_suggested_priority'],
+    ai_draft: row.aiDraft,
+    ai_draft_status: row.aiDraftStatus as Ticket['ai_draft_status'],
+    ai_draft_posted_at: row.aiDraftPostedAt,
+    priority: row.priority as Ticket['priority'],
+    status: row.status as Ticket['status'],
+    resolution_notes: row.resolutionNotes,
+    sla_response_deadline: row.slaResponseDeadline,
+    sla_resolve_deadline: row.slaResolveDeadline,
+    sla_response_met: row.slaResponseMet as Ticket['sla_response_met'],
+    sla_resolve_met: row.slaResolveMet as Ticket['sla_resolve_met'],
+    first_response_at: row.firstResponseAt,
+    resolved_at: row.resolvedAt,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  }
 }
 
-export function getTickets(filters: TicketFilters = {}, orgId = DEFAULT_ORG_ID): Ticket[] {
-  const conditions: string[] = ['org_id = @org_id']
-  const params: Record<string, string | number> = { org_id: orgId }
-
-  if (filters.status) { conditions.push('status = @status'); params.status = filters.status }
-  if (filters.priority) { conditions.push('priority = @priority'); params.priority = filters.priority }
-  if (filters.category) { conditions.push('category = @category'); params.category = filters.category }
-
-  return raw()
-    .prepare(`SELECT * FROM tickets WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`)
-    .all(params) as Ticket[]
+function toReply(row: typeof ticketReplies.$inferSelect): TicketReply {
+  return {
+    id: row.id,
+    ticket_id: row.ticketId,
+    staff_name: row.staffName,
+    content: row.content,
+    discord_msg_id: row.discordMsgId,
+    created_at: row.createdAt,
+  }
 }
 
-export function getTicketById(id: number): Ticket | null {
-  return (raw().prepare('SELECT * FROM tickets WHERE id = ?').get(id) as Ticket) ?? null
+function toEvent(row: typeof ticketEvents.$inferSelect): TicketEvent {
+  return {
+    id: row.id,
+    ticket_id: row.ticketId,
+    event_type: row.eventType,
+    old_value: row.oldValue,
+    new_value: row.newValue,
+    actor: row.actor,
+    created_at: row.createdAt,
+  }
 }
 
-export function getTicketByDiscordMessageId(messageId: string): Ticket | null {
-  return (raw().prepare('SELECT * FROM tickets WHERE discord_message_id = ?').get(messageId) as Ticket) ?? null
-}
-
-export function updateTicketAIDraft(id: number, draft: string): void {
-  dz()
-    .update(tickets)
-    .set({
-      aiDraft: draft,
-      aiDraftStatus: 'posted',
-      aiDraftPostedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+export async function createTicket(input: CreateTicketInput, orgId = DEFAULT_ORG_ID): Promise<Ticket> {
+  const db = getDb()
+  const [row] = await db
+    .insert(tickets)
+    .values({
+      orgId,
+      discordMessageId: input.discord_message_id ?? null,
+      discordChannelId: input.discord_channel_id ?? null,
+      discordThreadId: input.discord_thread_id ?? null,
+      discordAuthorId: input.discord_author_id ?? null,
+      discordAuthorName: input.discord_author_name ?? null,
+      content: input.content,
+      category: input.category ?? null,
+      severityScore: input.severity_score ?? null,
+      aiSummary: input.ai_summary ?? null,
+      aiSuggestedPriority: input.ai_suggested_priority ?? null,
+      priority: input.priority,
+      slaResponseDeadline: input.sla_response_deadline ?? null,
+      slaResolveDeadline: input.sla_resolve_deadline ?? null,
     })
-    .where(eq(tickets.id, id))
-    .run()
+    .returning()
 
-  dz().insert(ticketEvents).values({
+  await db.insert(ticketEvents).values({ ticketId: row.id, eventType: 'created', actor: 'system' })
+
+  return toTicket(row)
+}
+
+export async function getTickets(filters: TicketFilters = {}, orgId = DEFAULT_ORG_ID): Promise<Ticket[]> {
+  const conditions = [eq(tickets.orgId, orgId)]
+  if (filters.status) conditions.push(eq(tickets.status, filters.status))
+  if (filters.priority) conditions.push(eq(tickets.priority, filters.priority))
+  if (filters.category) conditions.push(eq(tickets.category, filters.category))
+
+  const rows = await getDb()
+    .select()
+    .from(tickets)
+    .where(and(...conditions))
+    .orderBy(desc(tickets.createdAt))
+  return rows.map(toTicket)
+}
+
+export async function getTicketById(id: number): Promise<Ticket | null> {
+  const [row] = await getDb()
+    .select()
+    .from(tickets)
+    .where(eq(tickets.id, id))
+    .limit(1)
+  return row ? toTicket(row) : null
+}
+
+export async function getTicketByDiscordMessageId(messageId: string): Promise<Ticket | null> {
+  const [row] = await getDb()
+    .select()
+    .from(tickets)
+    .where(eq(tickets.discordMessageId, messageId))
+    .limit(1)
+  return row ? toTicket(row) : null
+}
+
+export async function updateTicketAIDraft(id: number, draft: string): Promise<void> {
+  const now = new Date().toISOString()
+  const db = getDb()
+  await db
+    .update(tickets)
+    .set({ aiDraft: draft, aiDraftStatus: 'posted', aiDraftPostedAt: now, updatedAt: now })
+    .where(eq(tickets.id, id))
+
+  await db.insert(ticketEvents).values({
     ticketId: id,
     eventType: 'ai_draft_posted',
     newValue: 'posted',
     actor: 'system',
-  }).run()
+  })
 }
 
-export function updateTicketAIDraftStatus(id: number, status: string, newDraft?: string): void {
-  dz()
+export async function updateTicketAIDraftStatus(id: number, status: string, newDraft?: string): Promise<void> {
+  await getDb()
     .update(tickets)
     .set({
       aiDraftStatus: status,
@@ -87,125 +146,153 @@ export function updateTicketAIDraftStatus(id: number, status: string, newDraft?:
       updatedAt: new Date().toISOString(),
     })
     .where(eq(tickets.id, id))
-    .run()
 }
 
-export function updateTicketStatus(
+export async function updateTicketStatus(
   id: number,
   status: string,
   actor: string,
   resolutionNotes?: string
-): void {
-  const ticket = getTicketById(id)
+): Promise<void> {
+  const ticket = await getTicketById(id)
   if (!ticket) throw new Error('Ticket not found')
 
   const now = new Date().toISOString()
   const isFirstResponse = ticket.status === 'open' && status === 'in_progress'
   const isResolving = status === 'resolved' || status === 'closed'
 
-  raw()
-    .prepare(
-      `UPDATE tickets SET
-        status = ?,
-        resolution_notes = COALESCE(?, resolution_notes),
-        first_response_at = CASE WHEN ? = 1 AND first_response_at IS NULL THEN ? ELSE first_response_at END,
-        sla_response_met = CASE WHEN ? = 1 AND sla_response_met IS NULL THEN
-          CASE WHEN sla_response_deadline IS NULL OR sla_response_deadline > ? THEN 1 ELSE 0 END
-          ELSE sla_response_met END,
-        resolved_at = CASE WHEN ? = 1 THEN ? ELSE resolved_at END,
-        sla_resolve_met = CASE WHEN ? = 1 THEN
-          CASE WHEN sla_resolve_deadline IS NULL OR sla_resolve_deadline > ? THEN 1 ELSE 0 END
-          ELSE sla_resolve_met END,
-        updated_at = ?
-      WHERE id = ?`
-    )
-    .run(
-      status,
-      resolutionNotes ?? null,
-      isFirstResponse ? 1 : 0, now,
-      isFirstResponse ? 1 : 0, now,
-      isResolving ? 1 : 0, now,
-      isResolving ? 1 : 0, now,
-      now,
-      id
-    )
+  const update: Partial<typeof tickets.$inferInsert> = {
+    status,
+    updatedAt: now,
+  }
+  if (resolutionNotes) update.resolutionNotes = resolutionNotes
+  if (isFirstResponse && !ticket.first_response_at) {
+    update.firstResponseAt = now
+    update.slaResponseMet =
+      !ticket.sla_response_deadline || ticket.sla_response_deadline > now ? 1 : 0
+  }
+  if (isResolving) {
+    update.resolvedAt = now
+    update.slaResolveMet =
+      !ticket.sla_resolve_deadline || ticket.sla_resolve_deadline > now ? 1 : 0
+  }
 
-  dz().insert(ticketEvents).values({
+  const db = getDb()
+  await db.update(tickets).set(update).where(eq(tickets.id, id))
+  await db.insert(ticketEvents).values({
     ticketId: id,
     eventType: 'status_changed',
     oldValue: ticket.status,
     newValue: status,
     actor,
-  }).run()
+  })
 }
 
-export function addTicketReply(ticketId: number, staffName: string, content: string, discordMsgId?: string): TicketReply {
-  const result = dz().insert(ticketReplies).values({
-    ticketId,
-    staffName,
-    content,
-    discordMsgId: discordMsgId ?? null,
-  }).run()
+export async function addTicketReply(
+  ticketId: number,
+  staffName: string,
+  content: string,
+  discordMsgId?: string
+): Promise<TicketReply> {
+  const db = getDb()
+  const [row] = await db
+    .insert(ticketReplies)
+    .values({ ticketId, staffName, content, discordMsgId: discordMsgId ?? null })
+    .returning()
 
-  const ticket = getTicketById(ticketId)
+  const ticket = await getTicketById(ticketId)
   if (ticket && ticket.status === 'open') {
-    updateTicketStatus(ticketId, 'in_progress', staffName)
+    await updateTicketStatus(ticketId, 'in_progress', staffName)
   }
 
-  dz().insert(ticketEvents).values({
+  await db.insert(ticketEvents).values({
     ticketId,
     eventType: 'replied',
     newValue: content.slice(0, 100),
     actor: staffName,
-  }).run()
+  })
 
-  return raw()
-    .prepare('SELECT * FROM ticket_replies WHERE id = ?')
-    .get(Number(result.lastInsertRowid)) as TicketReply
+  return toReply(row)
 }
 
-export function getTicketReplies(ticketId: number): TicketReply[] {
-  return raw()
-    .prepare('SELECT * FROM ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC')
-    .all(ticketId) as TicketReply[]
+export async function getTicketReplies(ticketId: number): Promise<TicketReply[]> {
+  const rows = await getDb()
+    .select()
+    .from(ticketReplies)
+    .where(eq(ticketReplies.ticketId, ticketId))
+    .orderBy(ticketReplies.createdAt)
+  return rows.map(toReply)
 }
 
-export function getTicketEvents(ticketId: number): TicketEvent[] {
-  return raw()
-    .prepare('SELECT * FROM ticket_events WHERE ticket_id = ? ORDER BY created_at ASC')
-    .all(ticketId) as TicketEvent[]
+export async function getTicketEvents(ticketId: number): Promise<TicketEvent[]> {
+  const rows = await getDb()
+    .select()
+    .from(ticketEvents)
+    .where(eq(ticketEvents.ticketId, ticketId))
+    .orderBy(ticketEvents.createdAt)
+  return rows.map(toEvent)
 }
 
-export function getTicketStats(orgId = DEFAULT_ORG_ID) {
-  const db = raw()
-  const total = (db.prepare('SELECT COUNT(*) as n FROM tickets WHERE org_id = ?').get(orgId) as { n: number }).n
-  const open = (db.prepare("SELECT COUNT(*) as n FROM tickets WHERE status = 'open' AND org_id = ?").get(orgId) as { n: number }).n
-  const inProgress = (db.prepare("SELECT COUNT(*) as n FROM tickets WHERE status = 'in_progress' AND org_id = ?").get(orgId) as { n: number }).n
-  const resolved = (db.prepare("SELECT COUNT(*) as n FROM tickets WHERE status IN ('resolved','closed') AND org_id = ?").get(orgId) as { n: number }).n
-  const slaBreaches = (db.prepare('SELECT COUNT(*) as n FROM tickets WHERE (sla_response_met = 0 OR sla_resolve_met = 0) AND org_id = ?').get(orgId) as { n: number }).n
-  const pendingDrafts = (db.prepare("SELECT COUNT(*) as n FROM tickets WHERE ai_draft_status = 'pending' AND status = 'open' AND org_id = ?").get(orgId) as { n: number }).n
-  const needsReview = (db.prepare(`
-    SELECT COUNT(*) as n FROM tickets t
-    JOIN ai_assessments a ON a.ticket_id = t.id
-    WHERE a.auto_deflected = 0 AND t.status = 'open' AND t.org_id = ?
-  `).get(orgId) as { n: number }).n
-  const autoDeflected = (db.prepare(`
-    SELECT COUNT(*) as n FROM ai_assessments a
-    JOIN tickets t ON t.id = a.ticket_id
-    WHERE a.auto_deflected = 1 AND t.org_id = ?
-  `).get(orgId) as { n: number }).n
+export async function getTicketStats(orgId = DEFAULT_ORG_ID) {
+  const db = getDb()
 
-  return { total, open, inProgress, resolved, slaBreaches, pendingDrafts, needsReview, autoDeflected }
-}
+  const [totRow] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(tickets)
+    .where(eq(tickets.orgId, orgId))
+  const [openRow] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(tickets)
+    .where(and(eq(tickets.orgId, orgId), eq(tickets.status, 'open')))
+  const [inProgressRow] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(tickets)
+    .where(and(eq(tickets.orgId, orgId), eq(tickets.status, 'in_progress')))
+  const [resolvedRow] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(tickets)
+    .where(and(eq(tickets.orgId, orgId), inArray(tickets.status, ['resolved', 'closed'])))
 
-export function getSLABreachedTickets(orgId = DEFAULT_ORG_ID): Ticket[] {
-  return raw()
-    .prepare(
-      `SELECT * FROM tickets
-       WHERE (sla_response_met = 0 OR sla_resolve_met = 0)
-         AND status NOT IN ('resolved', 'closed')
-         AND org_id = ?
-       ORDER BY created_at ASC`
+  const [slaBreachRow] = await db.execute(sql`
+    SELECT COUNT(*)::int AS n FROM tickets
+    WHERE (sla_response_met = 0 OR sla_resolve_met = 0) AND org_id = ${orgId}
+  `)
+  const [pendingRow] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(tickets)
+    .where(
+      and(eq(tickets.orgId, orgId), eq(tickets.aiDraftStatus, 'pending'), eq(tickets.status, 'open'))
     )
-    .all(orgId) as Ticket[]
+  const [needsReviewRow] = await db.execute(sql`
+    SELECT COUNT(*)::int AS n FROM tickets t
+    JOIN ai_assessments a ON a.ticket_id = t.id
+    WHERE a.auto_deflected = 0 AND t.status = 'open' AND t.org_id = ${orgId}
+  `)
+  const [deflectedRow] = await db.execute(sql`
+    SELECT COUNT(*)::int AS n FROM ai_assessments a
+    JOIN tickets t ON t.id = a.ticket_id
+    WHERE a.auto_deflected = 1 AND t.org_id = ${orgId}
+  `)
+
+  return {
+    total: totRow?.n ?? 0,
+    open: openRow?.n ?? 0,
+    inProgress: inProgressRow?.n ?? 0,
+    resolved: resolvedRow?.n ?? 0,
+    slaBreaches: Number((slaBreachRow as Record<string, unknown>).n ?? 0),
+    pendingDrafts: pendingRow?.n ?? 0,
+    needsReview: Number((needsReviewRow as Record<string, unknown>).n ?? 0),
+    autoDeflected: Number((deflectedRow as Record<string, unknown>).n ?? 0),
+  }
+}
+
+export async function getSLABreachedTickets(orgId = DEFAULT_ORG_ID): Promise<Ticket[]> {
+  const rows = await getDb().execute(sql`
+    SELECT * FROM tickets
+    WHERE (sla_response_met = 0 OR sla_resolve_met = 0)
+      AND status NOT IN ('resolved', 'closed')
+      AND org_id = ${orgId}
+    ORDER BY created_at ASC
+  `)
+  return (rows as Record<string, unknown>[]).map((r) => r as unknown as Ticket)
 }

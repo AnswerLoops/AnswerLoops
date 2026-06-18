@@ -20,7 +20,7 @@ export async function promoteToKBAction(
   const session = await auth()
   const orgId = session?.orgId ?? DEFAULT_ORG_ID
 
-  const ticket = getTicketById(parsed.data.ticketId)
+  const ticket = await getTicketById(parsed.data.ticketId)
   if (!ticket) return { error: 'Ticket not found' }
   if (ticket.status !== 'resolved' && ticket.status !== 'closed') {
     return { error: 'Only resolved tickets can be promoted' }
@@ -32,7 +32,7 @@ export async function promoteToKBAction(
 
   try {
     const embedding = await embedText(`${question}\n\n${answer}`, orgId)
-    createArticle({ question, answer, embedding, model: EMBEDDING_MODEL, sourceTicketId: ticket.id })
+    await createArticle({ question, answer, embedding, model: EMBEDDING_MODEL, sourceTicketId: ticket.id })
   } catch (err) {
     return { error: String(err) }
   }

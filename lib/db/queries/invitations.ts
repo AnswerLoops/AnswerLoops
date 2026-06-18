@@ -1,4 +1,7 @@
-import { getDb } from '@/lib/db/index'
+import { eq, and, isNull, gt } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
+import { getDb } from '../drizzle'
+import { invitations } from '../schema'
 
 export interface Invitation {
   id: number
@@ -12,55 +15,89 @@ export interface Invitation {
   created_at: string
 }
 
-export function createInvitation(input: {
+function toInvitation(row: typeof invitations.$inferSelect): Invitation {
+  return {
+    id: row.id,
+    org_id: row.orgId,
+    email: row.email,
+    role: row.role,
+    token: row.token,
+    invited_by: row.invitedBy,
+    expires_at: row.expiresAt,
+    accepted_at: row.acceptedAt,
+    created_at: row.createdAt,
+  }
+}
+
+export async function createInvitation(input: {
   orgId: number
   email: string
   role: string
   token: string
   invitedBy: number
   expiresAt: string
-}): Invitation {
+}): Promise<Invitation> {
   const db = getDb()
   // Replace any existing pending invite for the same email+org
-  db.prepare(
-    `DELETE FROM invitations WHERE org_id = ? AND email = ? AND accepted_at IS NULL`
-  ).run(input.orgId, input.email)
-
-  const result = db.prepare(
-    `INSERT INTO invitations (org_id, email, role, token, invited_by, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?)
-     RETURNING *`
-  ).get(input.orgId, input.email, input.role, input.token, input.invitedBy, input.expiresAt) as Invitation
-
-  return result
-}
-
-export function getInvitationByToken(token: string): Invitation | null {
-  return (
-    (getDb()
-      .prepare('SELECT * FROM invitations WHERE token = ?')
-      .get(token) as Invitation | undefined) ?? null
-  )
-}
-
-export function getPendingInvitations(orgId: number): Invitation[] {
-  return getDb()
-    .prepare(
-      `SELECT * FROM invitations
-       WHERE org_id = ? AND accepted_at IS NULL AND expires_at > datetime('now')
-       ORDER BY created_at DESC`
+  await db
+    .delete(invitations)
+    .where(
+      and(
+        eq(invitations.orgId, input.orgId),
+        eq(invitations.email, input.email),
+        isNull(invitations.acceptedAt)
+      )
     )
-    .all(orgId) as Invitation[]
+
+  const [row] = await db
+    .insert(invitations)
+    .values({
+      orgId: input.orgId,
+      email: input.email,
+      role: input.role,
+      token: input.token,
+      invitedBy: input.invitedBy,
+      expiresAt: input.expiresAt,
+    })
+    .returning()
+
+  return toInvitation(row)
 }
 
-export function acceptInvitation(token: string): void {
-  getDb()
-    .prepare(`UPDATE invitations SET accepted_at = datetime('now') WHERE token = ?`)
-    .run(token)
+export async function getInvitationByToken(token: string): Promise<Invitation | null> {
+  const [row] = await getDb()
+    .select()
+    .from(invitations)
+    .where(eq(invitations.token, token))
+    .limit(1)
+  return row ? toInvitation(row) : null
 }
 
-export function revokeInvitation(id: number, orgId: number): void {
-  getDb()
-    .prepare(`DELETE FROM invitations WHERE id = ? AND org_id = ?`)
-    .run(id, orgId)
+export async function getPendingInvitations(orgId: number): Promise<Invitation[]> {
+  const now = new Date().toISOString()
+  const rows = await getDb()
+    .select()
+    .from(invitations)
+    .where(
+      and(
+        eq(invitations.orgId, orgId),
+        isNull(invitations.acceptedAt),
+        gt(invitations.expiresAt, now)
+      )
+    )
+    .orderBy(sql`${invitations.createdAt} DESC`)
+  return rows.map(toInvitation)
+}
+
+export async function acceptInvitation(token: string): Promise<void> {
+  await getDb()
+    .update(invitations)
+    .set({ acceptedAt: new Date().toISOString() })
+    .where(eq(invitations.token, token))
+}
+
+export async function revokeInvitation(id: number, orgId: number): Promise<void> {
+  await getDb()
+    .delete(invitations)
+    .where(and(eq(invitations.id, id), eq(invitations.orgId, orgId)))
 }

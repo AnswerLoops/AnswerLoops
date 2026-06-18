@@ -1,17 +1,20 @@
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
-import { getDb } from './index'
+import { drizzle } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
 import * as schema from './schema'
 
-let instance: BetterSQLite3Database<typeof schema> | null = null
+const globalForDb = globalThis as unknown as {
+  __communityPg?: postgres.Sql
+}
 
-/**
- * Drizzle query layer over the one shared better-sqlite3 connection. Lazy so
- * importing this module has no side effects until a query actually runs.
- *
- * When prod moves to Postgres (Neon), only this file swaps to the async driver;
- * call sites already written with `await` work against both.
- */
-export function getDrizzle(): BetterSQLite3Database<typeof schema> {
-  if (!instance) instance = drizzle(getDb(), { schema })
-  return instance
+function getPool(): postgres.Sql {
+  if (!globalForDb.__communityPg) {
+    const url = process.env.DATABASE_URL
+    if (!url) throw new Error('DATABASE_URL is not set')
+    globalForDb.__communityPg = postgres(url, { max: 10 })
+  }
+  return globalForDb.__communityPg
+}
+
+export function getDb() {
+  return drizzle(getPool(), { schema })
 }

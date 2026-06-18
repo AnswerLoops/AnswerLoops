@@ -19,17 +19,17 @@ export const dynamic = 'force-dynamic'
 
 export default async function TicketDetailPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
-  const ticket = getTicketById(Number(id))
+  const ticket = await getTicketById(Number(id))
   if (!ticket) notFound()
 
-  const replies = getTicketReplies(ticket.id)
-  const events = getTicketEvents(ticket.id)
+  const replies = await getTicketReplies(ticket.id)
+  const events = await getTicketEvents(ticket.id)
   const sla = getSLAStatus(ticket)
-  const related = getRelatedTickets(ticket.id)
+  const related = await getRelatedTickets(ticket.id)
   const duplicateCount = related.filter((r) => r.score >= DUPLICATE_THRESHOLD).length
-  const assessment = getAssessment(ticket.id)
-  const feedback = getFeedbackSummary(ticket.id)
-  const kbArticle = getArticleBySourceTicket(ticket.id)
+  const assessment = await getAssessment(ticket.id)
+  const feedback = await getFeedbackSummary(ticket.id)
+  const kbArticle = await getArticleBySourceTicket(ticket.id)
   const resolved = ticket.status === 'resolved' || ticket.status === 'closed'
   const hasAnswer = Boolean(ticket.resolution_notes || ticket.ai_draft)
 

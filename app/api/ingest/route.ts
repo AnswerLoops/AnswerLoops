@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
   // Identify org by bot_secret from integrations; fall back to env var for compat.
   let orgId: number
-  const integration = getIntegrationByBotSecret(bearerSecret)
+  const integration = await getIntegrationByBotSecret(bearerSecret)
   if (integration) {
     orgId = integration.org_id
   } else if (process.env.BOT_SECRET && bearerSecret === process.env.BOT_SECRET) {

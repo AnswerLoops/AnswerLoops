@@ -1,21 +1,29 @@
 import { eq } from 'drizzle-orm'
-import { getDrizzle } from '../drizzle'
-import { getDb } from '../index'
+import { getDb } from '../drizzle'
 import { aiAssessments } from '../schema'
 import type { AIAssessment } from '@/types'
 
-function dz() { return getDrizzle() }
-function raw() { return getDb() }
+function toAssessment(row: typeof aiAssessments.$inferSelect): AIAssessment {
+  return {
+    ticket_id: row.ticketId,
+    confidence: row.confidence,
+    answered_fully: row.answeredFully as 0 | 1,
+    auto_deflected: row.autoDeflected as 0 | 1,
+    reasoning: row.reasoning,
+    model: row.model,
+    created_at: row.createdAt,
+  }
+}
 
-export function saveAssessment(input: {
+export async function saveAssessment(input: {
   ticketId: number
   confidence: number
   answeredFully: boolean
   autoDeflected: boolean
   reasoning: string
   model: string
-}): void {
-  dz()
+}): Promise<void> {
+  await getDb()
     .insert(aiAssessments)
     .values({
       ticketId: input.ticketId,
@@ -35,9 +43,13 @@ export function saveAssessment(input: {
         model: input.model,
       },
     })
-    .run()
 }
 
-export function getAssessment(ticketId: number): AIAssessment | null {
-  return (raw().prepare('SELECT * FROM ai_assessments WHERE ticket_id = ?').get(ticketId) as AIAssessment) ?? null
+export async function getAssessment(ticketId: number): Promise<AIAssessment | null> {
+  const [row] = await getDb()
+    .select()
+    .from(aiAssessments)
+    .where(eq(aiAssessments.ticketId, ticketId))
+    .limit(1)
+  return row ? toAssessment(row) : null
 }

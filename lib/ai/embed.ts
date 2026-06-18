@@ -9,7 +9,7 @@ export const EMBEDDING_MODEL = 'text-embedding-3-small'
  */
 export async function embedText(text: string, orgId?: number): Promise<number[]> {
   const { embedding } = await embed({
-    model: embeddingModel(EMBEDDING_MODEL, orgId),
+    model: await embeddingModel(EMBEDDING_MODEL, orgId),
     value: text,
   })
   return embedding

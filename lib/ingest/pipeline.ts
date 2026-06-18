@@ -37,27 +37,22 @@ function severityToPriority(score: number): Priority {
   return 'low'
 }
 
-/**
- * Core ingest pipeline — shared by the Discord HTTP ingest route and the Slack
- * Events API route. Triages the message, creates a ticket, fires background work.
- */
 export async function processCommunityMessage(
   payload: MessagePayload,
   orgId = DEFAULT_ORG_ID
 ): Promise<PipelineResult> {
   const { messageId, content, authorId, authorName, channelId, threadId, platform = 'discord' } = payload
 
-  // Dedup on message ID (both Discord snowflakes and Slack timestamps are unique)
-  const existing = getTicketByDiscordMessageId(messageId)
+  const existing = await getTicketByDiscordMessageId(messageId)
   if (existing) {
     return { ticket_id: existing.id, duplicate: true }
   }
 
   const triage = await triageMessage(content, orgId)
   const priority = severityToPriority(triage.severity_score)
-  const { sla_response_deadline, sla_resolve_deadline } = calculateDeadlines(priority)
+  const { sla_response_deadline, sla_resolve_deadline } = await calculateDeadlines(priority)
 
-  const ticket = createTicket({
+  const ticket = await createTicket({
     discord_message_id: messageId,
     discord_channel_id: channelId,
     discord_thread_id: threadId,
@@ -73,7 +68,7 @@ export async function processCommunityMessage(
     sla_resolve_deadline: sla_resolve_deadline ?? undefined,
   }, orgId)
 
-  createNotification(
+  await createNotification(
     'new_question',
     `New ${triage.category.replace('_', ' ')} from ${authorName}: ${triage.summary}`,
     ticket.id,
@@ -89,20 +84,21 @@ export async function processCommunityMessage(
 
     await sendNewTicketEmail(ticket, orgId)
 
-    const breached = checkSlaBreaches()
+    const breached = await checkSlaBreaches()
     await sendSlaBreachEmails(breached, orgId)
 
     let priorAnswers: { summary: string; answer: string }[] = []
     try {
       const vector = await embedText(`${triage.summary}\n\n${content}`, orgId)
-      saveEmbedding(ticket.id, vector, EMBEDDING_MODEL)
+      await saveEmbedding(ticket.id, vector, EMBEDDING_MODEL)
 
-      const related = findRelated(vector, getCandidateVectors(ticket.id))
-      replaceLinks(ticket.id, related)
+      const candidates = await getCandidateVectors(ticket.id)
+      const related = findRelated(vector, candidates)
+      await replaceLinks(ticket.id, related)
 
       const duplicates = related.filter((m) => isDuplicate(m.score))
       if (duplicates.length > 0) {
-        createNotification(
+        await createNotification(
           'new_question',
           `Possible duplicate (asked ${duplicates.length + 1}×): ${triage.summary}`,
           ticket.id,
@@ -111,8 +107,8 @@ export async function processCommunityMessage(
       }
 
       priorAnswers = [
-        ...getKBContext(vector, 3, orgId),
-        ...getPriorAnswers(related.map((m) => m.related_id), orgId),
+        ...await getKBContext(vector, 3, orgId),
+        ...await getPriorAnswers(related.map((m) => m.related_id), orgId),
       ]
     } catch (err) {
       console.error('[ingest] semantic enrichment failed for ticket', ticket.id, err)

@@ -27,7 +27,7 @@ export interface AnswerAssessment {
  */
 export async function assessAnswer(question: string, answer: string, orgId?: number): Promise<AnswerAssessment> {
   const { object } = await generateObject({
-    model: chatModel(ASSESS_MODEL, orgId),
+    model: await chatModel(ASSESS_MODEL, orgId),
     schema: AssessmentSchema,
     prompt: `You are a strict reviewer grading a support answer before it is sent to a community member.
 

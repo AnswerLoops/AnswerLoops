@@ -1,26 +1,35 @@
 import { eq, asc } from 'drizzle-orm'
-import { getDrizzle } from '../drizzle'
-import { getDb } from '../index'
+import { getDb } from '../drizzle'
 import { slaConfigs } from '../schema'
 import type { SLAConfig, Priority } from '@/types'
 
-function dz() { return getDrizzle() }
-function raw() { return getDb() }
-
-export function getSLAConfigs(): SLAConfig[] {
-  return raw()
-    .prepare('SELECT * FROM sla_configs ORDER BY response_hours ASC')
-    .all() as SLAConfig[]
+function toSLAConfig(row: typeof slaConfigs.$inferSelect): SLAConfig {
+  return {
+    id: row.id,
+    priority: row.priority as Priority,
+    response_hours: row.responseHours,
+    resolve_hours: row.resolveHours,
+    updated_at: row.updatedAt,
+  }
 }
 
-export function getSLAConfig(priority: Priority): SLAConfig | null {
-  return (raw().prepare('SELECT * FROM sla_configs WHERE priority = ?').get(priority) as SLAConfig) ?? null
+export async function getSLAConfigs(): Promise<SLAConfig[]> {
+  const rows = await getDb().select().from(slaConfigs).orderBy(asc(slaConfigs.responseHours))
+  return rows.map(toSLAConfig)
 }
 
-export function updateSLAConfig(priority: Priority, responseHours: number, resolveHours: number): void {
-  dz()
+export async function getSLAConfig(priority: Priority): Promise<SLAConfig | null> {
+  const [row] = await getDb()
+    .select()
+    .from(slaConfigs)
+    .where(eq(slaConfigs.priority, priority))
+    .limit(1)
+  return row ? toSLAConfig(row) : null
+}
+
+export async function updateSLAConfig(priority: Priority, responseHours: number, resolveHours: number): Promise<void> {
+  await getDb()
     .update(slaConfigs)
     .set({ responseHours, resolveHours, updatedAt: new Date().toISOString() })
     .where(eq(slaConfigs.priority, priority))
-    .run()
 }
