@@ -12,6 +12,7 @@ import { getTicketById } from '@/lib/db/queries/tickets'
 import { auth } from '@/auth'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { sendTicketResolvedEmail } from '@/lib/email/send'
+import { logger } from '@/lib/logger'
 
 const UpdateStatusSchema = z.object({
   ticketId: z.coerce.number(),
@@ -43,7 +44,7 @@ export async function updateTicketStatusAction(
     const ticket = await getTicketById(ticketId)
     if (ticket) {
       sendTicketResolvedEmail(ticket, staffName, orgId).catch((err) =>
-        console.error('[email] sendTicketResolvedEmail failed', err)
+        logger.error('sendTicketResolvedEmail failed', { module: 'actions/tickets', error: err })
       )
     }
   }
