@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useRef } from 'react'
+import { useActionState, useRef, useTransition } from 'react'
 import { useState, useEffect } from 'react'
 import { updateSLAAction } from '@/app/actions/sla'
 import { addRepoAction, removeRepoAction } from '@/app/actions/github'
@@ -47,26 +47,24 @@ function SLARow({ config }: { config: SLAConfig }) {
   const [state, formAction, isPending] = useActionState(updateSLAAction, null)
 
   return (
-    <tr>
-      <td className="px-4 py-3 text-sm font-medium capitalize text-gray-800">{config.priority}</td>
-      <form action={formAction} className="contents">
-        <input type="hidden" name="priority" value={config.priority} />
-        <td className="px-4 py-3">
-          <input type="number" name="responseHours" defaultValue={config.response_hours} min={1}
-            className="w-20 rounded border border-gray-200 px-2 py-1 text-sm text-center" />
-        </td>
-        <td className="px-4 py-3">
-          <input type="number" name="resolveHours" defaultValue={config.resolve_hours} min={1}
-            className="w-20 rounded border border-gray-200 px-2 py-1 text-sm text-center" />
-        </td>
-        <td className="px-4 py-3">
-          <Button type="submit" size="sm" variant="secondary" disabled={isPending}>
-            {isPending ? 'Saving…' : 'Save'}
-          </Button>
-          {state?.error && <span className="ml-2 text-xs text-red-600">{state.error}</span>}
-        </td>
-      </form>
-    </tr>
+    <form action={formAction} className="grid grid-cols-4 items-center">
+      <input type="hidden" name="priority" value={config.priority} />
+      <div className="px-4 py-3 text-sm font-medium capitalize text-gray-800">{config.priority}</div>
+      <div className="px-4 py-3">
+        <input type="number" name="responseHours" defaultValue={config.response_hours} min={1}
+          className="w-20 rounded border border-gray-200 px-2 py-1 text-sm text-center" />
+      </div>
+      <div className="px-4 py-3">
+        <input type="number" name="resolveHours" defaultValue={config.resolve_hours} min={1}
+          className="w-20 rounded border border-gray-200 px-2 py-1 text-sm text-center" />
+      </div>
+      <div className="px-4 py-3 flex items-center gap-2">
+        <Button type="submit" size="sm" variant="secondary" disabled={isPending}>
+          {isPending ? 'Saving…' : 'Save'}
+        </Button>
+        {state?.error && <span className="text-xs text-red-600">{state.error}</span>}
+      </div>
+    </form>
   )
 }
 
@@ -91,6 +89,7 @@ function RepoRow({ repo, onRemoved }: { repo: GitHubRepo; onRemoved: () => void 
 function DiscordIntegrationCard() {
   const [integration, setIntegration] = useState<DiscordIntegration | null | undefined>(undefined)
   const [newSecret, setNewSecret] = useState<string | null>(null)
+  const [, startDeleteTransition] = useTransition()
   const [saveState, saveAction, savePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveDiscordIntegrationAction(prev, fd)
@@ -188,11 +187,15 @@ function DiscordIntegrationCard() {
             {savePending ? 'Saving…' : connected ? 'Update' : 'Connect'}
           </Button>
           {connected && (
-            <form action={deleteAction}>
-              <Button type="submit" size="sm" variant="danger" disabled={deletePending}>
-                {deletePending ? 'Removing…' : 'Disconnect'}
-              </Button>
-            </form>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              disabled={deletePending}
+              onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
+            >
+              {deletePending ? 'Removing…' : 'Disconnect'}
+            </Button>
           )}
         </div>
       </form>
@@ -202,6 +205,7 @@ function DiscordIntegrationCard() {
 
 function SlackIntegrationCard() {
   const [integration, setIntegration] = useState<SlackIntegration | null | undefined>(undefined)
+  const [, startDeleteTransition] = useTransition()
   const [saveState, saveAction, savePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveSlackIntegrationAction(prev, fd)
@@ -304,11 +308,15 @@ function SlackIntegrationCard() {
             {savePending ? 'Saving…' : connected ? 'Update' : 'Connect'}
           </Button>
           {connected && (
-            <form action={deleteAction}>
-              <Button type="submit" size="sm" variant="danger" disabled={deletePending}>
-                {deletePending ? 'Removing…' : 'Disconnect'}
-              </Button>
-            </form>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              disabled={deletePending}
+              onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
+            >
+              {deletePending ? 'Removing…' : 'Disconnect'}
+            </Button>
           )}
         </div>
       </form>
@@ -654,22 +662,16 @@ export default function SettingsPage() {
       {/* SLA Configuration */}
       <section>
         <h2 className="text-sm font-semibold text-gray-700 mb-3">SLA Configuration</h2>
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 font-medium">
-                <th className="px-4 py-2.5 text-left">Priority</th>
-                <th className="px-4 py-2.5 text-left">Response (hours)</th>
-                <th className="px-4 py-2.5 text-left">Resolve (hours)</th>
-                <th className="px-4 py-2.5 text-left"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {slaConfigs.map((config) => (
-                <SLARow key={config.priority} config={config} />
-              ))}
-            </tbody>
-          </table>
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
+          <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 font-medium">
+            <div className="px-4 py-2.5">Priority</div>
+            <div className="px-4 py-2.5">Response (hours)</div>
+            <div className="px-4 py-2.5">Resolve (hours)</div>
+            <div className="px-4 py-2.5" />
+          </div>
+          {slaConfigs.map((config) => (
+            <SLARow key={config.priority} config={config} />
+          ))}
         </div>
       </section>
 
