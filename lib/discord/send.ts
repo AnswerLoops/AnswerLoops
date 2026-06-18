@@ -1,6 +1,9 @@
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import { getIntegration } from '@/lib/db/queries/integrations'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { logger } from '@/lib/logger'
+
+const MOD = 'discord/send'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 
@@ -16,7 +19,7 @@ export async function sendToChannel(channelId: string, content: string, orgId = 
 
   const token = await resolveToken(orgId)
   if (!token) {
-    console.warn('[discord/send] No bot token available — skipping send')
+    logger.warn('no bot token — skipping send', { module: MOD, orgId })
     return null
   }
 
@@ -34,7 +37,8 @@ export async function sendToChannel(channelId: string, content: string, orgId = 
     })
 
     if (!res.ok) {
-      console.error('[discord/send] Failed to send message:', await res.text())
+      const body = await res.text()
+      logger.error('failed to send message', { module: MOD, channelId, orgId, status: res.status, body })
       return null
     }
 

@@ -1,7 +1,9 @@
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import { getIntegration } from '@/lib/db/queries/integrations'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { logger } from '@/lib/logger'
 
+const MOD = 'slack/send'
 const SLACK_API = 'https://slack.com/api'
 
 async function resolveToken(orgId: number): Promise<string | null> {
@@ -9,10 +11,6 @@ async function resolveToken(orgId: number): Promise<string | null> {
   return integration?.bot_token ?? null
 }
 
-/**
- * Post a message to a Slack channel. Returns the Slack message ts on success
- * (used as a message ID for feedback attribution), or null on failure.
- */
 export async function sendToSlackChannel(
   channelId: string,
   content: string,
@@ -24,7 +22,7 @@ export async function sendToSlackChannel(
 
   const token = await resolveToken(orgId)
   if (!token) {
-    console.warn('[slack/send] No bot token for org', orgId, '— skipping send')
+    logger.warn('no bot token — skipping send', { module: MOD, orgId })
     return null
   }
 
@@ -44,7 +42,7 @@ export async function sendToSlackChannel(
 
     const data = await res.json() as { ok: boolean; ts?: string; error?: string }
     if (!data.ok) {
-      console.error('[slack/send] chat.postMessage failed:', data.error)
+      logger.error('chat.postMessage failed', { module: MOD, channelId, orgId, slackError: data.error })
       return null
     }
     lastTs = data.ts ?? null
