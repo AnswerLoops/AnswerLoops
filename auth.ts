@@ -98,9 +98,16 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         if (!(session as { onboarded?: boolean }).onboarded) {
           const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
           const org = getDb()
-            .prepare('SELECT onboarded_at FROM orgs WHERE id = ?')
-            .get(orgId) as { onboarded_at: string | null } | undefined
-          if (!org?.onboarded_at) {
+            .prepare('SELECT onboarded_at, id FROM orgs WHERE id = ?')
+            .get(orgId) as { id: number; onboarded_at: string | null } | undefined
+
+          if (!org) {
+            // Org row missing — DB was wiped while session JWT still has stale orgId.
+            // Sign out so re-auth triggers provisionUser() which creates a valid new org.
+            return NextResponse.redirect(new URL('/api/auth/signout?callbackUrl=/login', request.nextUrl))
+          }
+
+          if (!org.onboarded_at) {
             return NextResponse.redirect(new URL(ONBOARDING_PATH, request.nextUrl))
           }
         }
