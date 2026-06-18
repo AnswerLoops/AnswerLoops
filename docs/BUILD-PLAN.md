@@ -83,7 +83,7 @@ Run alongside feature phases; none block the others.
 | **Tests** | zero today; cover SLA engine, triage, related, assess, ingest | M |
 | ✅ **Prod Docker** | multi-stage `Dockerfile` (`deps`→`build`→`runner`, no toolchain in final), non-root user, `docker-compose.prod.yml` with built image + named SQLite volume + no bind-mount, `bot:start` (no watch); dev compose targets `deps` stage | S |
 | **Observability** | AI work runs in `after()` and fails silently; add structured logging + retry/dead-letter for agent/embeds | M |
-| **Rate limiting + input caps** | ingest takes unbounded content = AI cost + DoS risk | S |
+| ✅ **Rate limiting + input caps** | per-org ingest rate limit (10/10min), per-import chunk + char caps, per-org KB ceiling, URL length cap; `lib/ratelimit.ts` | S |
 | **Migrations** | schema applied via `IF NOT EXISTS`; need a real migration story before the next schema change that isn't a new side table | M |
 | **Auth v2** | shared password → GitHub/Google OAuth (proxy stays; swap session source) | M |
 | ✅ **Node version** | `engines.node >= 20.9` + `.nvmrc` (20) | S |
@@ -97,7 +97,8 @@ Run alongside feature phases; none block the others.
 3. ~~**F — KB surface.**~~ ✅ Done (PR #12).
 4. ~~**Resend email notifications.**~~ ✅ Done (PR #18).
 5. ~~**Embeddable chat widget.**~~ ✅ Done (this PR).
-6. **Hardening — Prod Docker + observability + rate-limit** before deployment.
+6. ~~**Hardening — rate-limit + input caps.**~~ ✅ Done (PR #26).
+7. **Hardening — Prod Docker + observability** before deployment.
 
 ---
 

@@ -3,12 +3,18 @@
 import { z } from 'zod'
 import { auth } from '@/auth'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
-import { ingestUrl, ingestSite } from '@/lib/ingest/url'
+import { ingestUrl, ingestSite, IngestLimitError } from '@/lib/ingest/url'
+import { rateLimit } from '@/lib/ratelimit'
 
 const Schema = z.object({
-  url: z.string().url('Must be a valid URL'),
+  url: z.string().url('Must be a valid URL').max(2048, 'URL is too long'),
   mode: z.enum(['page', 'site']),
 })
+
+// Bound how often a workspace can trigger crawls (each one costs Firecrawl +
+// embedding calls). 10 imports per 10 minutes per org.
+const IMPORT_MAX = 10
+const IMPORT_WINDOW_MS = 10 * 60_000
 
 export interface IngestUrlResult {
   error?: string
@@ -28,6 +34,12 @@ export async function ingestUrlAction(
     return { error: 'FIRECRAWL_API_KEY is not configured. Add it to your .env file.' }
   }
 
+  const limit = rateLimit(`ingest:${orgId}`, IMPORT_MAX, IMPORT_WINDOW_MS)
+  if (!limit.ok) {
+    const mins = Math.ceil(limit.retryAfterMs / 60_000)
+    return { error: `Import rate limit reached. Try again in ${mins} minute${mins === 1 ? '' : 's'}.` }
+  }
+
   const parsed = Schema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
@@ -42,6 +54,9 @@ export async function ingestUrlAction(
       return { created: result.created }
     }
   } catch (err) {
-    return { error: String(err) }
+    // Surface cap messages verbatim; keep other errors generic.
+    if (err instanceof IngestLimitError) return { error: err.message }
+    console.error('[ingest-url] failed:', err)
+    return { error: 'Import failed. Check the URL and try again.' }
   }
 }
