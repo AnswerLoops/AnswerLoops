@@ -1,9 +1,6 @@
-/**
- * Bot logic, split out from the discord.js wiring in index.ts so it can be
- * tested without a live gateway connection. Functions take structural shapes
- * (not discord.js classes) and an injectable fetch, so unit tests pass plain
- * fakes and a stub fetch.
- */
+import { logger } from '../lib/logger'
+
+const MOD = 'bot/handlers'
 
 export type Vote = 'up' | 'down'
 
@@ -109,13 +106,13 @@ export async function forwardMessage(
       body: JSON.stringify(buildIngestPayload(message)),
     })
     if (!res.ok) {
-      console.error(`[bot] Ingest failed (${res.status}):`, await res.text())
+      logger.error('ingest failed', { module: MOD, status: res.status, body: await res.text() })
       return { forwarded: true, ok: false }
     }
     const data = (await res.json()) as ForwardResult['data']
     return { forwarded: true, ok: true, data }
   } catch (err) {
-    console.error('[bot] Failed to forward message:', err)
+    logger.error('failed to forward message', { module: MOD, error: err })
     return { forwarded: true, ok: false }
   }
 }
@@ -137,7 +134,7 @@ export async function forwardReaction(
     try {
       await reaction.fetch()
     } catch (err) {
-      console.error('[bot] Failed to fetch reaction:', err)
+      logger.error('failed to fetch partial reaction', { module: MOD, error: err })
       return { forwarded: false }
     }
   }
@@ -149,13 +146,13 @@ export async function forwardReaction(
       body: JSON.stringify({ message_id: reaction.message.id, vote, actor: user.id }),
     })
     if (!res.ok) {
-      console.error(`[bot] Feedback failed (${res.status}):`, await res.text())
+      logger.error('feedback failed', { module: MOD, status: res.status, body: await res.text() })
       return { forwarded: true, ok: false }
     }
     const data = (await res.json()) as ForwardResult['data']
     return { forwarded: true, ok: true, data }
   } catch (err) {
-    console.error('[bot] Failed to forward reaction:', err)
+    logger.error('failed to forward reaction', { module: MOD, error: err })
     return { forwarded: true, ok: false }
   }
 }

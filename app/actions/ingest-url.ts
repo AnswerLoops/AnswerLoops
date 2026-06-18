@@ -5,6 +5,7 @@ import { auth } from '@/auth'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { ingestUrl, ingestSite, IngestLimitError } from '@/lib/ingest/url'
 import { rateLimit } from '@/lib/ratelimit'
+import { logger } from '@/lib/logger'
 
 const Schema = z.object({
   url: z.string().url('Must be a valid URL').max(2048, 'URL is too long'),
@@ -56,7 +57,7 @@ export async function ingestUrlAction(
   } catch (err) {
     // Surface cap messages verbatim; keep other errors generic.
     if (err instanceof IngestLimitError) return { error: err.message }
-    console.error('[ingest-url] failed:', err)
+    logger.error('ingest-url failed', { module: 'actions/ingest-url', error: err })
     return { error: 'Import failed. Check the URL and try again.' }
   }
 }

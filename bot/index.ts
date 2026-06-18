@@ -16,6 +16,9 @@ import {
   type IncomingMessage,
   type IncomingReaction,
 } from './handlers'
+import { logger } from '../lib/logger'
+
+const MOD = 'bot'
 
 const config: BotConfig = {
   targetUrl: process.env.BOT_TARGET_URL ?? 'http://localhost:3000',
@@ -24,12 +27,12 @@ const config: BotConfig = {
 }
 
 if (!process.env.DISCORD_TOKEN) {
-  console.error('[bot] DISCORD_TOKEN is not set')
+  logger.error('DISCORD_TOKEN is not set', { module: MOD })
   process.exit(1)
 }
 
 if (config.channelIds.length === 0) {
-  console.warn('[bot] DISCORD_CHANNEL_IDS is empty — bot will not forward any messages')
+  logger.warn('DISCORD_CHANNEL_IDS is empty — bot will not forward any messages', { module: MOD })
 }
 
 const client = new Client({
@@ -45,17 +48,19 @@ const client = new Client({
 })
 
 client.once(Events.ClientReady, (c) => {
-  console.log(`[bot] Logged in as ${c.user.tag}`)
-  console.log(`[bot] Monitoring ${config.channelIds.length} channel(s): ${config.channelIds.join(', ')}`)
-  console.log(`[bot] Forwarding to ${config.targetUrl}/api/ingest`)
+  logger.info(`logged in as ${c.user.tag}`, {
+    module: MOD,
+    channelCount: config.channelIds.length,
+    targetUrl: config.targetUrl,
+  })
 })
 
 client.on(Events.MessageCreate, async (message: Message) => {
   const result = await forwardMessage(message as unknown as IncomingMessage, config)
   if (result.data?.duplicate) {
-    console.log(`[bot] Duplicate message ${message.id} — skipped`)
+    logger.debug('duplicate message skipped', { module: MOD, messageId: message.id })
   } else if (result.data?.ticket_id) {
-    console.log(`[bot] Ticket #${result.data.ticket_id} created from message ${message.id}`)
+    logger.info('ticket created', { module: MOD, ticketId: result.data.ticket_id, messageId: message.id })
   }
 })
 
@@ -64,7 +69,7 @@ client.on(
   async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
     const result = await forwardReaction(reaction as unknown as IncomingReaction, user, config)
     if (result.data?.ticket_id) {
-      console.log(`[bot] Feedback on ticket #${result.data.ticket_id} from ${user.id}`)
+      logger.info('feedback recorded', { module: MOD, ticketId: result.data.ticket_id, userId: user.id })
     }
   }
 )

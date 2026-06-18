@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { getDb } from '../lib/db/index'
+import { eq } from 'drizzle-orm'
+import { getDb } from '../lib/db/drizzle'
+import { githubRepos } from '../lib/db/schema'
 import { ingest, waitFor } from './helpers'
 
 test.describe('GET /api/tickets', () => {
@@ -55,10 +57,11 @@ test.describe('FAQ', () => {
 test.describe('GitHub repos', () => {
   test('lists the seeded repo and deletes one', async ({ request }) => {
     // Insert a throwaway repo via the runner connection, then drive the API.
-    const info = getDb()
-      .prepare(`INSERT INTO github_repos (installation_id, owner, repo, is_private) VALUES (2, 'temp', 'todelete', 0)`)
-      .run()
-    const id = Number(info.lastInsertRowid)
+    const [inserted] = await getDb()
+      .insert(githubRepos)
+      .values({ installationId: 2, owner: 'temp', repo: 'todelete', isPrivate: 0, orgId: 1 })
+      .returning({ id: githubRepos.id })
+    const id = inserted.id
 
     // The runner and server are separate processes; poll until the server sees it.
     await waitFor(async () => {
