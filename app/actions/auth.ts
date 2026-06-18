@@ -2,6 +2,10 @@
 
 import { signIn, signOut } from '@/auth'
 
+export async function loginWithGitHub(): Promise<void> {
+  await signIn('github', { redirectTo: '/dashboard' })
+}
+
 export async function loginWithDiscord(): Promise<void> {
   await signIn('discord', { redirectTo: '/dashboard' })
 }

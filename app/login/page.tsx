@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { isAuthenticated } from '@/lib/auth/session'
+import { auth } from '@/auth'
 import { LoginForm } from '@/components/login-form'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export default async function LoginPage({ searchParams }: Props) {
-  if (await isAuthenticated()) {
+  if (await auth()) {
     redirect('/dashboard')
   }
 

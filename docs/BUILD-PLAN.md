@@ -82,10 +82,10 @@ Run alongside feature phases; none block the others.
 | ✅ **Embeddable chat widget** | public AI chat backed by KB + prior answers; `<script>` tag embed; per-IP rate limiter; `DefaultChatTransport` (AI SDK v6); `widget_token` per org | M |
 | **Tests** | zero today; cover SLA engine, triage, related, assess, ingest | M |
 | ✅ **Prod Docker** | multi-stage `Dockerfile` (`deps`→`build`→`runner`, no toolchain in final), non-root user, `docker-compose.prod.yml` with built image + named SQLite volume + no bind-mount, `bot:start` (no watch); dev compose targets `deps` stage | S |
-| **Observability** | AI work runs in `after()` and fails silently; add structured logging + retry/dead-letter for agent/embeds | M |
+| ✅ **Observability** | structured JSON logger (`lib/logger.ts`), exponential-backoff retry (`lib/retry.ts`), `after()` fully wrapped, push/email/SLA failures isolated; all `console.*` replaced (PR #31) | M |
 | ✅ **Rate limiting + input caps** | per-org ingest rate limit (10/10min), per-import chunk + char caps, per-org KB ceiling, URL length cap; `lib/ratelimit.ts` | S |
-| **Migrations** | schema applied via `IF NOT EXISTS`; need a real migration story before the next schema change that isn't a new side table | M |
-| **Auth v2** | shared password → GitHub/Google OAuth (proxy stays; swap session source) | M |
+| ✅ **Migrations — Postgres** | SQLite → Neon/Postgres via Drizzle ORM; `lib/db/migrate.ts`; `drizzle/` migrations; `DATABASE_URL` required (PR #30) | L |
+| ✅ **Auth v2** | Discord + Google OAuth via Auth.js; `provisionUser` creates org on first login; shared-password system deleted (`lib/auth/token.ts`, `lib/auth/session.ts`); `STAFF_PASSWORD`/`SESSION_SECRET` no longer needed | M |
 | ✅ **Node version** | `engines.node >= 20.9` + `.nvmrc` (20) | S |
 
 ---
@@ -98,7 +98,11 @@ Run alongside feature phases; none block the others.
 4. ~~**Resend email notifications.**~~ ✅ Done (PR #18).
 5. ~~**Embeddable chat widget.**~~ ✅ Done (this PR).
 6. ~~**Hardening — rate-limit + input caps.**~~ ✅ Done (PR #26).
-7. **Hardening — Prod Docker + observability** before deployment.
+7. ~~**Hardening — Prod Docker.**~~ ✅ Done (PR #27).
+8. ~~**Hardening — Observability.**~~ ✅ Done (PR #31).
+9. ~~**Hardening — Postgres migration.**~~ ✅ Done (PR #30).
+10. ~~**Auth v2 — OAuth.**~~ ✅ Done (feat/auth-v2 — Discord + Google + GitHub).
+11. **Tests** — SLA engine, triage, related, assess, ingest pipeline.
 
 ---
 
