@@ -1,14 +1,74 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { KBArticle, KBSearchResult } from '@/types'
+import { ingestUrlAction } from '@/app/actions/ingest-url'
+import type { IngestUrlResult } from '@/app/actions/ingest-url'
 
 type Article = KBArticle | KBSearchResult
 
 function hasScore(a: Article): a is KBSearchResult {
   return 'score' in a
+}
+
+function UrlIngestSection({ onImported }: { onImported: () => void }) {
+  const [result, action, pending] = useActionState<IngestUrlResult, FormData>(
+    async (prev, fd) => {
+      const r = await ingestUrlAction(prev, fd)
+      if (!r.error) onImported()
+      return r
+    },
+    {}
+  )
+  const [mode, setMode] = useState<'page' | 'site'>('page')
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold text-gray-900">Import from URL</h2>
+        <p className="text-xs text-gray-500 mt-0.5">Crawl a page or entire site and add the content to the knowledge base.</p>
+      </div>
+
+      <form action={action} className="space-y-3">
+        <div className="flex gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer">
+            <input type="radio" name="mode" value="page" checked={mode === 'page'} onChange={() => setMode('page')} />
+            Single page
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer">
+            <input type="radio" name="mode" value="site" checked={mode === 'site'} onChange={() => setMode('site')} />
+            Entire site <span className="text-gray-400">(up to 25 pages)</span>
+          </label>
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            name="url"
+            type="url"
+            required
+            placeholder="https://docs.example.com"
+            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          />
+          <Button type="submit" size="sm" disabled={pending}>
+            {pending ? 'Importing…' : 'Import'}
+          </Button>
+        </div>
+
+        {result.error && (
+          <p className="text-xs text-red-500">{result.error}</p>
+        )}
+        {result.created != null && !result.error && (
+          <p className="text-xs text-green-600">
+            {result.pages != null
+              ? `Imported ${result.created} articles from ${result.pages} pages.`
+              : `Imported ${result.created} articles.`}
+          </p>
+        )}
+      </form>
+    </div>
+  )
 }
 
 export default function KBPage() {
@@ -53,6 +113,8 @@ export default function KBPage() {
         <p className="text-sm text-gray-500">Resolved answers, promoted and semantically searchable</p>
       </div>
 
+      <UrlIngestSection onImported={loadAll} />
+
       <form onSubmit={search} className="flex items-center gap-2">
         <input
           value={query}
@@ -74,7 +136,7 @@ export default function KBPage() {
         <p className="text-sm text-gray-500">Loading…</p>
       ) : articles.length === 0 ? (
         <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-          No articles yet. Promote a resolved ticket from its detail page.
+          No articles yet. Import from a URL above or promote a resolved ticket from its detail page.
         </p>
       ) : (
         <ul className="space-y-3">
