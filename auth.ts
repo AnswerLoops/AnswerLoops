@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth'
 import Discord from 'next-auth/providers/discord'
+import GitHub from 'next-auth/providers/github'
 import Google from 'next-auth/providers/google'
 import { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
@@ -64,6 +65,7 @@ async function provisionUser(
 
 export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   providers: [
+    GitHub,
     Discord,
     Google,
   ],
