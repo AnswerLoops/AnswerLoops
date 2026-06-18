@@ -87,18 +87,22 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         return false // redirects to /login
       }
 
-      // Authenticated: enforce onboarding for page routes only
+      // Authenticated: enforce onboarding for page routes only.
+      // Check JWT flag first (set on wizard completion) so a DB wipe doesn't
+      // force already-onboarded users back through the wizard.
       if (
         pathname !== ONBOARDING_PATH &&
         !pathname.startsWith(INVITE_PREFIX) &&
         !pathname.startsWith('/api/')
       ) {
-        const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
-        const org = getDb()
-          .prepare('SELECT onboarded_at FROM orgs WHERE id = ?')
-          .get(orgId) as { onboarded_at: string | null } | undefined
-        if (!org?.onboarded_at) {
-          return NextResponse.redirect(new URL(ONBOARDING_PATH, request.nextUrl))
+        if (!(session as { onboarded?: boolean }).onboarded) {
+          const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
+          const org = getDb()
+            .prepare('SELECT onboarded_at FROM orgs WHERE id = ?')
+            .get(orgId) as { onboarded_at: string | null } | undefined
+          if (!org?.onboarded_at) {
+            return NextResponse.redirect(new URL(ONBOARDING_PATH, request.nextUrl))
+          }
         }
       }
 
@@ -106,10 +110,11 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
     },
 
     jwt({ token, user, account, trigger, session: updateData }) {
-      // unstable_update() call — merge new orgId into the token
+      // unstable_update() calls — merge orgId or onboarded flag into the token
       if (trigger === 'update' && updateData) {
-        const data = updateData as { orgId?: number }
+        const data = updateData as { orgId?: number; onboarded?: boolean }
         if (data.orgId) token.orgId = data.orgId
+        if (data.onboarded) token.onboarded = true
       }
       // Runs on sign-in (user + account present) and on every session read (token only)
       if (user?.email && account) {
@@ -127,6 +132,7 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
 
     session({ session, token }) {
       session.orgId = (token.orgId as number | undefined) ?? DEFAULT_ORG_ID
+      session.onboarded = token.onboarded === true
       if (session.user) {
         session.user.id = token.userId as string ?? token.sub ?? ''
       }
