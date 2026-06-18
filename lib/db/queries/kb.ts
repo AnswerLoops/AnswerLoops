@@ -59,6 +59,13 @@ export function getArticle(id: number): KBArticle | null {
   return (raw().prepare(`SELECT ${ARTICLE_COLS} FROM kb_articles WHERE id = ?`).get(id) as KBArticle) ?? null
 }
 
+export function countArticles(orgId = DEFAULT_ORG_ID): number {
+  const row = raw()
+    .prepare('SELECT COUNT(*) AS n FROM kb_articles WHERE org_id = ?')
+    .get(orgId) as { n: number }
+  return row.n
+}
+
 export function getArticleBySourceTicket(ticketId: number, orgId = DEFAULT_ORG_ID): KBArticle | null {
   return (
     raw()
