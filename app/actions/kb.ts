@@ -2,22 +2,23 @@
 
 import { z } from 'zod'
 import { refresh } from 'next/cache'
+import { auth } from '@/auth'
 import { getTicketById } from '@/lib/db/queries/tickets'
 import { createArticle } from '@/lib/db/queries/kb'
 import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 const PromoteSchema = z.object({ ticketId: z.coerce.number() })
 
-/**
- * Promote a resolved ticket's answer into the knowledge base: embed the Q+A and
- * store it as a published, searchable article. Re-promoting refreshes it.
- */
 export async function promoteToKBAction(
   _prevState: unknown,
   formData: FormData
 ): Promise<{ error?: string } | null> {
   const parsed = PromoteSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: 'Invalid input' }
+
+  const session = await auth()
+  const orgId = session?.orgId ?? DEFAULT_ORG_ID
 
   const ticket = getTicketById(parsed.data.ticketId)
   if (!ticket) return { error: 'Ticket not found' }
@@ -30,7 +31,7 @@ export async function promoteToKBAction(
   const question = ticket.ai_summary ?? ticket.content.slice(0, 200)
 
   try {
-    const embedding = await embedText(`${question}\n\n${answer}`)
+    const embedding = await embedText(`${question}\n\n${answer}`, orgId)
     createArticle({ question, answer, embedding, model: EMBEDDING_MODEL, sourceTicketId: ticket.id })
   } catch (err) {
     return { error: String(err) }

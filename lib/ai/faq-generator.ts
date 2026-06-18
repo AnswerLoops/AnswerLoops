@@ -32,7 +32,7 @@ function formatForPrompt(tickets: TicketSummary[]): string {
     .join('\n\n')
 }
 
-export async function generateFAQ(tickets: TicketSummary[]): Promise<string> {
+export async function generateFAQ(tickets: TicketSummary[], orgId?: number): Promise<string> {
   if (tickets.length === 0) {
     return '# FAQ\n\nNo resolved tickets this week.'
   }
@@ -40,7 +40,7 @@ export async function generateFAQ(tickets: TicketSummary[]): Promise<string> {
   const context = formatForPrompt(tickets)
 
   const { text } = await generateText({
-    model: chatModel('gpt-4o'),
+    model: chatModel('gpt-4o', orgId),
     maxOutputTokens: 3000,
     prompt: `You are a technical writer creating a community FAQ from resolved support tickets.
 

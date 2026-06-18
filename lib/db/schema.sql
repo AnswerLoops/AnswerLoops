@@ -248,3 +248,19 @@ CREATE TABLE IF NOT EXISTS invitations (
 
 CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
 CREATE INDEX IF NOT EXISTS idx_invitations_org   ON invitations(org_id);
+
+-- Per-org AI provider configuration. Absent row = use platform env vars.
+CREATE TABLE IF NOT EXISTS ai_configs (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id             INTEGER NOT NULL UNIQUE REFERENCES orgs(id),
+  chat_provider      TEXT NOT NULL DEFAULT 'openai',
+  chat_model         TEXT NOT NULL DEFAULT 'gpt-4o',
+  chat_api_key       TEXT,
+  chat_base_url      TEXT,
+  embedding_provider TEXT NOT NULL DEFAULT 'openai',
+  embedding_model    TEXT NOT NULL DEFAULT 'text-embedding-3-small',
+  embedding_api_key  TEXT,
+  embedding_base_url TEXT,
+  created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);

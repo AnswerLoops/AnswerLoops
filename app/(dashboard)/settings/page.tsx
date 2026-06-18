@@ -7,6 +7,7 @@ import { addRepoAction, removeRepoAction } from '@/app/actions/github'
 import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackIntegrationAction, deleteSlackIntegrationAction } from '@/app/actions/integrations'
 import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwnershipAction } from '@/app/actions/invitations'
 import { getWidgetTokenAction, regenerateWidgetTokenAction } from '@/app/actions/widget'
+import { saveAIConfigAction, clearAIConfigAction } from '@/app/actions/ai-config'
 import { Button } from '@/components/ui/button'
 import type { SLAConfig, GitHubRepo } from '@/types'
 
@@ -571,6 +572,253 @@ function TeamSection() {
   )
 }
 
+const CHAT_PROVIDERS = [
+  { value: 'openai', label: 'OpenAI', placeholder: 'gpt-4o' },
+  { value: 'anthropic', label: 'Anthropic', placeholder: 'claude-sonnet-4-6' },
+  { value: 'google', label: 'Google Gemini', placeholder: 'gemini-2.0-flash' },
+  { value: 'groq', label: 'Groq', placeholder: 'llama-3.3-70b-versatile' },
+  { value: 'mistral', label: 'Mistral', placeholder: 'mistral-large-latest' },
+  { value: 'openai-compatible', label: 'OpenAI-compatible (Ollama, LM Studio, vLLM…)', placeholder: 'llama3.2' },
+] as const
+
+const EMBEDDING_PROVIDERS = [
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'openai-compatible', label: 'OpenAI-compatible (Ollama, local)' },
+] as const
+
+interface AIConfig {
+  chat_provider: string
+  chat_model: string
+  chat_api_key_set: boolean
+  chat_base_url: string | null
+  embedding_provider: string
+  embedding_model: string
+  embedding_api_key_set: boolean
+  embedding_base_url: string | null
+}
+
+function AIModelSection() {
+  const [config, setConfig] = useState<AIConfig | null | undefined>(undefined)
+  const [chatProvider, setChatProvider] = useState('openai')
+  const [embeddingProvider, setEmbeddingProvider] = useState('openai')
+  const [, startClearTransition] = useTransition()
+
+  const [saveState, saveAction, savePending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await saveAIConfigAction(prev, fd)
+      if (!result?.error) {
+        const updated = await fetch('/api/ai-config').then((r) => r.json())
+        setConfig(updated)
+        if (updated) {
+          setChatProvider(updated.chat_provider)
+          setEmbeddingProvider(updated.embedding_provider)
+        }
+      }
+      return result
+    },
+    null
+  )
+
+  const [clearState, clearAction, clearPending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await clearAIConfigAction(prev, fd)
+      if (!result?.error) setConfig(null)
+      return result
+    },
+    null
+  )
+
+  useEffect(() => {
+    fetch('/api/ai-config')
+      .then((r) => r.json())
+      .then((data: AIConfig | null) => {
+        setConfig(data)
+        if (data) {
+          setChatProvider(data.chat_provider)
+          setEmbeddingProvider(data.embedding_provider)
+        }
+      })
+  }, [])
+
+  if (config === undefined) return <p className="text-sm text-gray-400">Loading…</p>
+
+  const configured = config !== null
+  const chatMeta = CHAT_PROVIDERS.find((p) => p.value === chatProvider) ?? CHAT_PROVIDERS[0]
+  const needsEmbedKey = chatProvider !== 'openai' || embeddingProvider === 'openai-compatible'
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-900">AI Model</p>
+          <p className="text-xs text-gray-500">
+            {configured
+              ? `${chatMeta.label} · ${config.chat_model}`
+              : 'Using platform default (OPENAI_API_KEY from environment)'}
+          </p>
+        </div>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${configured ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+          {configured ? 'Custom' : 'Platform default'}
+        </span>
+      </div>
+
+      <form action={saveAction} className="space-y-4">
+        {/* Chat provider */}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Chat provider</label>
+          <select
+            name="chat_provider"
+            value={chatProvider}
+            onChange={(e) => setChatProvider(e.target.value)}
+            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm bg-white"
+          >
+            {CHAT_PROVIDERS.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Chat model */}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Model ID</label>
+          <input
+            name="chat_model"
+            type="text"
+            defaultValue={config?.chat_model ?? ''}
+            placeholder={chatMeta.placeholder}
+            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+            required
+          />
+        </div>
+
+        {/* Chat API key */}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">API key</label>
+          <input
+            name="chat_api_key"
+            type="password"
+            autoComplete="new-password"
+            placeholder={configured && config.chat_api_key_set ? '••••••••• (leave blank to keep current)' : 'sk-…'}
+            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+          />
+          {chatProvider === 'openai-compatible' && (
+            <p className="text-xs text-gray-400 mt-1">Leave blank for local endpoints that don't require auth.</p>
+          )}
+        </div>
+
+        {/* Base URL — only for openai-compatible */}
+        {chatProvider === 'openai-compatible' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Base URL</label>
+            <input
+              name="chat_base_url"
+              type="url"
+              defaultValue={config?.chat_base_url ?? ''}
+              placeholder="http://localhost:11434/v1"
+              className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              required
+            />
+            <p className="text-xs text-gray-400 mt-1">Ollama: <code>http://localhost:11434/v1</code> · LM Studio: <code>http://localhost:1234/v1</code></p>
+          </div>
+        )}
+
+        <hr className="border-gray-100" />
+
+        {/* Embedding section */}
+        <div>
+          <p className="text-xs font-semibold text-gray-600 mb-2">Embeddings</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Embedding provider</label>
+              <select
+                name="embedding_provider"
+                value={embeddingProvider}
+                onChange={(e) => setEmbeddingProvider(e.target.value)}
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm bg-white"
+              >
+                {EMBEDDING_PROVIDERS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Embedding model</label>
+              <input
+                name="embedding_model"
+                type="text"
+                defaultValue={config?.embedding_model ?? 'text-embedding-3-small'}
+                placeholder={embeddingProvider === 'openai-compatible' ? 'nomic-embed-text' : 'text-embedding-3-small'}
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+                required
+              />
+            </div>
+
+            {needsEmbedKey && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Embedding API key
+                  {chatProvider === 'openai' ? '' : ' (OpenAI key for embeddings)'}
+                </label>
+                <input
+                  name="embedding_api_key"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder={configured && config.embedding_api_key_set ? '••••••••• (leave blank to keep current)' : 'sk-…'}
+                  className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+                />
+              </div>
+            )}
+
+            {embeddingProvider === 'openai-compatible' && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Embedding base URL</label>
+                <input
+                  name="embedding_base_url"
+                  type="url"
+                  defaultValue={config?.embedding_base_url ?? ''}
+                  placeholder="http://localhost:11434/v1"
+                  className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {(saveState as { error?: string } | null)?.error && (
+          <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+        )}
+        {(clearState as { error?: string } | null)?.error && (
+          <p className="text-xs text-red-600">{(clearState as { error?: string }).error}</p>
+        )}
+
+        <div className="flex gap-2">
+          <Button type="submit" size="sm" disabled={savePending}>
+            {savePending ? 'Saving…' : configured ? 'Update' : 'Save'}
+          </Button>
+          {configured && (
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              disabled={clearPending}
+              onClick={() => startClearTransition(() => { clearAction(new FormData()) })}
+            >
+              {clearPending ? 'Clearing…' : 'Reset to platform default'}
+            </Button>
+          )}
+        </div>
+      </form>
+
+      {!configured && (
+        <p className="text-xs text-gray-400">
+          No custom config — all AI calls use the platform <code>OPENAI_API_KEY</code> env var.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function WidgetSection() {
   const [token, setToken] = useState<string | null>(null)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
@@ -786,6 +1034,12 @@ export default function SettingsPage() {
           <DiscordIntegrationCard />
           <SlackIntegrationCard />
         </div>
+      </section>
+
+      {/* AI Model */}
+      <section>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">AI Model</h2>
+        <AIModelSection />
       </section>
 
       {/* Website Widget */}
