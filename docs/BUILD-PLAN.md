@@ -80,7 +80,7 @@ Run alongside feature phases; none block the others.
 |------|-----|--------|
 | ✅ **Resend email notifications** | alert admins/owners on new critical/high tickets, ticket resolved, SLA breach; `lib/email/send.ts`; skips silently when `RESEND_API_KEY` absent | S |
 | ✅ **Embeddable chat widget** | public AI chat backed by KB + prior answers; `<script>` tag embed; per-IP rate limiter; `DefaultChatTransport` (AI SDK v6); `widget_token` per org | M |
-| **Tests** | zero today; cover SLA engine, triage, related, assess, ingest | M |
+| ✅ **Tests** | 44 unit tests (vitest): SLA status, cosine related, retry transient detection, rate limiter; `pnpm test` / `pnpm test:coverage` | M |
 | ✅ **Prod Docker** | multi-stage `Dockerfile` (`deps`→`build`→`runner`, no toolchain in final), non-root user, `docker-compose.prod.yml` with built image + named SQLite volume + no bind-mount, `bot:start` (no watch); dev compose targets `deps` stage | S |
 | ✅ **Observability** | structured JSON logger (`lib/logger.ts`), exponential-backoff retry (`lib/retry.ts`), `after()` fully wrapped, push/email/SLA failures isolated; all `console.*` replaced (PR #31) | M |
 | ✅ **Rate limiting + input caps** | per-org ingest rate limit (10/10min), per-import chunk + char caps, per-org KB ceiling, URL length cap; `lib/ratelimit.ts` | S |
@@ -102,7 +102,8 @@ Run alongside feature phases; none block the others.
 8. ~~**Hardening — Observability.**~~ ✅ Done (PR #31).
 9. ~~**Hardening — Postgres migration.**~~ ✅ Done (PR #30).
 10. ~~**Auth v2 — OAuth.**~~ ✅ Done (feat/auth-v2 — Discord + Google + GitHub).
-11. **Tests** — SLA engine, triage, related, assess, ingest pipeline.
+11. ~~**Tests.**~~ ✅ Done — 44 unit tests; `pnpm test`.
+12. **Multi-tenant SaaS** — self-serve signup, billing (deflection-volume tiers).
 
 ---
 

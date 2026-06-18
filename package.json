@@ -10,6 +10,9 @@
     "bot": "tsx watch bot/index.ts",
     "bot:start": "tsx bot/index.ts",
     "dev:all": "concurrently \"pnpm dev\" \"pnpm bot\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:typecheck": "tsc --noEmit -p e2e/tsconfig.json",
     "test:e2e:ui": "playwright test --ui",
@@ -47,13 +50,15 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
+    "@vitest/coverage-v8": "^4.1.9",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
