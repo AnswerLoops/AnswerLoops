@@ -1,26 +1,69 @@
-import { openai } from '@ai-sdk/openai'
+import { openai, createOpenAI } from '@ai-sdk/openai'
+import { createAnthropic } from '@ai-sdk/anthropic'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createGroq } from '@ai-sdk/groq'
+import { createMistral } from '@ai-sdk/mistral'
 import type { EmbeddingModel, LanguageModel } from 'ai'
-// EmbeddingModel is non-generic in this SDK version.
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
+import { getOrgAIConfig } from '@/lib/db/queries/ai-config'
 
-/**
- * Central factory for the models the AI layer uses. In normal operation these
- * are real OpenAI models; under MOCK_EXTERNALS they are deterministic fakes
- * (see lib/ai/mock.ts). Routing everything through here means the lib/ai
- * functions never reference a provider directly, so tests can swap the whole
- * AI layer with one env flag.
- */
-export function chatModel(id: string): LanguageModel {
+export function chatModel(defaultId: string, orgId?: number): LanguageModel {
   if (MOCK_EXTERNALS) {
-    // Lazy require so ai/test is never pulled into a production bundle.
-    return (require('./mock') as typeof import('./mock')).mockLanguageModel(id)
+    return (require('./mock') as typeof import('./mock')).mockLanguageModel(defaultId)
   }
-  return openai(id)
+
+  if (orgId !== undefined) {
+    try {
+      const cfg = getOrgAIConfig(orgId)
+      if (cfg?.chat_api_key || cfg?.chat_provider === 'openai-compatible') {
+        return buildChatProvider(cfg.chat_provider, cfg.chat_api_key, cfg.chat_base_url)(cfg.chat_model || defaultId)
+      }
+    } catch {
+      // fall through to platform key
+    }
+  }
+
+  return openai(defaultId)
 }
 
-export function embeddingModel(id: string): EmbeddingModel {
+export function embeddingModel(defaultId: string, orgId?: number): EmbeddingModel {
   if (MOCK_EXTERNALS) {
-    return (require('./mock') as typeof import('./mock')).mockEmbeddingModel(id)
+    return (require('./mock') as typeof import('./mock')).mockEmbeddingModel(defaultId)
   }
-  return openai.embedding(id)
+
+  if (orgId !== undefined) {
+    try {
+      const cfg = getOrgAIConfig(orgId)
+      if (cfg) {
+        const embKey = cfg.embedding_api_key ?? (cfg.chat_provider === 'openai' ? cfg.chat_api_key : null)
+        if (embKey || cfg.embedding_base_url) {
+          return createOpenAI({
+            apiKey: embKey ?? undefined,
+            baseURL: cfg.embedding_base_url ?? undefined,
+          }).embedding(cfg.embedding_model || defaultId)
+        }
+      }
+    } catch {
+      // fall through to platform key
+    }
+  }
+
+  return openai.embedding(defaultId)
+}
+
+function buildChatProvider(provider: string, apiKey: string | null, baseUrl: string | null) {
+  switch (provider) {
+    case 'anthropic':
+      return createAnthropic({ apiKey: apiKey ?? undefined })
+    case 'google':
+      return createGoogleGenerativeAI({ apiKey: apiKey ?? undefined })
+    case 'groq':
+      return createGroq({ apiKey: apiKey ?? undefined })
+    case 'mistral':
+      return createMistral({ apiKey: apiKey ?? undefined })
+    case 'openai-compatible':
+      return createOpenAI({ apiKey: apiKey ?? undefined, baseURL: baseUrl ?? undefined })
+    default:
+      return createOpenAI({ apiKey: apiKey ?? undefined })
+  }
 }

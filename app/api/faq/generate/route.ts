@@ -1,7 +1,12 @@
+import { auth } from '@/auth'
 import { getResolvedTicketsThisWeek, insertFAQSnapshot } from '@/lib/db/queries/faq'
 import { generateFAQ } from '@/lib/ai/faq-generator'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 export async function POST() {
+  const session = await auth()
+  const orgId = session?.orgId ?? DEFAULT_ORG_ID
+
   const tickets = getResolvedTicketsThisWeek()
 
   const now = new Date()
@@ -12,7 +17,7 @@ export async function POST() {
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 6) // Sunday
 
-  const content = await generateFAQ(tickets)
+  const content = await generateFAQ(tickets, orgId)
   const snapshot = insertFAQSnapshot(
     weekStart.toISOString().split('T')[0],
     weekEnd.toISOString().split('T')[0],

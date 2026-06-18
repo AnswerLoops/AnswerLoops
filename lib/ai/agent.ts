@@ -47,7 +47,7 @@ export async function runAIAgent(
 
   try {
     const { text } = await generateText({
-      model: chatModel('gpt-4o'),
+      model: chatModel('gpt-4o', orgId),
       stopWhen: stepCountIs(5),
       system: `You are a technical support agent for an open source software project.
 You have tools to search and read the project source code on GitHub.
@@ -96,7 +96,7 @@ Guidelines:
     // Second pass: grade the answer to decide whether it can be auto-deflected.
     let assessment
     try {
-      assessment = await assessAnswer(question, text)
+      assessment = await assessAnswer(question, text, orgId)
     } catch (err) {
       console.error('[agent] assessment failed for ticket', ticketId, '— defaulting to human review', err)
       assessment = { confidence: 0, answered_fully: false, reasoning: 'Assessment failed; routed to human review.' }
