@@ -84,7 +84,9 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
-        return false
+        const loginUrl = new URL('/login', request.nextUrl)
+        loginUrl.searchParams.set('callbackUrl', pathname)
+        return NextResponse.redirect(loginUrl)
       }
 
       if (
