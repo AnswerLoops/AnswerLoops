@@ -103,7 +103,8 @@ Run alongside feature phases; none block the others.
 9. ~~**Hardening — Postgres migration.**~~ ✅ Done (PR #30).
 10. ~~**Auth v2 — OAuth.**~~ ✅ Done (feat/auth-v2 — Discord + Google + GitHub).
 11. ~~**Tests.**~~ ✅ Done — 44 unit tests; `pnpm test`.
-12. **Multi-tenant SaaS** — self-serve signup, billing (deflection-volume tiers).
+12. ~~**Billing.**~~ ✅ Done — Stripe deflection-volume tiers; checkout + portal + webhook.
+13. **Public self-serve signup** — remove invite gate, public `/signup`.
 
 ---
 

@@ -11,6 +11,7 @@ import { assessAnswer, shouldAutoDeflect, ASSESS_MODEL } from '@/lib/ai/assess'
 import { sendToChannel } from '@/lib/discord/send'
 import { sendToSlackChannel } from '@/lib/slack/send'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { checkDeflectionLimit } from '@/lib/billing/usage'
 import { logger } from '@/lib/logger'
 import type { PriorAnswer } from '@/types'
 
@@ -105,8 +106,16 @@ Guidelines:
       assessment = { confidence: 0, answered_fully: false, reasoning: 'Assessment failed; routed to human review.' }
     }
 
-    const autoDeflect = shouldAutoDeflect(assessment)
+    let autoDeflect = shouldAutoDeflect(assessment)
     const pct = Math.round(assessment.confidence * 100)
+
+    if (autoDeflect) {
+      const { allowed } = await checkDeflectionLimit(orgId)
+      if (!allowed) {
+        autoDeflect = false
+        logger.warn('deflection limit reached — routing to human review', { module: MOD, ticketId, orgId })
+      }
+    }
 
     await saveAssessment({
       ticketId,
