@@ -10,6 +10,7 @@ const navItems = [
   { href: '/kb', label: 'Knowledge Base' },
   { href: '/faq', label: 'FAQ' },
   { href: '/settings', label: 'Settings' },
+  { href: '/billing', label: 'Billing' },
 ]
 
 export function SidebarNav() {

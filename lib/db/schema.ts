@@ -274,5 +274,20 @@ export const aiConfigs = pgTable('ai_configs', {
   updatedAt: text('updated_at').notNull().default(now),
 })
 
+export const subscriptions = pgTable('subscriptions', {
+  id: serial('id').primaryKey(),
+  orgId: integer('org_id').notNull().unique().references(() => orgs.id),
+  planId: text('plan_id').notNull().default('hobby'),
+  status: text('status').notNull().default('active'),
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id').unique(),
+  stripePriceId: text('stripe_price_id'),
+  currentPeriodStart: text('current_period_start'),
+  currentPeriodEnd: text('current_period_end'),
+  cancelAtPeriodEnd: integer('cancel_at_period_end').notNull().default(0),
+  createdAt: text('created_at').notNull().default(now),
+  updatedAt: text('updated_at').notNull().default(now),
+})
+
 /** The default workspace that owns all data until real auth assigns memberships. */
 export const DEFAULT_ORG_ID = 1
