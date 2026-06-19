@@ -32,7 +32,7 @@ export async function saveAIConfigAction(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
 
   const d = parsed.data
-  saveOrgAIConfig(orgId, {
+  await saveOrgAIConfig(orgId, {
     chat_provider: d.chat_provider,
     chat_model: d.chat_model,
     chat_api_key: d.chat_api_key || null,
@@ -54,6 +54,6 @@ export async function clearAIConfigAction(
   if (!session?.user) return { error: 'Unauthorized' }
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
-  deleteOrgAIConfig(orgId)
+  await deleteOrgAIConfig(orgId)
   return null
 }
