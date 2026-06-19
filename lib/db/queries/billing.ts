@@ -13,6 +13,7 @@ export interface Subscription {
   currentPeriodStart: string | null
   currentPeriodEnd: string | null
   cancelAtPeriodEnd: boolean
+  trialEndsAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -29,6 +30,7 @@ function toSub(row: typeof subscriptions.$inferSelect): Subscription {
     currentPeriodStart: row.currentPeriodStart,
     currentPeriodEnd: row.currentPeriodEnd,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd === 1,
+    trialEndsAt: row.trialEndsAt ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
@@ -62,6 +64,7 @@ export async function upsertSubscription(input: {
   currentPeriodStart?: string | null
   currentPeriodEnd?: string | null
   cancelAtPeriodEnd?: boolean
+  trialEndsAt?: string | null
 }): Promise<void> {
   const now = new Date().toISOString()
   await getDb()
@@ -76,6 +79,7 @@ export async function upsertSubscription(input: {
       currentPeriodStart: input.currentPeriodStart ?? null,
       currentPeriodEnd: input.currentPeriodEnd ?? null,
       cancelAtPeriodEnd: input.cancelAtPeriodEnd ? 1 : 0,
+      trialEndsAt: input.trialEndsAt ?? null,
       updatedAt: now,
     })
     .onConflictDoUpdate({
@@ -89,6 +93,7 @@ export async function upsertSubscription(input: {
         ...(input.currentPeriodStart !== undefined ? { currentPeriodStart: input.currentPeriodStart } : {}),
         ...(input.currentPeriodEnd !== undefined ? { currentPeriodEnd: input.currentPeriodEnd } : {}),
         ...(input.cancelAtPeriodEnd !== undefined ? { cancelAtPeriodEnd: input.cancelAtPeriodEnd ? 1 : 0 } : {}),
+        ...(input.trialEndsAt !== undefined ? { trialEndsAt: input.trialEndsAt } : {}),
         updatedAt: now,
       },
     })

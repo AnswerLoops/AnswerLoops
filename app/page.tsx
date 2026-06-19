@@ -37,7 +37,7 @@ function Hero() {
     <section className="mx-auto max-w-5xl px-6 py-24 text-center">
       <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 mb-6">
         <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-        Free to start — no credit card required
+        14-day free trial — no charge until trial ends
       </div>
       <h1 className="text-5xl font-bold tracking-tight text-gray-900 sm:text-6xl">
         Your community&rsquo;s repeat questions,
@@ -52,7 +52,7 @@ function Hero() {
           href="/login"
           className="rounded-xl bg-indigo-600 px-8 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
         >
-          Get started free
+          Start free trial
         </Link>
         <Link
           href="#how-it-works"
@@ -61,7 +61,7 @@ function Hero() {
           See how it works
         </Link>
       </div>
-      <p className="mt-4 text-xs text-gray-400">Sign in with GitHub, Discord, or Google — workspace ready in under 5 minutes.</p>
+      <p className="mt-4 text-xs text-gray-400">14-day trial, card required. Cancel anytime. Sign in with GitHub, Discord, or Google.</p>
     </section>
   )
 }
@@ -173,12 +173,11 @@ function Pricing() {
     <section id="pricing" className="mx-auto max-w-5xl px-6 py-24">
       <div className="text-center mb-14">
         <h2 className="text-3xl font-bold text-gray-900">Pay for deflections, not seats</h2>
-        <p className="mt-3 text-gray-500">Price tracks value delivered. The more questions your community asks, the more you save.</p>
+        <p className="mt-3 text-gray-500">Price tracks value delivered. Every plan starts with a 14-day free trial.</p>
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid sm:grid-cols-3 gap-5">
         {ORDERED_PLANS.map((plan) => {
           const isHighlight = plan.id === 'pro'
-          const free = plan.priceMonthly === 0
           return (
             <div
               key={plan.id}
@@ -191,11 +190,10 @@ function Pricing() {
               )}
               <div className="text-sm font-semibold text-gray-900">{plan.name}</div>
               <div className="mt-3 flex items-end gap-1">
-                <span className="text-3xl font-bold text-gray-900">
-                  {free ? 'Free' : `$${plan.priceMonthly / 100}`}
-                </span>
-                {!free && <span className="text-sm text-gray-500 mb-1">/mo</span>}
+                <span className="text-3xl font-bold text-gray-900">${plan.priceMonthly / 100}</span>
+                <span className="text-sm text-gray-500 mb-1">/mo</span>
               </div>
+              <div className="mt-1 text-xs text-indigo-600 font-medium">14-day free trial</div>
               <div className="mt-2 text-sm text-gray-500">
                 {plan.deflectionsPerMonth === null
                   ? 'Unlimited deflections'
@@ -210,7 +208,7 @@ function Pricing() {
                     : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                {free ? 'Get started' : 'Start free trial'}
+                Start free trial
               </Link>
             </div>
           )
@@ -218,6 +216,7 @@ function Pricing() {
       </div>
       <p className="mt-6 text-center text-sm text-gray-400">
         All plans include Discord + Slack ingest, AI agent, knowledge base, analytics, embeddable widget, and email alerts.
+        Card required at signup. Cancel anytime before trial ends and you won&apos;t be charged.
       </p>
     </section>
   )
@@ -235,7 +234,7 @@ function CTA() {
           href="/login"
           className="mt-8 inline-block rounded-xl bg-white px-10 py-3.5 text-base font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors shadow-sm"
         >
-          Get started free
+          Start free trial
         </Link>
       </div>
     </section>

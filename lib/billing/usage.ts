@@ -32,8 +32,15 @@ export async function checkDeflectionLimit(orgId: number): Promise<{
     getMonthlyDeflections(orgId),
   ])
 
+  const status = sub?.status ?? 'active'
   const plan = getPlan(sub?.planId)
-  const allowed = !isOverLimit(used, plan)
 
+  // Canceled subscriptions lose access entirely
+  if (status === 'canceled') {
+    return { allowed: false, used, limit: 0, planId: plan.id }
+  }
+
+  // trialing / active / past_due all use the plan's deflection limit
+  const allowed = !isOverLimit(used, plan)
   return { allowed, used, limit: plan.deflectionsPerMonth, planId: plan.id }
 }

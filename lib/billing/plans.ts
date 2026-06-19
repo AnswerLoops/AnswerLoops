@@ -1,3 +1,5 @@
+export const TRIAL_DAYS = 14
+
 export type PlanId = 'hobby' | 'pro' | 'scale' | 'enterprise'
 
 export interface Plan {
@@ -39,7 +41,8 @@ export const PLANS: Record<PlanId, Plan> = {
   },
 }
 
-export const ORDERED_PLANS: Plan[] = [PLANS.hobby, PLANS.pro, PLANS.scale, PLANS.enterprise]
+// hobby is a post-trial fallback, not a purchasable plan — excluded from ORDERED_PLANS
+export const ORDERED_PLANS: Plan[] = [PLANS.pro, PLANS.scale, PLANS.enterprise]
 
 export function getPlan(id: PlanId | string | null | undefined): Plan {
   return PLANS[(id as PlanId) ?? 'hobby'] ?? PLANS.hobby
