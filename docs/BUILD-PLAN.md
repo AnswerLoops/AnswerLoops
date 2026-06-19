@@ -80,7 +80,8 @@ Run alongside feature phases; none block the others.
 |------|-----|--------|
 | ✅ **Resend email notifications** | alert admins/owners on new critical/high tickets, ticket resolved, SLA breach; `lib/email/send.ts`; skips silently when `RESEND_API_KEY` absent | S |
 | ✅ **Embeddable chat widget** | public AI chat backed by KB + prior answers; `<script>` tag embed; per-IP rate limiter; `DefaultChatTransport` (AI SDK v6); `widget_token` per org | M |
-| ✅ **Tests** | 44 unit tests (vitest): SLA status, cosine related, retry transient detection, rate limiter; `pnpm test` / `pnpm test:coverage` | M |
+| ✅ **Secret encryption** | AI API keys and bot tokens encrypted at rest via AES-256-GCM (`lib/crypto/tokens.ts`); `ENCRYPTION_KEY` env var (64-char hex); dev fallback stores plaintext when key absent (PR #35) | S |
+| ✅ **Tests** | 53 unit tests (vitest): SLA status, cosine related, retry transient detection, rate limiter, AES-256-GCM round-trip; `pnpm test` / `pnpm test:coverage` (PR #34) | M |
 | ✅ **Prod Docker** | multi-stage `Dockerfile` (`deps`→`build`→`runner`, no toolchain in final), non-root user, `docker-compose.prod.yml` with built image + named SQLite volume + no bind-mount, `bot:start` (no watch); dev compose targets `deps` stage | S |
 | ✅ **Observability** | structured JSON logger (`lib/logger.ts`), exponential-backoff retry (`lib/retry.ts`), `after()` fully wrapped, push/email/SLA failures isolated; all `console.*` replaced (PR #31) | M |
 | ✅ **Rate limiting + input caps** | per-org ingest rate limit (10/10min), per-import chunk + char caps, per-org KB ceiling, URL length cap; `lib/ratelimit.ts` | S |
@@ -103,9 +104,11 @@ Run alongside feature phases; none block the others.
 9. ~~**Hardening — Postgres migration.**~~ ✅ Done (PR #30).
 10. ~~**Auth v2 — OAuth.**~~ ✅ Done (feat/auth-v2 — Discord + Google + GitHub).
 11. ~~**Tests.**~~ ✅ Done — 44 unit tests; `pnpm test`.
-12. ~~**Billing.**~~ ✅ Done — Stripe deflection-volume tiers; checkout + portal + webhook.
-13. ~~**Public self-serve signup.**~~ ✅ Done — landing page at `/`, GitHub/Discord/Google OAuth signup, auto-org provisioning.
-14. **Multi-tenant launch** — merge all hardening PRs, set `STRIPE_*` + OAuth env vars, deploy to production.
+12. ~~**Secret encryption.**~~ ✅ Done (PR #35) — AI API keys + bot tokens encrypted at rest (AES-256-GCM).
+13. ~~**Billing.**~~ ✅ Done (PR #36) — Stripe deflection-volume tiers; checkout + portal + webhook.
+14. ~~**Public self-serve signup.**~~ ✅ Done (PR #37) — landing page at `/`, GitHub/Discord/Google OAuth signup, auto-org provisioning.
+15. ~~**14-day trial.**~~ ✅ Done (PR #39) — card-required trial replaces free tier; trial countdown UI, trial-ended wall, Stripe `trial_period_days: 14`.
+16. **Multi-tenant launch** — merge all PRs, set `STRIPE_*` + OAuth env vars, deploy to production.
 
 ---
 
