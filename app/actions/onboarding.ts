@@ -21,7 +21,7 @@ export async function updateWorkspaceNameAction(
   const parsed = NameSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  updateOrgName(orgId, parsed.data.name)
+  await updateOrgName(orgId, parsed.data.name)
   return null
 }
 
@@ -30,7 +30,7 @@ export async function completeOnboardingAction(): Promise<void> {
   if (!session?.user) redirect('/login')
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
-  setOrgOnboarded(orgId)
+  await setOrgOnboarded(orgId)
   // Stamp the JWT so a future DB wipe won't force the user back through onboarding.
   await unstable_update({ onboarded: true })
   redirect('/dashboard')

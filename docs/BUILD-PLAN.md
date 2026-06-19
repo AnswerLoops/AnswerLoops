@@ -104,7 +104,8 @@ Run alongside feature phases; none block the others.
 10. ~~**Auth v2 — OAuth.**~~ ✅ Done (feat/auth-v2 — Discord + Google + GitHub).
 11. ~~**Tests.**~~ ✅ Done — 44 unit tests; `pnpm test`.
 12. ~~**Billing.**~~ ✅ Done — Stripe deflection-volume tiers; checkout + portal + webhook.
-13. **Public self-serve signup** — remove invite gate, public `/signup`.
+13. ~~**Public self-serve signup.**~~ ✅ Done — landing page at `/`, GitHub/Discord/Google OAuth signup, auto-org provisioning.
+14. **Multi-tenant launch** — merge all hardening PRs, set `STRIPE_*` + OAuth env vars, deploy to production.
 
 ---
 
