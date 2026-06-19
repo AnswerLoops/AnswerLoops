@@ -14,9 +14,14 @@ export async function GET() {
     checkDeflectionLimit(orgId),
   ])
 
+  const status = sub?.status ?? 'active'
+  const isTrialing = status === 'trialing'
+
   return NextResponse.json({
     planId: usage.planId,
-    status: sub?.status ?? 'active',
+    status,
+    isTrialing,
+    trialEndsAt: sub?.trialEndsAt ?? null,
     used: usage.used,
     limit: usage.limit,
     cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { getStripe } from '@/lib/billing/stripe'
-import { upsertSubscription } from '@/lib/db/queries/billing'
+import { upsertSubscription, getSubscriptionByStripeId } from '@/lib/db/queries/billing'
 import { priceIdToPlan } from '@/lib/billing/plans'
 import { logger } from '@/lib/logger'
 
@@ -41,11 +41,11 @@ export async function POST(req: Request) {
         await upsertSubscription({
           orgId,
           planId,
-          status: 'active',
+          status: 'trialing',
           stripeCustomerId: session.customer as string,
           stripeSubscriptionId: session.subscription as string,
         })
-        logger.info('Subscription activated via checkout', { module: MOD, orgId })
+        logger.info('Trial started via checkout', { module: MOD, orgId })
         break
       }
 
@@ -56,17 +56,26 @@ export async function POST(req: Request) {
 
         const priceId = sub.items.data[0]?.price?.id ?? null
         const plan = priceId ? priceIdToPlan(priceId) : null
+        const subAny = sub as unknown as {
+          current_period_start: number
+          current_period_end: number
+          trial_end: number | null
+        }
+        const trialEndsAt = subAny.trial_end
+          ? new Date(subAny.trial_end * 1000).toISOString()
+          : null
 
         await upsertSubscription({
           orgId,
-          planId: plan?.id ?? 'hobby',
+          planId: plan?.id ?? 'pro',
           status: sub.status,
           stripeCustomerId: sub.customer as string,
           stripeSubscriptionId: sub.id,
           stripePriceId: priceId,
-          currentPeriodStart: new Date((sub as unknown as { current_period_start: number }).current_period_start * 1000).toISOString(),
-          currentPeriodEnd: new Date((sub as unknown as { current_period_end: number }).current_period_end * 1000).toISOString(),
+          currentPeriodStart: new Date(subAny.current_period_start * 1000).toISOString(),
+          currentPeriodEnd: new Date(subAny.current_period_end * 1000).toISOString(),
           cancelAtPeriodEnd: sub.cancel_at_period_end,
+          trialEndsAt,
         })
         logger.info('Subscription updated', { module: MOD, orgId, status: sub.status })
         break
@@ -100,7 +109,13 @@ export async function POST(req: Request) {
         const orgId = Number(invoiceAny.subscription_details?.metadata?.org_id)
         if (!orgId) break
 
-        await upsertSubscription({ orgId, planId: 'hobby', status: 'past_due', stripeSubscriptionId: subId })
+        const existingSub = await getSubscriptionByStripeId(subId)
+        await upsertSubscription({
+          orgId,
+          planId: existingSub?.planId ?? 'pro',
+          status: 'past_due',
+          stripeSubscriptionId: subId,
+        })
         logger.warn('Payment failed — subscription past_due', { module: MOD, orgId })
         break
       }

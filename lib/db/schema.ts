@@ -285,6 +285,7 @@ export const subscriptions = pgTable('subscriptions', {
   currentPeriodStart: text('current_period_start'),
   currentPeriodEnd: text('current_period_end'),
   cancelAtPeriodEnd: integer('cancel_at_period_end').notNull().default(0),
+  trialEndsAt: text('trial_ends_at'),
   createdAt: text('created_at').notNull().default(now),
   updatedAt: text('updated_at').notNull().default(now),
 })
