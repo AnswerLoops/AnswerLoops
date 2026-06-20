@@ -98,7 +98,7 @@ function InviteShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-5">
-          <span className="text-sm font-bold text-indigo-600 tracking-tight">Community Platform</span>
+          <span className="text-sm font-bold text-indigo-600 tracking-tight">Source Loop</span>
         </div>
         {children}
       </div>

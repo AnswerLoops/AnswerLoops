@@ -202,7 +202,7 @@ export default function OnboardingWizard({ initialName }: { initialName: string 
                   <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-gray-800">Community Platform</span>
+              <span className="text-sm font-semibold text-gray-800">Source Loop</span>
             </div>
 
             {/* Progress */}
