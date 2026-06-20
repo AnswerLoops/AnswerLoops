@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/auth'
 import { ORDERED_PLANS } from '@/lib/billing/plans'
@@ -9,7 +8,7 @@ const GITHUB_URL = 'https://github.com/NathanTarbert/community-platform'
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
-function Nav() {
+function Nav({ loggedIn }: { loggedIn: boolean }) {
   return (
     <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
@@ -29,9 +28,15 @@ function Nav() {
             GitHub
           </Link>
           <Link href="#pricing" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Pricing</Link>
-          <Link href="/login" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
-            Start free trial
-          </Link>
+          {loggedIn ? (
+            <Link href="/dashboard" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+              Go to dashboard →
+            </Link>
+          ) : (
+            <Link href="/login" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+              Start free trial
+            </Link>
+          )}
         </div>
       </div>
     </header>
@@ -372,11 +377,10 @@ function Footer() {
 
 export default async function LandingPage() {
   const session = await auth()
-  if (session?.user) redirect('/dashboard')
 
   return (
     <div className="min-h-screen bg-white">
-      <Nav />
+      <Nav loggedIn={!!session?.user} />
       <Hero />
       <Stats />
       <HowItWorks />

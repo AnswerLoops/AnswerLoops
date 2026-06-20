@@ -15,7 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Sidebar */}
       <aside className="w-56 shrink-0 border-r border-gray-200 bg-white flex flex-col">
         <div className="px-5 py-4 border-b border-gray-200">
-          <span className="text-sm font-bold text-indigo-600 tracking-tight">Community Platform</span>
+          <span className="text-sm font-bold text-indigo-600 tracking-tight">Source Loop</span>
         </div>
         <SidebarNav />
       </aside>

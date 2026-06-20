@@ -37,7 +37,7 @@ export default async function LoginPage({ searchParams }: Props) {
                 <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
               </svg>
             </div>
-            <h1 className="text-xl font-semibold text-gray-900">Community Platform</h1>
+            <h1 className="text-xl font-semibold text-gray-900">Source Loop</h1>
             <p className="mt-1 text-sm text-gray-500">Create a free workspace or sign in</p>
           </div>
 
