@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { getStripe, getOrCreateCustomer } from '@/lib/billing/stripe'
-import { getPlan } from '@/lib/billing/plans'
+import { getPlan, TRIAL_DAYS } from '@/lib/billing/plans'
 import { getSubscription } from '@/lib/db/queries/billing'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { getDb } from '@/lib/db/drizzle'
@@ -45,7 +45,10 @@ export async function POST(req: Request) {
     success_url: `${baseUrl}/billing?success=1`,
     cancel_url: `${baseUrl}/billing?canceled=1`,
     metadata: { org_id: String(orgId), plan_id: plan.id },
-    subscription_data: { metadata: { org_id: String(orgId), plan_id: plan.id } },
+    subscription_data: {
+      trial_period_days: TRIAL_DAYS,
+      metadata: { org_id: String(orgId), plan_id: plan.id },
+    },
     allow_promotion_codes: true,
   })
 
