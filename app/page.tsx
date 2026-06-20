@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { auth } from '@/auth'
 import { ORDERED_PLANS } from '@/lib/billing/plans'
+import { LogoMark, Logo } from '@/components/logo'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,14 +13,6 @@ const GithubIcon = ({ className = 'h-4 w-4' }: { className?: string }) => (
   </svg>
 )
 
-const LogoMark = ({ className = 'h-7 w-7' }: { className?: string }) => (
-  <div className={`flex items-center justify-center rounded-xl bg-indigo-600 ${className}`}>
-    <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
-    </svg>
-  </div>
-)
-
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
 function Nav({ loggedIn }: { loggedIn: boolean }) {
@@ -27,10 +20,7 @@ function Nav({ loggedIn }: { loggedIn: boolean }) {
     <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
         <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2">
-            <LogoMark />
-            <span className="text-sm font-bold text-gray-900">Source Loop</span>
-          </div>
+          <Logo size={28} textSize="text-sm" />
           <nav className="hidden md:flex items-center gap-6">
             <Link href="#features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Features</Link>
             <Link href="#how-it-works" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">How it works</Link>
@@ -72,11 +62,7 @@ function ChatMockup() {
           <span className="h-3 w-3 rounded-full bg-green-400" />
         </div>
         <div className="flex items-center gap-1.5 mx-auto">
-          <div className="h-4 w-4 rounded bg-indigo-100 flex items-center justify-center">
-            <svg className="h-2.5 w-2.5 text-indigo-600" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
-            </svg>
-          </div>
+          <LogoMark size={16} className="text-indigo-600" />
           <span className="text-xs font-medium text-gray-500">Source Loop — #support</span>
         </div>
       </div>
@@ -92,9 +78,7 @@ function ChatMockup() {
         </div>
         <div className="flex gap-2.5">
           <div className="h-7 w-7 shrink-0 rounded-full bg-indigo-600 flex items-center justify-center">
-            <svg className="h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
-            </svg>
+            <LogoMark size={16} className="text-white" />
           </div>
           <div className="flex-1">
             <div className="text-[11px] text-gray-400 mb-1">Source Loop <span className="rounded bg-indigo-100 px-1 py-0.5 text-indigo-600 text-[9px] font-bold">AI</span> <span className="text-gray-300">today at 2:14 PM</span></div>
@@ -120,9 +104,7 @@ function ChatMockup() {
         </div>
         <div className="flex gap-2.5">
           <div className="h-7 w-7 shrink-0 rounded-full bg-indigo-600 flex items-center justify-center">
-            <svg className="h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
-            </svg>
+            <LogoMark size={16} className="text-white" />
           </div>
           <div className="flex-1">
             <div className="text-[11px] text-gray-400 mb-1">Source Loop <span className="rounded bg-indigo-100 px-1 py-0.5 text-indigo-600 text-[9px] font-bold">AI</span> <span className="text-gray-300">today at 2:19 PM</span></div>
@@ -647,9 +629,8 @@ function Footer() {
       <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="flex flex-col md:flex-row items-start justify-between gap-8">
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <LogoMark className="h-6 w-6" />
-              <span className="text-sm font-bold text-gray-900">Source Loop</span>
+            <div className="mb-3">
+              <Logo size={24} textSize="text-sm" />
             </div>
             <p className="text-xs text-gray-400 max-w-xs">AI-powered support automation for developer communities. Open source, self-hostable.</p>
             <div className="mt-4 flex items-center gap-1.5 text-xs text-gray-400">

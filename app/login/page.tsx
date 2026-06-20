@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { LoginForm } from '@/components/login-form'
+import { LogoMark } from '@/components/logo'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,10 +33,8 @@ export default async function LoginPage({ searchParams }: Props) {
         <div className="rounded-2xl border border-gray-200 bg-white px-8 py-10 shadow-sm">
           {/* Logo / wordmark */}
           <div className="mb-8 text-center">
-            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 mb-3">
-              <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
-              </svg>
+            <div className="mb-3 flex justify-center">
+              <LogoMark size={40} className="text-indigo-600" />
             </div>
             <h1 className="text-xl font-semibold text-gray-900">Source Loop</h1>
             <p className="mt-1 text-sm text-gray-500">Create a free workspace or sign in</p>
