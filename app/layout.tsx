@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Source Loop",
+  title: "AnswerLoops",
   description: "Discord community support platform with AI triage",
 };
 

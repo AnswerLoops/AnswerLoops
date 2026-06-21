@@ -13,30 +13,46 @@ export function LogoMark({ size = 32, className = '' }: LogoMarkProps) {
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
-      {/* Outer loop arc — ~300° arc with arrowhead */}
+      {/*
+        Two 180° arcs forming a complete circle loop.
+        Circle: center (20,20) radius 13.
+        Arc endpoints: (12,30) bottom-left and (28,10) top-right — diametrically opposite.
+      */}
+
+      {/* Arc 1: bottom-left → clockwise through left + top → top-right */}
       <path
-        d="M 20 4 A 16 16 0 1 1 6.34 28"
+        d="M 12 30 A 13 13 0 0 1 28 10"
         stroke="currentColor"
         strokeWidth="3.5"
         strokeLinecap="round"
-        fill="none"
       />
-      {/* Arrowhead at arc end */}
+      {/* Arrowhead at (28,10): arc arriving from upper-left → points right-down */}
       <path
-        d="M 2 24 L 6.5 29.5 L 12 26"
+        d="M 23 8 L 28 10 L 25 15"
         stroke="currentColor"
         strokeWidth="3.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        fill="none"
       />
-      {/* Center node — source point */}
+
+      {/* Arc 2: top-right → clockwise through right + bottom → bottom-left */}
+      <path
+        d="M 28 10 A 13 13 0 0 1 12 30"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+      />
+      {/* Arrowhead at (12,30): arc arriving from lower-right → points left-up */}
+      <path
+        d="M 17 32 L 12 30 L 15 25"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Center source node */}
       <circle cx="20" cy="20" r="4.5" fill="currentColor" />
-      {/* Inner spokes — suggest "source" radiating outward */}
-      <line x1="20" y1="13.5" x2="20" y2="15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <line x1="26.5" y1="20" x2="24.5" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <line x1="20" y1="26.5" x2="20" y2="24.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <line x1="13.5" y1="20" x2="15.5" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -55,7 +71,7 @@ export function Logo({ size = 28, textSize = 'text-sm', className = '', color = 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <LogoMark size={size} className={iconColor} />
-      <span className={`font-bold tracking-tight ${textSize} ${textColor}`}>Source Loop</span>
+      <span className={`font-bold tracking-tight ${textSize} ${textColor}`}>AnswerLoops</span>
     </div>
   )
 }
