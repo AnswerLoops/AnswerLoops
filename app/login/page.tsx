@@ -36,7 +36,7 @@ export default async function LoginPage({ searchParams }: Props) {
             <div className="mb-3 flex justify-center">
               <LogoMark size={40} className="text-indigo-600" />
             </div>
-            <h1 className="text-xl font-semibold text-gray-900">Source Loop</h1>
+            <h1 className="text-xl font-semibold text-gray-900">AnswerLoops</h1>
             <p className="mt-1 text-sm text-gray-500">Create a free workspace or sign in</p>
           </div>
 

@@ -126,7 +126,7 @@ export default function WidgetPage() {
             </svg>
           </button>
         </form>
-        <p className="text-center text-[10px] text-gray-300 mt-2">Powered by Source Loop</p>
+        <p className="text-center text-[10px] text-gray-300 mt-2">Powered by AnswerLoops</p>
       </div>
     </div>
   )

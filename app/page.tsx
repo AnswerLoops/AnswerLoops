@@ -63,7 +63,7 @@ function ChatMockup() {
         </div>
         <div className="flex items-center gap-1.5 mx-auto">
           <LogoMark size={16} className="text-indigo-600" />
-          <span className="text-xs font-medium text-gray-500">Source Loop — #support</span>
+          <span className="text-xs font-medium text-gray-500">AnswerLoops — #support</span>
         </div>
       </div>
       <div className="p-4 space-y-4 min-h-[280px] bg-white">
@@ -81,7 +81,7 @@ function ChatMockup() {
             <LogoMark size={16} className="text-white" />
           </div>
           <div className="flex-1">
-            <div className="text-[11px] text-gray-400 mb-1">Source Loop <span className="rounded bg-indigo-100 px-1 py-0.5 text-indigo-600 text-[9px] font-bold">AI</span> <span className="text-gray-300">today at 2:14 PM</span></div>
+            <div className="text-[11px] text-gray-400 mb-1">AnswerLoops <span className="rounded bg-indigo-100 px-1 py-0.5 text-indigo-600 text-[9px] font-bold">AI</span> <span className="text-gray-300">today at 2:14 PM</span></div>
             <div className="rounded-xl rounded-tl-none bg-indigo-50 border border-indigo-100 px-3 py-2 text-xs text-gray-700 max-w-sm leading-relaxed">
               To reset your API key, go to <span className="font-medium text-indigo-700">Settings → API Keys</span> and click &quot;Regenerate&quot;. Your old key will be invalidated immediately. You can find your settings by clicking your avatar in the top-right corner.
             </div>
@@ -107,7 +107,7 @@ function ChatMockup() {
             <LogoMark size={16} className="text-white" />
           </div>
           <div className="flex-1">
-            <div className="text-[11px] text-gray-400 mb-1">Source Loop <span className="rounded bg-indigo-100 px-1 py-0.5 text-indigo-600 text-[9px] font-bold">AI</span> <span className="text-gray-300">today at 2:19 PM</span></div>
+            <div className="text-[11px] text-gray-400 mb-1">AnswerLoops <span className="rounded bg-indigo-100 px-1 py-0.5 text-indigo-600 text-[9px] font-bold">AI</span> <span className="text-gray-300">today at 2:19 PM</span></div>
             <div className="rounded-xl rounded-tl-none bg-indigo-50 border border-indigo-100 px-3 py-2 text-xs text-gray-700 max-w-sm leading-relaxed">
               Yes! Google Workspace SSO is available on the Enterprise plan. You can configure it under <span className="font-medium text-indigo-700">Settings → Authentication → SAML/SSO</span>.
             </div>
@@ -140,7 +140,7 @@ function Hero() {
             <span className="text-indigo-400">developer community</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-300 leading-relaxed">
-            Connect Discord or Slack. Source Loop triages every question with AI, answers from your own docs and resolved tickets, and auto-posts replies — so your team handles only the hard 10%.
+            Connect Discord or Slack. AnswerLoops triages every question with AI, answers from your own docs and resolved tickets, and auto-posts replies — so your team handles only the hard 10%.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -217,7 +217,7 @@ function HowItWorks() {
     {
       n: '01',
       title: 'Connect your community',
-      body: 'Paste your Discord bot token or Slack credentials. Source Loop starts ingesting questions immediately — no code required.',
+      body: 'Paste your Discord bot token or Slack credentials. AnswerLoops starts ingesting questions immediately — no code required.',
       detail: 'Supports Discord servers, Slack workspaces, and embeddable web widget. All three can run simultaneously.',
     },
     {
@@ -436,7 +436,7 @@ function Enterprise() {
             <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300 mb-6">Enterprise</div>
             <h2 className="text-3xl font-bold text-white mb-4">Built for regulated industries</h2>
             <p className="text-slate-300 leading-relaxed mb-6">
-              Fintech, healthcare, and enterprise teams need data isolation, audit trails, and legal agreements. Source Loop ships all of it — or you self-host and own everything.
+              Fintech, healthcare, and enterprise teams need data isolation, audit trails, and legal agreements. AnswerLoops ships all of it — or you self-host and own everything.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href="/login" className="rounded-xl bg-indigo-500 px-7 py-3 text-sm font-semibold text-white hover:bg-indigo-400 transition-colors text-center">
@@ -598,7 +598,7 @@ function CTA() {
     <section className="bg-indigo-600">
       <div className="mx-auto max-w-6xl px-6 py-20 text-center">
         <h2 className="text-3xl font-bold text-white">Your community deserves better than copy-paste answers.</h2>
-        <p className="mt-4 text-indigo-200 text-lg max-w-xl mx-auto">Cloud or self-hosted — Source Loop works either way. Your data stays yours.</p>
+        <p className="mt-4 text-indigo-200 text-lg max-w-xl mx-auto">Cloud or self-hosted — AnswerLoops works either way. Your data stays yours.</p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/login"
@@ -665,7 +665,7 @@ function Footer() {
           </div>
         </div>
         <div className="mt-10 border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-gray-400">© 2026 Source Loop. AGPL-3.0 licensed.</p>
+          <p className="text-xs text-gray-400">© 2026 AnswerLoops. AGPL-3.0 licensed.</p>
           <p className="text-xs text-gray-400">Built in public · No VC money · Self-hostable</p>
         </div>
       </div>

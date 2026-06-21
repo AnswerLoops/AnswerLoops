@@ -71,7 +71,7 @@ export function Logo({ size = 28, textSize = 'text-sm', className = '', color = 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <LogoMark size={size} className={iconColor} />
-      <span className={`font-bold tracking-tight ${textSize} ${textColor}`}>Source Loop</span>
+      <span className={`font-bold tracking-tight ${textSize} ${textColor}`}>AnswerLoops</span>
     </div>
   )
 }
