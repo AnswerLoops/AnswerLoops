@@ -70,12 +70,12 @@ function NameStep({ onDone, initialName }: { onDone: () => void; initialName: st
 
 type Platform = 'discord' | 'slack' | null
 
-function ConnectStep({ onDone }: { onDone: () => void }) {
+function ConnectStep({ onDone }: { onDone: () => Promise<void> }) {
   const [platform, setPlatform] = useState<Platform>(null)
   const [discordState, discordAction, discordPending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveDiscordIntegrationAction(prev, fd)
-      if (!result?.error) onDone()
+      if (!result?.error) await onDone()
       return result
     },
     null
@@ -83,7 +83,7 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
   const [slackState, slackAction, slackPending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveSlackIntegrationAction(prev, fd)
-      if (!result?.error) onDone()
+      if (!result?.error) await onDone()
       return result
     },
     null
@@ -152,7 +152,7 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
       )}
 
       {platform === null && (
-        <button onClick={onDone} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors pt-1">
+        <button type="button" onClick={() => void onDone()} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors pt-1">
           Skip for now — connect later in Settings
         </button>
       )}
@@ -160,35 +160,11 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
   )
 }
 
-// ── Step 3 ────────────────────────────────────────────────────────────────────
-
-function DoneStep({ pending, action }: { pending: boolean; action: () => void }) {
-  return (
-    <div className="space-y-6 text-center py-4">
-      <div className="flex items-center justify-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-3xl">🎉</div>
-      </div>
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">You're all set!</h2>
-        <p className="mt-1.5 text-sm text-gray-500">Your workspace is ready. Head to the dashboard to get started.</p>
-      </div>
-      <form action={action}>
-        <SubmitButton pending={pending} label="Go to dashboard" pendingLabel="Loading…" />
-      </form>
-    </div>
-  )
-}
-
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
 export default function OnboardingWizard({ initialName }: { initialName: string }) {
-  const [step, setStep] = useState<'name' | 'connect' | 'done'>('name')
-  const [, completeAction, completePending] = useActionState(
-    async () => { await completeOnboardingAction() },
-    undefined
-  )
-
-  const stepIndex = step === 'name' ? 0 : step === 'connect' ? 1 : 2
+  const [step, setStep] = useState<'name' | 'connect'>('name')
+  const stepIndex = step === 'name' ? 0 : 1
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -207,7 +183,7 @@ export default function OnboardingWizard({ initialName }: { initialName: string 
 
             {/* Progress */}
             <div className="flex items-center gap-0">
-              {['Workspace', 'Connect', 'Done'].map((label, i) => (
+              {['Workspace', 'Connect'].map((label, i) => (
                 <div key={i} className="flex items-center flex-1 last:flex-none">
                   <div className="flex flex-col items-center gap-1">
                     <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-all ${
@@ -221,7 +197,7 @@ export default function OnboardingWizard({ initialName }: { initialName: string 
                     </div>
                     <span className={`text-[10px] font-medium ${i === stepIndex ? 'text-indigo-600' : 'text-gray-400'}`}>{label}</span>
                   </div>
-                  {i < 2 && (
+                  {i < 1 && (
                     <div className={`flex-1 h-px mx-2 mb-4 transition-colors ${i < stepIndex ? 'bg-indigo-600' : 'bg-gray-200'}`} />
                   )}
                 </div>
@@ -231,8 +207,7 @@ export default function OnboardingWizard({ initialName }: { initialName: string 
 
           {/* Content */}
           {step === 'name'    && <NameStep    onDone={() => setStep('connect')} initialName={initialName} />}
-          {step === 'connect' && <ConnectStep onDone={() => setStep('done')} />}
-          {step === 'done'    && <DoneStep    pending={completePending} action={completeAction} />}
+          {step === 'connect' && <ConnectStep onDone={completeOnboardingAction} />}
         </div>
       </div>
     </div>

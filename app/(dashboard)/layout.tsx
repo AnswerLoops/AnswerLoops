@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { Logo } from '@/components/logo'
 import { getUnreadCount } from '@/lib/db/queries/notifications'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { AutoRefresh } from '@/components/auto-refresh'
@@ -14,8 +16,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <AutoRefresh intervalMs={5000} />
       {/* Sidebar */}
       <aside className="w-56 shrink-0 border-r border-gray-200 bg-white flex flex-col">
-        <div className="px-5 py-4 border-b border-gray-200">
-          <span className="text-sm font-bold text-indigo-600 tracking-tight">Source Loop</span>
+        <div className="px-4 py-3.5 border-b border-gray-200">
+          <Link href="/">
+            <Logo size={22} textSize="text-sm" />
+          </Link>
         </div>
         <SidebarNav />
       </aside>
@@ -24,6 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topnav */}
         <header className="h-12 shrink-0 border-b border-gray-200 bg-white flex items-center justify-end px-6 gap-4">
+          <Link href="/" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">← Website</Link>
           <NotificationBell unreadCount={unreadCount} />
           <form action={logout}>
             <button
