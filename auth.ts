@@ -130,6 +130,14 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         )
         token.userId = String(userId)
         token.orgId = orgId
+
+        // Stamp onboarded into the JWT so returning users never hit /onboarding again
+        const [org] = await getDb()
+          .select({ onboardedAt: orgs.onboardedAt })
+          .from(orgs)
+          .where(eq(orgs.id, orgId))
+          .limit(1)
+        if (org?.onboardedAt) token.onboarded = true
       }
       return token
     },
