@@ -64,7 +64,8 @@ Guidelines:
 - Cite specific files and relevant code when applicable
 - Be concise, accurate, and helpful
 - If you cannot find relevant code, say so honestly
-- Format your answer in markdown for Discord${priorContext}`,
+- Format your answer in markdown for Discord
+- Respond in the same language as the question — if the user wrote in Spanish, reply in Spanish; French, reply in French; etc.${priorContext}`,
       prompt: question,
       tools: {
         searchCode: tool({

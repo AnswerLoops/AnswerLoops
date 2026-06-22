@@ -83,8 +83,8 @@ export async function POST(request: Request) {
 
   const allContext = [...kbContext, ...priorContext].slice(0, 5)
   const contextBlock = allContext.length
-    ? `\n\nKnowledge base context (use this to answer):\n${allContext
-        .map((c, i) => `${i + 1}. Q: ${c.summary}\n   A: ${c.answer}`)
+    ? `\n\nKnowledge base context — use this to answer. When your answer draws from one of these, end your response with a "Source:" line citing the article title:\n${allContext
+        .map((c, i) => `${i + 1}. Title: "${c.summary}"\n   Answer: ${c.answer}`)
         .join('\n')}`
     : ''
 
@@ -93,7 +93,9 @@ export async function POST(request: Request) {
     system: `You are a helpful support assistant for ${org.name}.
 Answer questions concisely and accurately based on the knowledge base context provided.
 If you don't know the answer or it's not covered in the context, say so honestly and suggest the user contact support directly.
-Keep responses brief and friendly. Format with markdown when helpful.${contextBlock}`,
+Keep responses brief and friendly. Format with markdown when helpful.
+Respond in the same language as the user's question — if they write in Spanish, reply in Spanish; French, reply in French; etc.
+When citing a knowledge base article, end your response with: 📚 *Source: [article title]*${contextBlock}`,
     messages: modelMessages,
     maxOutputTokens: 600,
   })

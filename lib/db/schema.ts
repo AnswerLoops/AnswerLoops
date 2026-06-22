@@ -290,5 +290,20 @@ export const subscriptions = pgTable('subscriptions', {
   updatedAt: text('updated_at').notNull().default(now),
 })
 
+export const widgetLeads = pgTable(
+  'widget_leads',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id),
+    widgetToken: text('widget_token').notNull(),
+    email: text('email').notNull(),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    index('idx_widget_leads_org').on(t.orgId),
+    index('idx_widget_leads_email').on(t.email),
+  ]
+)
+
 /** The default workspace that owns all data until real auth assigns memberships. */
 export const DEFAULT_ORG_ID = 1
