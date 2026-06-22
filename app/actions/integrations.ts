@@ -17,6 +17,8 @@ const DiscordIntegrationSchema = z.object({
     .min(1, 'Bot token is required')
     .regex(DISCORD_TOKEN_RE, 'Invalid Discord bot token format'),
   channelIds: z.string().min(1, 'At least one channel ID is required'),
+  escalationRoleId: z.string().optional(),
+  confidenceThreshold: z.coerce.number().min(0).max(1).optional(),
 })
 
 export async function saveDiscordIntegrationAction(
@@ -30,7 +32,7 @@ export async function saveDiscordIntegrationAction(
   const parsed = DiscordIntegrationSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { botToken, channelIds } = parsed.data
+  const { botToken, channelIds, escalationRoleId, confidenceThreshold } = parsed.data
   const channelIdList = channelIds
     .split(',')
     .map((s) => s.trim())
@@ -56,6 +58,8 @@ export async function saveDiscordIntegrationAction(
     botToken,
     botSecret,
     channelIds: channelIdList,
+    escalationRoleId: escalationRoleId?.trim() || null,
+    confidenceThreshold: confidenceThreshold ?? null,
   })
 
   refresh()
@@ -91,6 +95,8 @@ const SlackIntegrationSchema = z.object({
     .string()
     .regex(/^T[A-Z0-9]{8,}$/, 'Team ID must start with T followed by uppercase letters/numbers'),
   channelIds: z.string().min(1, 'At least one channel ID is required'),
+  escalationRoleId: z.string().optional(),
+  confidenceThreshold: z.coerce.number().min(0).max(1).optional(),
 })
 
 export async function saveSlackIntegrationAction(
@@ -104,7 +110,7 @@ export async function saveSlackIntegrationAction(
   const parsed = SlackIntegrationSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { botToken, signingSecret, teamId, channelIds } = parsed.data
+  const { botToken, signingSecret, teamId, channelIds, escalationRoleId, confidenceThreshold } = parsed.data
   const channelIdList = channelIds
     .split(',')
     .map((s) => s.trim())
@@ -117,6 +123,8 @@ export async function saveSlackIntegrationAction(
     webhookSecret: signingSecret,
     teamId,
     channelIds: channelIdList,
+    escalationRoleId: escalationRoleId?.trim() || null,
+    confidenceThreshold: confidenceThreshold ?? null,
   })
 
   refresh()
