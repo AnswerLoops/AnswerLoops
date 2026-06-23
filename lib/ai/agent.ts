@@ -7,6 +7,7 @@ import { updateTicketAIDraft } from '@/lib/db/queries/tickets'
 import { createNotification } from '@/lib/db/queries/notifications'
 import { saveAssessment } from '@/lib/db/queries/assessments'
 import { mapAnswerMessage } from '@/lib/db/queries/feedback'
+import { mapCsatMessage } from '@/lib/db/queries/csat'
 import { assessAnswer, shouldAutoDeflect, ASSESS_MODEL } from '@/lib/ai/assess'
 import { sendToChannel } from '@/lib/discord/send'
 import { sendToSlackChannel } from '@/lib/slack/send'
@@ -138,8 +139,14 @@ Guidelines:
     let postedMessageId: string | null = null
     if (autoDeflect) {
       await createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId)
-      const message = `${text}\n\n*Was this helpful? React 👍 / 👎. If it didn't fully answer your question, a team member will follow up.*`
+      const message = `${text}\n\n*React 👍 / 👎 if this helped. A team member will follow up if not.*`
       postedMessageId = await postReply(channelId, message, orgId, platform)
+
+      // Post CSAT prompt as follow-up and store its message ID
+      const csatPrompt = `*How would you rate this answer?*\n1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣\n_(React with a number to rate)_`
+      const csatMessageId = await postReply(channelId, csatPrompt, orgId, platform)
+      if (csatMessageId) await mapCsatMessage(csatMessageId, ticketId)
+
       logger.info('auto-deflected', { module: MOD, ticketId, confidence: pct, platform })
     } else {
       await createNotification('ai_draft_ready', `Needs human review (${pct}%) — ticket #${ticketId}`, ticketId)

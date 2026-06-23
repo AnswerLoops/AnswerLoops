@@ -3,6 +3,7 @@ import { getIntegrationByTeamId } from '@/lib/db/queries/integrations'
 import { processCommunityMessage } from '@/lib/ingest/pipeline'
 import { saveFeedback } from '@/lib/db/queries/feedback'
 import { getTicketIdByAnswerMessage } from '@/lib/db/queries/feedback'
+import { getTicketIdByCsatMessage, saveCsatRating } from '@/lib/db/queries/csat'
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
@@ -12,6 +13,15 @@ const VOTE_REACTIONS: Record<string, 'up' | 'down'> = {
   thumbsup: 'up',
   '-1': 'down',
   thumbsdown: 'down',
+}
+
+// 1️⃣-5️⃣ Slack reaction names → CSAT rating
+const CSAT_REACTIONS: Record<string, number> = {
+  one: 1, 'one!': 1,
+  two: 2, 'two!': 2,
+  three: 3, 'three!': 3,
+  four: 4, 'four!': 4,
+  five: 5, 'five!': 5,
 }
 
 function voteFromReaction(name: string): 'up' | 'down' | null {
@@ -106,22 +116,36 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, ...result })
   }
 
-  // --- Reaction → feedback vote ---
+  // --- Reaction → feedback vote OR CSAT rating ---
   if (eventType === 'reaction_added') {
     const reaction = ev.reaction as string | undefined
-    const vote = reaction ? voteFromReaction(reaction) : null
-    if (!vote) return Response.json({ ok: true })
+    if (!reaction) return Response.json({ ok: true })
 
     const item = ev.item as Record<string, unknown> | undefined
     if (!item || item.type !== 'message') return Response.json({ ok: true })
 
     const messageTs = item.ts as string
+
+    // Check if this is a CSAT prompt reaction (1️⃣-5️⃣)
+    const csatRating = CSAT_REACTIONS[reaction]
+    if (csatRating != null) {
+      const csatTicketId = await getTicketIdByCsatMessage(messageTs)
+      if (csatTicketId) {
+        await saveCsatRating({ ticketId: csatTicketId, orgId, rating: csatRating, platform: 'slack' })
+        return Response.json({ ok: true, csat: csatRating, ticket_id: csatTicketId })
+      }
+    }
+
+    // Otherwise treat as 👍/👎 feedback on answer message
+    const vote = voteFromReaction(reaction)
+    if (!vote) return Response.json({ ok: true })
+
     const ticketId = await getTicketIdByAnswerMessage(messageTs)
     if (!ticketId) return Response.json({ ok: true })
 
     await saveFeedback({
       ticketId,
-      source: 'discord',  // reuses the feedback source enum; 'community' would be more accurate but requires schema change
+      source: 'discord',
       vote,
       actor: ev.user as string,
     })
