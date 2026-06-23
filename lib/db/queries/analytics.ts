@@ -123,3 +123,77 @@ export async function getSLAStats(orgId = DEFAULT_ORG_ID): Promise<SLAStats> {
     avgFirstResponseMinutes: r.avgFirstResponseMinutes,
   }
 }
+
+export interface KnowledgeGap {
+  id: number
+  summary: string
+  category: string | null
+  confidence: number | null
+  status: string
+  created_at: string
+  has_kb_article: boolean
+  gap_reason: 'low_confidence' | 'needs_human' | 'no_kb_article'
+}
+
+export async function getKnowledgeGaps(limit = 50, orgId = DEFAULT_ORG_ID): Promise<KnowledgeGap[]> {
+  const rows = await getDb().execute(sql`
+    SELECT
+      t.id,
+      COALESCE(t.ai_summary, LEFT(t.content, 120)) AS summary,
+      t.category,
+      a.confidence,
+      t.status,
+      t.created_at,
+      (k.id IS NOT NULL) AS has_kb_article,
+      CASE
+        WHEN t.ai_draft_status = 'needs_human' THEN 'needs_human'
+        WHEN a.confidence IS NOT NULL AND a.confidence < 0.6 THEN 'low_confidence'
+        ELSE 'no_kb_article'
+      END AS gap_reason
+    FROM tickets t
+    LEFT JOIN ai_assessments a ON a.ticket_id = t.id
+    LEFT JOIN kb_articles k ON k.source_ticket_id = t.id AND k.org_id = ${orgId}
+    WHERE t.org_id = ${orgId}
+      AND k.id IS NULL
+      AND (
+        t.ai_draft_status = 'needs_human'
+        OR (a.confidence IS NOT NULL AND a.confidence < 0.6 AND a.auto_deflected = 0)
+        OR (t.status IN ('resolved', 'closed') AND t.category IN ('how_to', 'documentation'))
+      )
+    ORDER BY a.confidence ASC NULLS LAST, t.created_at DESC
+    LIMIT ${limit}
+  `)
+  return (rows as unknown as Array<KnowledgeGap & { has_kb_article: boolean | number }>).map((r) => ({
+    ...r,
+    has_kb_article: Boolean(r.has_kb_article),
+    confidence: r.confidence != null ? Number(r.confidence) : null,
+  }))
+}
+
+export interface GapCategorySummary {
+  category: string
+  count: number
+  avg_confidence: number | null
+}
+
+export async function getGapCategorySummary(orgId = DEFAULT_ORG_ID): Promise<GapCategorySummary[]> {
+  const rows = await getDb().execute(sql`
+    SELECT
+      COALESCE(t.category, 'uncategorized') AS category,
+      COUNT(*)::int AS count,
+      AVG(a.confidence) AS avg_confidence
+    FROM tickets t
+    LEFT JOIN ai_assessments a ON a.ticket_id = t.id
+    LEFT JOIN kb_articles k ON k.source_ticket_id = t.id AND k.org_id = ${orgId}
+    WHERE t.org_id = ${orgId}
+      AND k.id IS NULL
+      AND (
+        t.ai_draft_status = 'needs_human'
+        OR (a.confidence IS NOT NULL AND a.confidence < 0.6 AND a.auto_deflected = 0)
+        OR (t.status IN ('resolved', 'closed') AND t.category IN ('how_to', 'documentation'))
+      )
+    GROUP BY COALESCE(t.category, 'uncategorized')
+    ORDER BY COUNT(*) DESC
+  `)
+  return rows as unknown as GapCategorySummary[]
+}

@@ -12,6 +12,8 @@ import { sendToChannel } from '@/lib/discord/send'
 import { sendToSlackChannel } from '@/lib/slack/send'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { checkDeflectionLimit } from '@/lib/billing/usage'
+import { getIntegration } from '@/lib/db/queries/integrations'
+import { updateTicketAIDraftStatus } from '@/lib/db/queries/tickets'
 import { logger } from '@/lib/logger'
 import type { PriorAnswer } from '@/types'
 
@@ -64,7 +66,8 @@ Guidelines:
 - Cite specific files and relevant code when applicable
 - Be concise, accurate, and helpful
 - If you cannot find relevant code, say so honestly
-- Format your answer in markdown for Discord${priorContext}`,
+- Format your answer in markdown for Discord
+- Respond in the same language as the question — if the user wrote in Spanish, reply in Spanish; French, reply in French; etc.${priorContext}`,
       prompt: question,
       tools: {
         searchCode: tool({
@@ -128,6 +131,10 @@ Guidelines:
 
     logger.info('assessment complete', { module: MOD, ticketId, confidence: pct, autoDeflect })
 
+    // Load escalation config for this platform
+    const integration = await getIntegration(orgId, platform).catch(() => null)
+    const escalationRoleId = integration?.escalation_role_id ?? null
+
     let postedMessageId: string | null = null
     if (autoDeflect) {
       await createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId)
@@ -135,10 +142,29 @@ Guidelines:
       postedMessageId = await postReply(channelId, message, orgId, platform)
       logger.info('auto-deflected', { module: MOD, ticketId, confidence: pct, platform })
     } else {
-      await createNotification('ai_draft_ready', `Needs review (${pct}%) — ticket #${ticketId}`, ticketId)
-      const message = `**[AI Draft Answer]**\n${text}\n\n*A team member will follow up shortly.*`
+      await createNotification('ai_draft_ready', `Needs human review (${pct}%) — ticket #${ticketId}`, ticketId)
+      await updateTicketAIDraftStatus(ticketId, 'needs_human')
+
+      // Build escalation mention if a role/group is configured
+      let escalationMention = ''
+      if (escalationRoleId) {
+        if (platform === 'discord') {
+          escalationMention = `\n\n<@&${escalationRoleId}> this question needs human review (AI confidence: ${pct}%)`
+        } else {
+          // Slack: S = user group, U = user, else raw
+          if (escalationRoleId.startsWith('S')) {
+            escalationMention = `\n\n<!subteam^${escalationRoleId}> this question needs human review (AI confidence: ${pct}%)`
+          } else if (escalationRoleId.startsWith('U')) {
+            escalationMention = `\n\n<@${escalationRoleId}> this question needs human review (AI confidence: ${pct}%)`
+          } else {
+            escalationMention = `\n\n${escalationRoleId} this question needs human review (AI confidence: ${pct}%)`
+          }
+        }
+      }
+
+      const message = `**[Needs Human Review — ${pct}% confidence]**\n${text}\n\n*A team member will follow up shortly.*${escalationMention}`
       postedMessageId = await postReply(channelId, message, orgId, platform)
-      logger.info('routed to human review', { module: MOD, ticketId, confidence: pct, platform })
+      logger.info('routed to human review', { module: MOD, ticketId, confidence: pct, platform, escalated: !!escalationRoleId })
     }
 
     if (postedMessageId) await mapAnswerMessage(postedMessageId, ticketId)

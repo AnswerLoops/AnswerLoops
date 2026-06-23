@@ -14,6 +14,8 @@ export interface Integration {
   channel_ids: string | null
   team_id: string | null
   webhook_secret: string | null
+  escalation_role_id: string | null
+  confidence_threshold: number | null
   enabled: number
   created_at: string
   updated_at: string
@@ -29,6 +31,8 @@ function toIntegration(row: typeof integrations.$inferSelect): Integration {
     channel_ids: row.channelIds,
     team_id: row.teamId,
     webhook_secret: row.webhookSecret,
+    escalation_role_id: row.escalationRoleId ?? null,
+    confidence_threshold: row.confidenceThreshold ?? 0.8,
     enabled: row.enabled,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
@@ -93,6 +97,8 @@ export async function upsertIntegration(input: {
   channelIds?: string[]
   teamId?: string | null
   webhookSecret?: string | null
+  escalationRoleId?: string | null
+  confidenceThreshold?: number | null
 }): Promise<Integration> {
   const channelIdsJson = input.channelIds ? JSON.stringify(input.channelIds) : null
   const encryptedBotToken = input.botToken ? encryptToken(input.botToken) : null
@@ -108,6 +114,8 @@ export async function upsertIntegration(input: {
         channelIds: channelIdsJson ?? undefined,
         teamId: input.teamId ?? undefined,
         webhookSecret: encryptedWebhookSecret ?? undefined,
+        escalationRoleId: input.escalationRoleId !== undefined ? (input.escalationRoleId ?? null) : undefined,
+        confidenceThreshold: input.confidenceThreshold !== undefined ? (input.confidenceThreshold ?? 0.8) : undefined,
         enabled: 1,
         updatedAt: new Date().toISOString(),
       })
@@ -125,6 +133,8 @@ export async function upsertIntegration(input: {
       channelIds: channelIdsJson,
       teamId: input.teamId ?? null,
       webhookSecret: encryptedWebhookSecret ?? null,
+      escalationRoleId: input.escalationRoleId ?? null,
+      confidenceThreshold: input.confidenceThreshold ?? 0.8,
     })
     .returning()
 

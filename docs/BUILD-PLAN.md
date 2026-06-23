@@ -109,6 +109,46 @@ Run alongside feature phases; none block the others.
 14. ~~**Public self-serve signup.**~~ ✅ Done (PR #37) — landing page at `/`, GitHub/Discord/Google OAuth signup, auto-org provisioning.
 15. ~~**14-day trial.**~~ ✅ Done (PR #39) — card-required trial replaces free tier; trial countdown UI, trial-ended wall, Stripe `trial_period_days: 14`.
 16. **Multi-tenant launch** — merge all PRs, set `STRIPE_*` + OAuth env vars, deploy to production.
+17. **Tier 1 gaps** (low effort, high value) — see competitive gap track below.
+18. **Tier 2 gaps** (medium effort) — escalation routing, CSAT, slash commands.
+19. **Tier 3 gaps** (higher effort) — Telegram, email channel, outbound campaigns.
+
+---
+
+## Competitive gap track
+
+> Research basis: Chatbase, Mava, eesel AI, Helply, CustomGPT, Botpress (June 2026).
+> Gaps ordered by effort. Each = one branch + PR.
+
+### Tier 1 — Low effort, high value
+
+| # | Feature | Gap vs competitors | Effort | Notes |
+|---|---------|-------------------|--------|-------|
+| T1-1 | **Multi-language AI responses** | Mava: 100+ langs. Fini: 50+ langs. We: English only. | XS | Detect language of incoming message, inject `"Respond in the same language as the question"` into system prompt. Zero schema change. |
+| T1-2 | **White-label widget** | Chatbase: paid add-on ($1,188/yr). We: always show branding. | XS | Check org plan tier in widget route; hide "Powered by AnswerLoops" footer on Pro+. Already have plan/billing infra. |
+| T1-3 | **Source citations on AI answers** | CustomGPT cites source on every response. Builds trust, reduces hallucination perception. | S | Include KB article title + link at bottom of AI reply (`"Source: [article title]"`). Pass article metadata into prompt context. |
+| T1-4 | **CSV export** | Standard competitive feature. We have data, no export. | S | Stream CSV from `/api/export/tickets` and `/api/export/leads`. Ticket columns: id, status, category, content, ai_summary, created_at. |
+| T1-5 | **Lead capture in widget** | Chatbase: email capture built in. We: anonymous only. | S | Optional email field before chat starts. New `widget_leads` table (`org_id`, `widget_token`, `email`, `created_at`). Show in dashboard leads view. |
+
+### Tier 2 — Medium effort, high value
+
+| # | Feature | Gap vs competitors | Effort | Notes |
+|---|---------|-------------------|--------|-------|
+| T2-1 | **Knowledge gap dashboard** | Helply surfaces knowledge gaps explicitly. Mava: test questions in dashboard to find gaps. We: no dedicated view. | M | Query: tickets with low AI confidence + no KB match + no positive feedback. Surface as `/knowledge-gaps` page with "Create KB article" CTA per gap. |
+| T2-2 | **Human escalation routing** | Mava, eesel AI, Alhena all have clean human handoff. We: low-confidence tickets sit in queue silently. | M | When confidence < threshold, post `@team` mention in original Discord/Slack thread + mark ticket `needs_human`. Config: per-org threshold + mention role ID. |
+| T2-3 | **CSAT scoring** | Fini: conversation-level CSAT with smart survey triggers. Mava: satisfaction metrics. We: only 👍/👎. | M | After ticket resolved, post follow-up message in thread: "Was this helpful? Reply 1–5". Bot collects reply, stores in `ticket_csat`. Dashboard shows avg CSAT trend. |
+| T2-4 | **Discord slash commands** | Competitors offer `/ask`, `/help`, `/summarize` slash commands. We: passive listener only. | M | Register `/ask [question]` and `/summarize` slash commands via Discord API. `/ask` triggers AI answer inline. `/summarize` condenses a thread into a bullet list. |
+| T2-5 | **Simulation / dry-run mode** | eesel AI: run agent over past tickets before going live. Safety net before deploying changes. | M | Settings page option: "Test against last N tickets". Runs AI pipeline on historical tickets, shows what it would have answered vs actual resolution. No writes. |
+
+### Tier 3 — Higher effort, strategic
+
+| # | Feature | Gap vs competitors | Effort | Notes |
+|---|---------|-------------------|--------|-------|
+| T3-1 | **Telegram channel support** | Mava: Discord + Telegram + Slack + Web + Email. We: Discord + Slack + Web. Telegram is big in crypto/Web3 communities. | L | New `telegram_integrations` table. Telegraf bot SDK. Ingest pipeline same as Discord. |
+| T3-2 | **Auto-retrain / KB sync** | Chatbase Standard: auto-retrain agents when source changes. We: manual KB updates only. | L | Cron or webhook re-ingests KB source URLs (docs site, GitHub wiki) on schedule. Diff-based: only re-embed changed pages. |
+| T3-3 | **Outbound campaigns** | Chatbase Standard: outbound campaigns. Proactively message users based on segment. | L | Compose + schedule a message to a Discord role or Slack channel segment. Use cases: release notes, downtime alerts, changelog announcements. |
+| T3-4 | **Email channel support** | Mava: email consolidated into shared inbox. We: no email ingest. | XL | Inbound email via Resend inbound or Postmark. Parse → ticket. Reply via email or Discord/Slack thread. Bidirectional thread linking. |
+| T3-5 | **Custom automations / routing rules** | Mava: custom views & automations. Chatbase: AI Actions (trigger webhooks, lookups). We: static routing. | XL | Rule builder: if category = X and confidence < Y, then route to Z / tag / notify. No-code UI in Settings. |
 
 ---
 
@@ -117,3 +157,4 @@ Run alongside feature phases; none block the others.
 - Each phase = one focused branch + PR, stacked when dependent (see graph).
 - Pattern established: side tables over `ALTER`; AI calls wrapped in try/catch; verify with `tsc --noEmit`, a clean `pnpm build`, and logic tests on a throwaway SQLite DB (`DB_PATH=$(mktemp)` + `tsx`).
 - Keep `docs/ARCHITECTURE.md` current when the pipeline changes.
+- Competitive gap track: start at T1-1 and work down. Each T1 item ships independently.

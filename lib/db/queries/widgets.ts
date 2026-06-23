@@ -1,12 +1,13 @@
 import crypto from 'crypto'
 import { eq } from 'drizzle-orm'
 import { getDb } from '../drizzle'
-import { orgs } from '../schema'
+import { orgs, subscriptions } from '../schema'
 
 export interface WidgetOrg {
   id: number
   name: string
   widget_token: string
+  plan_id: string
 }
 
 export interface WidgetTokenInfo {
@@ -29,14 +30,16 @@ export async function getOrgByWidgetToken(token: string): Promise<WidgetOrg | nu
       name: orgs.name,
       widget_token: orgs.widgetToken,
       widget_token_expires_at: orgs.widgetTokenExpiresAt,
+      plan_id: subscriptions.planId,
     })
     .from(orgs)
+    .leftJoin(subscriptions, eq(subscriptions.orgId, orgs.id))
     .where(eq(orgs.widgetToken, token))
     .limit(1)
 
   if (!row) return null
   if (row.widget_token_expires_at && new Date(row.widget_token_expires_at) < new Date()) return null
-  return { id: row.id, name: row.name, widget_token: row.widget_token! }
+  return { id: row.id, name: row.name, widget_token: row.widget_token!, plan_id: row.plan_id ?? 'hobby' }
 }
 
 export async function ensureWidgetToken(orgId: number): Promise<WidgetTokenInfo> {

@@ -229,6 +229,8 @@ export const integrations = pgTable(
     channelIds: text('channel_ids'),
     teamId: text('team_id'),
     webhookSecret: text('webhook_secret'),
+    escalationRoleId: text('escalation_role_id'),
+    confidenceThreshold: doublePrecision('confidence_threshold').default(0.8),
     enabled: integer('enabled').notNull().default(1),
     createdAt: text('created_at').notNull().default(now),
     updatedAt: text('updated_at').notNull().default(now),
@@ -289,6 +291,21 @@ export const subscriptions = pgTable('subscriptions', {
   createdAt: text('created_at').notNull().default(now),
   updatedAt: text('updated_at').notNull().default(now),
 })
+
+export const widgetLeads = pgTable(
+  'widget_leads',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id),
+    widgetToken: text('widget_token').notNull(),
+    email: text('email').notNull(),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    index('idx_widget_leads_org').on(t.orgId),
+    index('idx_widget_leads_email').on(t.email),
+  ]
+)
 
 /** The default workspace that owns all data until real auth assigns memberships. */
 export const DEFAULT_ORG_ID = 1

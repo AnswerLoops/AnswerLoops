@@ -33,6 +33,8 @@ interface DiscordIntegration {
   platform: string
   bot_secret: string | null
   channel_ids: string[]
+  escalation_role_id: string | null
+  confidence_threshold: number | null
   enabled: number
 }
 
@@ -41,6 +43,8 @@ interface SlackIntegration {
   platform: string
   team_id: string | null
   channel_ids: string[]
+  escalation_role_id: string | null
+  confidence_threshold: number | null
   enabled: number
 }
 
@@ -180,6 +184,33 @@ function DiscordIntegrationCard() {
             className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
           />
         </div>
+        <hr className="border-gray-100" />
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Escalation Role ID <span className="text-gray-400 font-normal">(optional)</span></label>
+          <input
+            name="escalationRoleId"
+            type="text"
+            defaultValue={integration?.escalation_role_id ?? ''}
+            placeholder="Discord role ID — e.g. 123456789012345678"
+            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+          />
+          <p className="text-xs text-gray-400 mt-1">When AI confidence is below threshold, this role gets @mentioned in the thread.</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Confidence threshold <span className="text-gray-400 font-normal">(0–1, default 0.8)</span>
+          </label>
+          <input
+            name="confidenceThreshold"
+            type="number"
+            min="0"
+            max="1"
+            step="0.05"
+            defaultValue={integration?.confidence_threshold ?? 0.8}
+            className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+          />
+          <p className="text-xs text-gray-400 mt-1">AI answers below this score trigger human escalation.</p>
+        </div>
         {(saveState as { error?: string } | null)?.error && (
           <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
         )}
@@ -299,6 +330,32 @@ function SlackIntegrationCard() {
             defaultValue={integration?.channel_ids.join(', ') ?? ''}
             placeholder="C01234ABCDE, C09876ZYXWV"
             className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+          />
+        </div>
+        <hr className="border-gray-100" />
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Escalation User Group ID <span className="text-gray-400 font-normal">(optional)</span></label>
+          <input
+            name="escalationRoleId"
+            type="text"
+            defaultValue={integration?.escalation_role_id ?? ''}
+            placeholder="Slack user group ID — e.g. S0123ABCDE or U0123ABCDE"
+            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+          />
+          <p className="text-xs text-gray-400 mt-1">S… = user group, U… = individual user. Gets pinged when AI can&apos;t confidently answer.</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Confidence threshold <span className="text-gray-400 font-normal">(0–1, default 0.8)</span>
+          </label>
+          <input
+            name="confidenceThreshold"
+            type="number"
+            min="0"
+            max="1"
+            step="0.05"
+            defaultValue={integration?.confidence_threshold ?? 0.8}
+            className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
           />
         </div>
         {(saveState as { error?: string } | null)?.error && (
