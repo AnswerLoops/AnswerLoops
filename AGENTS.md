@@ -10,12 +10,13 @@ After completing any phase or significant feature, do ALL of the following befor
 
 1. Mark it `✅` in `docs/BUILD-PLAN.md` and update the files list.
 2. Update the "Recommended next order" section.
-3. Push to Notion — **all pages that the feature touches**:
+3. Push to Notion — **every PR must update at minimum: Build Plan + Architecture (main) + Production Setup Guide**. Additional pages per the table below:
 
 | What changed | Pages to update |
 |---|---|
-| New feature shipped | Build Plan · Architecture (main) · Business Value |
-| New AI/LLM capability | Build Plan · Architecture · Business Value · Competitive Analysis |
+| Any PR (minimum) | Build Plan · Architecture (main) · Production Setup Guide |
+| New feature shipped | Build Plan · Architecture (main) · Business Value · Production Setup Guide |
+| New AI/LLM capability | Build Plan · Architecture · Business Value · Competitive Analysis · Production Setup Guide |
 | New integration or channel | Build Plan · Architecture · Multi-Tenant SaaS Plan · Production Setup Guide |
 | Env var added/changed | Production Setup Guide |
 | Pricing / moat / positioning shift | Business Value · Competitive Analysis |
