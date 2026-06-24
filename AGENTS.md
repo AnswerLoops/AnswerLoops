@@ -4,6 +4,25 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Commit message rules
+
+Every commit **must** have a subject line AND a body. No exceptions.
+
+- **Subject line** (≤72 chars): `<type>: <what changed>` — e.g. `fix: await createArticle so articles persist`
+- **Body**: explain WHY the change was made and WHAT problem it solves. At least 2–3 sentences. Include the root cause for bug fixes, the user value for features, and any non-obvious context a future reader needs.
+- **Never** add `Co-Authored-By`, `Claude`, or any AI attribution trailer.
+
+Example:
+```
+fix: await createArticle so KB URL imports persist
+
+createArticle was called without await in saveChunks(), meaning the DB
+write raced with the response. The success count was accurate but the
+rows were never committed, causing articles to vanish on page reload.
+```
+
+PRs must also have a meaningful description — not "No description provided."
+
 # Build plan hygiene
 
 After completing any phase or significant feature, do ALL of the following before opening the PR:
