@@ -98,7 +98,7 @@ async function saveChunks(chunks: Chunk[], orgId: number): Promise<number> {
   for (const chunk of budgeted) {
     try {
       const embedding = await embedText(`${chunk.question}\n\n${chunk.answer}`)
-      createArticle({ question: chunk.question, answer: chunk.answer, embedding, model: EMBEDDING_MODEL }, orgId)
+      await createArticle({ question: chunk.question, answer: chunk.answer, embedding, model: EMBEDDING_MODEL }, orgId)
       created++
     } catch {
       // skip failed chunks, continue with the rest
