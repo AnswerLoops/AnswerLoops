@@ -3,7 +3,7 @@
 # ── deps ──────────────────────────────────────────────────────────────
 # Install dependencies once, compiling native modules (better-sqlite3).
 # Dev compose targets this stage so it never runs a production build.
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache python3 make g++ gcc
 RUN npm install -g pnpm
@@ -22,7 +22,7 @@ RUN pnpm build
 # ── runner ────────────────────────────────────────────────────────────
 # Lean production image: no build toolchain. Serves both the app
 # (`pnpm start`) and the bot (`pnpm bot:start`) via command override.
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN npm install -g pnpm \
