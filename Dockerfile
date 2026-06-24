@@ -7,10 +7,10 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache python3 make g++ gcc
 RUN npm install -g pnpm
-# Lockfile is .dockerignored (host/macOS-specific); onlyBuiltDependencies in
-# package.json lets better-sqlite3 compile.
-COPY package.json ./
-RUN pnpm install
+# pnpm-workspace.yaml carries onlyBuiltDependencies so build scripts run without
+# interactive approval. Lock file included when present for reproducible installs.
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+RUN pnpm install --config.ignore-scripts=false
 
 # ── build ─────────────────────────────────────────────────────────────
 # Produce the optimized .next production build.
