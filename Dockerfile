@@ -6,10 +6,10 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache python3 make g++ gcc
-RUN npm install -g pnpm
+RUN npm install -g pnpm@11.6.0
 # pnpm-workspace.yaml carries onlyBuiltDependencies so build scripts run without
 # interactive approval. Lock file included when present for reproducible installs.
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY package.json pnpm-workspace.yaml .npmrc pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile
 
 # ── build ─────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ RUN pnpm build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN npm install -g pnpm \
+RUN npm install -g pnpm@11.6.0 \
   && addgroup -S app && adduser -S app -G app
 
 # Copy the whole built tree: compiled node_modules, .next, and source.
