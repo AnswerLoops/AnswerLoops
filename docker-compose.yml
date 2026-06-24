@@ -29,7 +29,7 @@ services:
     volumes:
       - .:/app
       - app_node_modules:/app/node_modules
-    command: sh -c "CI=true pnpm install --no-frozen-lockfile && pnpm dev"
+    command: sh -c "pnpm install --no-frozen-lockfile --store-dir /app/.pnpm-store && pnpm dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,7 +47,7 @@ services:
     volumes:
       - .:/app
       - bot_node_modules:/app/node_modules
-    command: sh -c "CI=true pnpm install --no-frozen-lockfile && pnpm bot"
+    command: sh -c "pnpm install --no-frozen-lockfile --store-dir /app/.pnpm-store && pnpm bot"
     depends_on:
       postgres:
         condition: service_healthy
