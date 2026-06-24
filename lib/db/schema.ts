@@ -2,6 +2,7 @@ import {
   pgTable,
   serial,
   integer,
+  smallint,
   text,
   doublePrecision,
   primaryKey,
@@ -304,6 +305,28 @@ export const widgetLeads = pgTable(
   (t) => [
     index('idx_widget_leads_org').on(t.orgId),
     index('idx_widget_leads_email').on(t.email),
+  ]
+)
+
+export const csatMessages = pgTable('csat_messages', {
+  messageId: text('message_id').primaryKey(),
+  ticketId: integer('ticket_id').notNull().references(() => tickets.id),
+  createdAt: text('created_at').notNull().default(now),
+})
+
+export const csatRatings = pgTable(
+  'csat_ratings',
+  {
+    id: serial('id').primaryKey(),
+    ticketId: integer('ticket_id').notNull().references(() => tickets.id),
+    orgId: integer('org_id').notNull().references(() => orgs.id),
+    rating: smallint('rating').notNull(),
+    platform: text('platform').notNull(),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    index('idx_csat_ratings_org').on(t.orgId),
+    index('idx_csat_ratings_ticket').on(t.ticketId),
   ]
 )
 

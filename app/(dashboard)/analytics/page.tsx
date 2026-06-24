@@ -7,6 +7,7 @@ import {
   getSLAStats,
 } from '@/lib/db/queries/analytics'
 import { getDeflectionAccuracyByCategory } from '@/lib/db/queries/feedback'
+import { getCsatStats } from '@/lib/db/queries/csat'
 import { computeSavings, deflectionRate } from '@/lib/analytics/roi'
 
 export const dynamic = 'force-dynamic'
@@ -33,6 +34,7 @@ export default async function AnalyticsPage() {
   const docGaps = await getDocGaps()
   const sla = await getSLAStats()
   const accuracyByCategory = await getDeflectionAccuracyByCategory()
+  const csat = await getCsatStats()
 
   const trendMax = Math.max(1, ...trend.map((t) => t.answered))
   const catMax = Math.max(1, ...categories.map((c) => c.count))
@@ -120,6 +122,44 @@ export default async function AnalyticsPage() {
               <dd className="font-medium text-gray-900">{sla.responseBreached + sla.resolveBreached}</dd>
             </div>
           </dl>
+        </section>
+
+        {/* CSAT */}
+        <section className="rounded-lg border border-gray-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Customer satisfaction (CSAT)</h2>
+          {csat.totalRatings === 0 ? (
+            <p className="text-xs text-gray-400">No ratings yet. CSAT prompts post automatically after AI answers.</p>
+          ) : (
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between items-center">
+                <dt className="text-gray-500">Avg. rating</dt>
+                <dd className="font-bold text-2xl text-gray-900">
+                  {csat.avgRating}/5
+                  <span className="text-yellow-400 ml-1 text-base">{'★'.repeat(Math.round(csat.avgRating ?? 0))}</span>
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Total ratings</dt>
+                <dd className="font-medium text-gray-900">{csat.totalRatings}</dd>
+              </div>
+              <div className="space-y-1 pt-1">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const row = csat.breakdown.find((b) => b.rating === star)
+                  const count = row?.count ?? 0
+                  const barPct = csat.totalRatings > 0 ? Math.round((count / csat.totalRatings) * 100) : 0
+                  return (
+                    <div key={star} className="flex items-center gap-2 text-xs">
+                      <span className="w-4 text-gray-500 shrink-0">{star}★</span>
+                      <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div className="h-full rounded-full bg-yellow-400" style={{ width: `${barPct}%` }} />
+                      </div>
+                      <span className="w-5 text-right text-gray-400 shrink-0">{count}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </dl>
+          )}
         </section>
       </div>
 

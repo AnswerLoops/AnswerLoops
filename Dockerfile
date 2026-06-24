@@ -3,14 +3,14 @@
 # ── deps ──────────────────────────────────────────────────────────────
 # Install dependencies once, compiling native modules (better-sqlite3).
 # Dev compose targets this stage so it never runs a production build.
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache python3 make g++ gcc
-RUN npm install -g pnpm
-# Lockfile is .dockerignored (host/macOS-specific); onlyBuiltDependencies in
-# package.json lets better-sqlite3 compile.
-COPY package.json ./
-RUN pnpm install
+RUN npm install -g pnpm@11.6.0
+# pnpm-workspace.yaml carries onlyBuiltDependencies so build scripts run without
+# interactive approval. Lock file included when present for reproducible installs.
+COPY package.json pnpm-workspace.yaml .npmrc pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile
 
 # ── build ─────────────────────────────────────────────────────────────
 # Produce the optimized .next production build.
@@ -22,10 +22,10 @@ RUN pnpm build
 # ── runner ────────────────────────────────────────────────────────────
 # Lean production image: no build toolchain. Serves both the app
 # (`pnpm start`) and the bot (`pnpm bot:start`) via command override.
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN npm install -g pnpm \
+RUN npm install -g pnpm@11.6.0 \
   && addgroup -S app && adduser -S app -G app
 
 # Copy the whole built tree: compiled node_modules, .next, and source.

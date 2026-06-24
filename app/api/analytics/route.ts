@@ -6,6 +6,7 @@ import {
   getSLAStats,
 } from '@/lib/db/queries/analytics'
 import { getDeflectionAccuracyByCategory } from '@/lib/db/queries/feedback'
+import { getCsatStats } from '@/lib/db/queries/csat'
 import { computeSavings, deflectionRate } from '@/lib/analytics/roi'
 
 export const dynamic = 'force-dynamic'
@@ -22,5 +23,6 @@ export async function GET() {
     docGaps: await getDocGaps(),
     sla: await getSLAStats(),
     accuracy: await getDeflectionAccuracyByCategory(),
+    csat: await getCsatStats(),
   })
 }

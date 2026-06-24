@@ -1,5 +1,11 @@
+packages: []
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
 allowBuilds:
-  better-sqlite3: false
+  better-sqlite3: true
   esbuild: true
   sharp: true
   unrs-resolver: true
@@ -8,4 +14,4 @@ minimumReleaseAgeExclude:
 overrides:
   ws: '>=8.21.0'
   shell-quote: '>=1.8.4'
-  undici: '>=6.27.0'
+  undici: '^6.27.0'
