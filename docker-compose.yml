@@ -26,6 +26,7 @@ services:
         required: false
     environment:
       - DATABASE_URL=postgres://community:community@postgres:5432/community
+      - NEXT_TELEMETRY_DISABLED=1
     volumes:
       - .:/app
       - app_node_modules:/app/node_modules
