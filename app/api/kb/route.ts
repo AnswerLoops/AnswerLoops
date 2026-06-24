@@ -7,5 +7,5 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const session = await auth()
   const orgId = session?.orgId ?? DEFAULT_ORG_ID
-  return Response.json(listArticles(true, orgId))
+  return Response.json(await listArticles(true, orgId))
 }

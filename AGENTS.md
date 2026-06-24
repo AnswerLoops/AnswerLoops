@@ -4,18 +4,38 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Commit message rules
+
+Every commit **must** have a subject line AND a body. No exceptions.
+
+- **Subject line** (≤72 chars): `<type>: <what changed>` — e.g. `fix: await createArticle so articles persist`
+- **Body**: explain WHY the change was made and WHAT problem it solves. At least 2–3 sentences. Include the root cause for bug fixes, the user value for features, and any non-obvious context a future reader needs.
+- **Never** add `Co-Authored-By`, `Claude`, or any AI attribution trailer.
+
+Example:
+```
+fix: await createArticle so KB URL imports persist
+
+createArticle was called without await in saveChunks(), meaning the DB
+write raced with the response. The success count was accurate but the
+rows were never committed, causing articles to vanish on page reload.
+```
+
+PRs must also have a meaningful description — not "No description provided."
+
 # Build plan hygiene
 
 After completing any phase or significant feature, do ALL of the following before opening the PR:
 
 1. Mark it `✅` in `docs/BUILD-PLAN.md` and update the files list.
 2. Update the "Recommended next order" section.
-3. Push to Notion — **all pages that the feature touches**:
+3. Push to Notion — **every PR must update at minimum: Build Plan + Architecture (main) + Production Setup Guide**. Additional pages per the table below:
 
 | What changed | Pages to update |
 |---|---|
-| New feature shipped | Build Plan · Architecture (main) · Business Value |
-| New AI/LLM capability | Build Plan · Architecture · Business Value · Competitive Analysis |
+| Any PR (minimum) | Build Plan · Architecture (main) · Production Setup Guide |
+| New feature shipped | Build Plan · Architecture (main) · Business Value · Production Setup Guide |
+| New AI/LLM capability | Build Plan · Architecture · Business Value · Competitive Analysis · Production Setup Guide |
 | New integration or channel | Build Plan · Architecture · Multi-Tenant SaaS Plan · Production Setup Guide |
 | Env var added/changed | Production Setup Guide |
 | Pricing / moat / positioning shift | Business Value · Competitive Analysis |
