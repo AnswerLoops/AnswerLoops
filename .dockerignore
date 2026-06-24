@@ -10,4 +10,3 @@ playwright-report
 README.md
 .env.local
 .env.*.local
-pnpm-lock.yaml

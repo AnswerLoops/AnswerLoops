@@ -10,7 +10,7 @@ RUN npm install -g pnpm
 # pnpm-workspace.yaml carries onlyBuiltDependencies so build scripts run without
 # interactive approval. Lock file included when present for reproducible installs.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
-RUN pnpm install --config.ignore-scripts=false
+RUN pnpm install --frozen-lockfile
 
 # ── build ─────────────────────────────────────────────────────────────
 # Produce the optimized .next production build.
