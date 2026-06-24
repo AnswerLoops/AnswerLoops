@@ -4,6 +4,11 @@ onlyBuiltDependencies:
   - esbuild
   - sharp
   - unrs-resolver
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
 minimumReleaseAgeExclude:
   - '@mendable/firecrawl-js@4.28.1'
 overrides:
