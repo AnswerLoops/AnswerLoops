@@ -18,7 +18,7 @@
     {
       "name": "GitHub",
       "icon": "github",
-      "url": "https://github.com/NathanTarbert/community-platform"
+      "url": "https://github.com/AnswerLoops/AnswerLoops"
     }
   ],
   "navigation": [
@@ -92,6 +92,6 @@
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/NathanTarbert/community-platform"
+    "github": "https://github.com/AnswerLoops/AnswerLoops"
   }
 }
