@@ -24,7 +24,7 @@ const DiscordIntegrationSchema = z.object({
 export async function saveDiscordIntegrationAction(
   _prevState: unknown,
   formData: FormData
-): Promise<{ error?: string; botSecret?: string } | null> {
+): Promise<{ error?: string } | null> {
   const session = await auth()
   if (!session?.user) return { error: 'Unauthorized' }
   const orgId = session.orgId ?? DEFAULT_ORG_ID
@@ -64,8 +64,7 @@ export async function saveDiscordIntegrationAction(
 
   refresh()
 
-  // Return the secret so the user can configure their bot with it
-  return { botSecret: existing?.bot_secret ? undefined : botSecret }
+  return null
 }
 
 export async function deleteDiscordIntegrationAction(

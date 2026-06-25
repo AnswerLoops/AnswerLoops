@@ -31,7 +31,7 @@ interface PendingInvite {
 interface DiscordIntegration {
   id: number
   platform: string
-  bot_secret: string | null
+
   channel_ids: string[]
   escalation_role_id: string | null
   confidence_threshold: number | null
@@ -93,12 +93,10 @@ function RepoRow({ repo, onRemoved }: { repo: GitHubRepo; onRemoved: () => void 
 
 function DiscordIntegrationCard() {
   const [integration, setIntegration] = useState<DiscordIntegration | null | undefined>(undefined)
-  const [newSecret, setNewSecret] = useState<string | null>(null)
   const [, startDeleteTransition] = useTransition()
   const [saveState, saveAction, savePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveDiscordIntegrationAction(prev, fd)
-      if (result?.botSecret) setNewSecret(result.botSecret)
       if (!result?.error) {
         const updated = await fetch('/api/integrations').then((r) => r.json())
         setIntegration(updated.find((i: DiscordIntegration) => i.platform === 'discord') ?? null)
@@ -146,21 +144,6 @@ function DiscordIntegrationCard() {
           {connected ? 'Active' : 'Inactive'}
         </span>
       </div>
-
-      {newSecret && (
-        <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
-          <p className="text-xs font-semibold text-amber-800 mb-1">Your BOT_SECRET — copy it now, it won't be shown again:</p>
-          <code className="text-xs text-amber-900 break-all font-mono">{newSecret}</code>
-          <p className="text-xs text-amber-700 mt-1">Set this as <strong>BOT_SECRET</strong> in your bot environment.</p>
-        </div>
-      )}
-
-      {connected && integration.bot_secret && !newSecret && (
-        <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
-          <p className="text-xs text-gray-500 mb-1">BOT_SECRET (set this in your bot env):</p>
-          <code className="text-xs text-gray-700 break-all font-mono">{integration.bot_secret}</code>
-        </div>
-      )}
 
       <form action={saveAction} className="space-y-3">
         <div>
