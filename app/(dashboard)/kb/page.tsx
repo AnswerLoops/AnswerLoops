@@ -139,6 +139,7 @@ export default function KBPage() {
 
   function clear() {
     setQuery('')
+    setSearchError(null)
     loadAll()
   }
 
