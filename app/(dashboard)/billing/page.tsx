@@ -14,6 +14,42 @@ interface BillingData {
   currentPeriodEnd: string | null
 }
 
+const PLAN_FEATURES: Record<string, string[]> = {
+  pro: [
+    '500 AI deflections/mo',
+    'Knowledge base (URL import)',
+    'Discord + Slack integration',
+    'Widget with lead capture',
+    'CSV export',
+    'Email support',
+  ],
+  scale: [
+    '2,000 AI deflections/mo',
+    'Everything in Pro',
+    'CSAT scoring',
+    'Human escalation routing',
+    'Simulation / dry-run mode',
+    'Knowledge gap dashboard',
+    'Priority support',
+  ],
+  enterprise: [
+    'Unlimited AI deflections',
+    'Everything in Scale',
+    'Custom AI model config',
+    'Multi-workspace (coming soon)',
+    'SLA + dedicated support',
+    'Custom invoicing',
+  ],
+}
+
+function CheckIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 text-indigo-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 function daysRemaining(isoDate: string): number {
   const ms = new Date(isoDate).getTime() - Date.now()
   return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)))
@@ -47,37 +83,67 @@ function TrialExpiredBanner({ onUpgrade, pending }: { onUpgrade: (planId: string
         disabled={pending}
         className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
       >
-        {pending ? 'Redirecting…' : 'Start Pro — $49/mo'}
+        {pending ? 'Redirecting…' : 'Start Pro — $29/mo'}
       </button>
     </div>
   )
 }
 
-function UsageBar({ used, limit }: { used: number; limit: number | null }) {
-  if (limit === null) {
-    return (
-      <div className="text-sm text-gray-600">
-        <span className="font-semibold text-gray-900">{used.toLocaleString()}</span> deflections this month &mdash; <span className="text-indigo-600">unlimited</span>
-      </div>
-    )
-  }
-  const pct = Math.min((used / limit) * 100, 100)
-  const over = used >= limit
+function UsageBar({ used, limit, planId, currentPeriodEnd, cancelAtPeriodEnd, status }: {
+  used: number
+  limit: number | null
+  planId: string
+  currentPeriodEnd: string | null
+  cancelAtPeriodEnd: boolean
+  status: string
+}) {
+  const pct = limit ? Math.min((used / limit) * 100, 100) : 0
+  const over = limit !== null && used >= limit
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-600">
-          <span className={`font-semibold ${over ? 'text-red-600' : 'text-gray-900'}`}>{used.toLocaleString()}</span>
-          {' / '}{limit.toLocaleString()} deflections this month
-        </span>
-        {over && <span className="text-xs font-medium text-red-600">Limit reached</span>}
+    <div className="rounded-xl border border-gray-200 bg-white p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-gray-900">Usage this month</h2>
+        <div className="flex items-center gap-2">
+          {cancelAtPeriodEnd && currentPeriodEnd && (
+            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+              Cancels {new Date(currentPeriodEnd).toLocaleDateString()}
+            </span>
+          )}
+          {status === 'past_due' && (
+            <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">
+              Payment past due
+            </span>
+          )}
+        </div>
       </div>
-      <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-        <div
-          className={`h-2 rounded-full transition-all ${over ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-indigo-500'}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+
+      {limit === null ? (
+        <div className="flex items-end gap-1.5">
+          <span className="text-3xl font-bold text-gray-900">{used.toLocaleString()}</span>
+          <span className="text-sm text-gray-500 mb-1">deflections · unlimited plan</span>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-end gap-1.5 mb-3">
+            <span className={`text-3xl font-bold ${over ? 'text-red-600' : 'text-gray-900'}`}>{used.toLocaleString()}</span>
+            <span className="text-sm text-gray-500 mb-1">/ {limit.toLocaleString()} deflections</span>
+          </div>
+          <div className="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className={`h-2.5 rounded-full transition-all duration-500 ${over ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-indigo-500'}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-xs text-gray-400">{Math.round(pct)}% used</span>
+            {over
+              ? <span className="text-xs font-medium text-red-600">Limit reached — upgrade to resume</span>
+              : <span className="text-xs text-gray-400">{(limit - used).toLocaleString()} remaining</span>
+            }
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -95,35 +161,67 @@ function PlanCard({
   onUpgrade: (planId: string) => void
   pending: boolean
 }) {
-  const label = current && isTrialing ? 'Trialing' : current ? 'Current' : null
+  const label = current && isTrialing ? 'Trialing' : current ? 'Current plan' : null
+  const features = PLAN_FEATURES[plan.id] ?? []
+  const highlighted = plan.id === 'scale'
+
   return (
-    <div className={`rounded-xl border-2 p-5 transition-all ${current ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
-      <div className="flex items-start justify-between mb-3">
+    <div className={`relative rounded-xl border-2 p-5 flex flex-col transition-all ${
+      current
+        ? 'border-indigo-500 bg-indigo-50/40'
+        : highlighted
+        ? 'border-indigo-300 bg-white shadow-sm'
+        : 'border-gray-200 bg-white hover:border-gray-300'
+    }`}>
+      {highlighted && !current && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span className="rounded-full bg-indigo-600 px-3 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider shadow">
+            Most popular
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-900">{plan.name}</span>
+            <span className="text-sm font-bold text-gray-900">{plan.name}</span>
             {label && (
               <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 uppercase tracking-wide">
                 {label}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-gray-500">
-            {plan.deflectionsPerMonth === null ? 'Unlimited deflections/mo' : `${plan.deflectionsPerMonth.toLocaleString()} deflections/mo`}
-          </p>
-        </div>
-        <div className="text-right">
-          <span className="text-lg font-bold text-gray-900">${(plan.priceMonthly / 100).toFixed(0)}</span>
-          <span className="text-xs text-gray-500">/mo</span>
+          <div className="mt-2">
+            <span className="text-2xl font-bold text-gray-900">${(plan.priceMonthly / 100).toFixed(0)}</span>
+            <span className="text-xs text-gray-500">/mo</span>
+          </div>
         </div>
       </div>
-      {!current && (
+
+      <ul className="space-y-2 flex-1 mb-5">
+        {features.map((f) => (
+          <li key={f} className="flex items-start gap-2">
+            <CheckIcon />
+            <span className="text-xs text-gray-600">{f}</span>
+          </li>
+        ))}
+      </ul>
+
+      {current ? (
+        <div className="w-full rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-center text-xs font-medium text-indigo-700">
+          {isTrialing ? 'Active trial' : 'Your current plan'}
+        </div>
+      ) : (
         <button
           onClick={() => onUpgrade(plan.id)}
           disabled={pending}
-          className="mt-2 w-full rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+          className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-60 ${
+            highlighted
+              ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+              : 'border border-gray-200 bg-white text-gray-800 hover:bg-gray-50'
+          }`}
         >
-          {pending ? 'Redirecting…' : `Switch to ${plan.name}`}
+          {pending ? 'Redirecting…' : `Upgrade to ${plan.name}`}
         </button>
       )}
     </div>
@@ -172,51 +270,44 @@ export default function BillingPage() {
   const isTrialing = data?.isTrialing ?? false
 
   return (
-    <div className="p-6 max-w-3xl space-y-8">
+    <div className="max-w-4xl space-y-8">
       <div>
         <h1 className="text-xl font-semibold text-gray-900">Billing</h1>
         <p className="mt-1 text-sm text-gray-500">Manage your plan and usage.</p>
       </div>
 
-      {loading && <div className="text-sm text-gray-400">Loading…</div>}
+      {loading && (
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          Loading billing info…
+        </div>
+      )}
 
       {!loading && data && (
         <>
-          {/* Trial status banners */}
-          {isTrialing && data.trialEndsAt && (
-            <TrialBanner trialEndsAt={data.trialEndsAt} />
-          )}
-          {isCanceled && (
-            <TrialExpiredBanner onUpgrade={upgrade} pending={upgradePending} />
-          )}
+          {isTrialing && data.trialEndsAt && <TrialBanner trialEndsAt={data.trialEndsAt} />}
+          {isCanceled && <TrialExpiredBanner onUpgrade={upgrade} pending={upgradePending} />}
 
-          {/* Usage */}
           {!isCanceled && (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-900">Usage this month</h2>
-                {data.cancelAtPeriodEnd && data.currentPeriodEnd && (
-                  <span className="text-xs text-amber-600 font-medium">
-                    Cancels {new Date(data.currentPeriodEnd).toLocaleDateString()}
-                  </span>
-                )}
-                {data.status === 'past_due' && (
-                  <span className="text-xs text-red-600 font-medium">Payment past due</span>
-                )}
-              </div>
-              <UsageBar used={data.used} limit={data.limit} />
-              {data.used >= (data.limit ?? Infinity) && (
-                <p className="text-xs text-red-600">
-                  Auto-deflection paused — upgrade to resume automatic answers.
-                </p>
-              )}
-            </div>
+            <UsageBar
+              used={data.used}
+              limit={data.limit}
+              planId={data.planId}
+              currentPeriodEnd={data.currentPeriodEnd}
+              cancelAtPeriodEnd={data.cancelAtPeriodEnd}
+              status={data.status}
+            />
           )}
 
-          {/* Plans */}
           <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-gray-900">Plans</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-900">Plans</h2>
+              <span className="text-xs text-gray-400">All plans include a 14-day free trial</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3">
               {ORDERED_PLANS.map((plan) => (
                 <PlanCard
                   key={plan.id}
@@ -230,19 +321,21 @@ export default function BillingPage() {
             </div>
           </div>
 
-          {/* Manage */}
           {!isCanceled && (
-            <div className="flex items-center gap-3">
+            <div className="rounded-xl border border-gray-200 bg-white p-5 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Subscription management</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {isTrialing ? 'Cancel trial, update payment method, or switch plans' : 'Update payment method, change plan, or cancel'}
+                </p>
+              </div>
               <button
                 onClick={openPortal}
                 disabled={portalPending}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition-colors whitespace-nowrap"
               >
-                {portalPending ? 'Redirecting…' : 'Manage subscription'}
+                {portalPending ? 'Redirecting…' : 'Manage subscription →'}
               </button>
-              <span className="text-xs text-gray-400">
-                {isTrialing ? 'Cancel trial, update card, or change plan' : 'Change plan, update payment, or cancel'}
-              </span>
             </div>
           )}
 
