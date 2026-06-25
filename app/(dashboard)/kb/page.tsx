@@ -152,12 +152,26 @@ export default function KBPage() {
       <UrlIngestSection onImported={loadAll} />
 
       <form onSubmit={search} className="flex items-center gap-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search the knowledge base…"
-          className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm"
-        />
+        <div className="relative flex-1">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search the knowledge base…"
+            className="w-full rounded-md border border-gray-200 px-3 py-2 pr-8 text-sm"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={clear}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
+        </div>
         <Button type="submit" size="sm" disabled={searching}>
           {searching ? 'Searching…' : 'Search'}
         </Button>
