@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { eq, and, desc, sql, or, like } from 'drizzle-orm'
 import { cosineSimilarity } from 'ai'
 import { getDb } from '../drizzle'
 import { kbArticles, DEFAULT_ORG_ID } from '../schema'
@@ -121,6 +121,23 @@ export async function searchArticles(vector: number[], limit = 10, orgId = DEFAU
     .filter((r) => r.score >= KB_MATCH_THRESHOLD)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
+}
+
+export async function textSearchArticles(query: string, limit = 10, orgId = DEFAULT_ORG_ID): Promise<KBArticle[]> {
+  const pattern = `%${query}%`
+  const rows = await getDb()
+    .select()
+    .from(kbArticles)
+    .where(
+      and(
+        eq(kbArticles.published, 1),
+        eq(kbArticles.orgId, orgId),
+        or(like(kbArticles.question, pattern), like(kbArticles.answer, pattern))
+      )
+    )
+    .orderBy(desc(kbArticles.updatedAt))
+    .limit(limit)
+  return rows.map(toArticle)
 }
 
 export async function getKBContext(vector: number[], k = 3, orgId = DEFAULT_ORG_ID): Promise<PriorAnswer[]> {
