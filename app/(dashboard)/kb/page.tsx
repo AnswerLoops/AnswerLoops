@@ -113,6 +113,7 @@ export default function KBPage() {
   }, [])
 
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [searchDegraded, setSearchDegraded] = useState(false)
 
   async function search(e: React.FormEvent) {
     e.preventDefault()
@@ -120,14 +121,16 @@ export default function KBPage() {
     if (!q) return loadAll()
     setSearching(true)
     setSearchError(null)
+    setSearchDegraded(false)
     try {
       const res = await fetch(`/api/kb/search?q=${encodeURIComponent(q)}`)
-      const data = await res.json()
-      if (!res.ok || !Array.isArray(data)) {
-        setSearchError((data as { error?: string }).error ?? 'Search failed')
+      const data = await res.json() as { results?: KBSearchResult[]; degraded?: boolean; error?: string }
+      if (!res.ok || data.error) {
+        setSearchError(data.error ?? 'Search failed')
         setArticles([])
       } else {
-        setArticles(data as KBSearchResult[])
+        setArticles(data.results ?? [])
+        setSearchDegraded(data.degraded ?? false)
       }
     } catch {
       setSearchError('Search failed — check your AI config and API key.')
@@ -140,6 +143,7 @@ export default function KBPage() {
   function clear() {
     setQuery('')
     setSearchError(null)
+    setSearchDegraded(false)
     loadAll()
   }
 
@@ -185,6 +189,18 @@ export default function KBPage() {
 
       {searchError && (
         <p className="text-xs text-red-500">{searchError}</p>
+      )}
+      {searchDegraded && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+          <svg className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <div>
+            <p className="text-xs font-medium text-amber-800">Keyword search only — semantic search unavailable</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              AI embedding failed (invalid or missing API key). Results are exact text matches only, not natural language.{' '}
+              <a href="/settings" className="underline font-medium">Fix in Settings →</a>
+            </p>
+          </div>
+        </div>
       )}
 
       {loading ? (

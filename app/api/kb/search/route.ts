@@ -16,12 +16,12 @@ export async function GET(request: Request) {
 
   try {
     const vector = await embedText(q, orgId)
-    return Response.json(await searchArticles(vector, 10, orgId))
+    return Response.json({ results: await searchArticles(vector, 10, orgId), degraded: false })
   } catch (err) {
     logger.warn('vector search unavailable, falling back to text search', { module: 'api/kb/search', error: err })
     try {
       const results = await textSearchArticles(q, 10, orgId)
-      return Response.json(results)
+      return Response.json({ results, degraded: true })
     } catch (textErr) {
       logger.error('text search also failed', { module: 'api/kb/search', error: textErr })
       return Response.json({ error: 'Search failed' }, { status: 500 })
