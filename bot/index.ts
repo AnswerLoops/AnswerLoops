@@ -19,22 +19,48 @@ import {
 } from './handlers'
 import { registerSlashCommands, handleAsk, handleSummarize, type SlashConfig } from './slash'
 import { logger } from '../lib/logger'
+import { getIntegration, parseChannelIds } from '../lib/db/queries/integrations'
+import { DEFAULT_ORG_ID } from '../lib/db/schema'
 
 const MOD = 'bot'
 
-const config: BotConfig = {
-  targetUrl: process.env.BOT_TARGET_URL ?? 'http://localhost:3000',
-  botSecret: process.env.BOT_SECRET ?? '',
-  channelIds: (process.env.DISCORD_CHANNEL_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+async function loadConfig(): Promise<{
+  discordToken: string
+  config: BotConfig
+  slashConfig: SlashConfig
+}> {
+  const targetUrl = process.env.BOT_TARGET_URL ?? 'http://localhost:3000'
+
+  // Prefer DB config (set via Settings UI) over env vars
+  const dbIntegration = await getIntegration(DEFAULT_ORG_ID, 'discord').catch(() => null)
+
+  const discordToken =
+    (dbIntegration?.bot_token ?? process.env.DISCORD_TOKEN) || ''
+
+  const botSecret =
+    (dbIntegration?.bot_secret ?? process.env.BOT_SECRET) || ''
+
+  const channelIds = dbIntegration
+    ? parseChannelIds(dbIntegration)
+    : (process.env.DISCORD_CHANNEL_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+
+  if (dbIntegration) {
+    logger.info('loaded Discord config from database', { module: MOD, channelCount: channelIds.length })
+  } else {
+    logger.info('loaded Discord config from environment variables', { module: MOD, channelCount: channelIds.length })
+  }
+
+  return {
+    discordToken,
+    config: { targetUrl, botSecret, channelIds },
+    slashConfig: { targetUrl, botSecret },
+  }
 }
 
-const slashConfig: SlashConfig = {
-  targetUrl: config.targetUrl,
-  botSecret: config.botSecret,
-}
+const { discordToken, config, slashConfig } = await loadConfig()
 
-if (!process.env.DISCORD_TOKEN) {
-  logger.error('DISCORD_TOKEN is not set', { module: MOD })
+if (!discordToken) {
+  logger.error('No Discord token found — set it in Settings → Integrations or DISCORD_TOKEN env var', { module: MOD })
   process.exit(1)
 }
 
@@ -43,7 +69,7 @@ if (!process.env.DISCORD_APPLICATION_ID) {
 }
 
 if (config.channelIds.length === 0) {
-  logger.warn('DISCORD_CHANNEL_IDS is empty — bot will not forward any messages', { module: MOD })
+  logger.warn('No channel IDs configured — bot will not forward any messages. Set them in Settings → Integrations.', { module: MOD })
 }
 
 const client = new Client({
@@ -68,7 +94,7 @@ client.once(Events.ClientReady, async (c) => {
   const applicationId = process.env.DISCORD_APPLICATION_ID
   if (applicationId) {
     await registerSlashCommands(
-      process.env.DISCORD_TOKEN!,
+      discordToken,
       applicationId,
       process.env.DISCORD_GUILD_ID // set for instant guild-scoped commands; omit for global
     )
@@ -107,4 +133,4 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 })
 
-client.login(process.env.DISCORD_TOKEN)
+client.login(discordToken)

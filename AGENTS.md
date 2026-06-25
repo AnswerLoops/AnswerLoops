@@ -57,7 +57,7 @@ Docs repo: `answerloops-docs` (Mintlify). Notion docs map page ID: `38a2539abb6b
 
 After completing any phase or significant feature, do ALL of the following before opening the PR:
 
-1. Mark it `✅` in `docs/BUILD-PLAN.md` and update the files list.
+1. Mark it `✅` in `BUILD-PLAN.md` and update the files list.
 2. Update the "Recommended next order" section.
 3. Push to Notion — **every PR must update at minimum: Build Plan + Architecture (main) + Production Setup Guide**. Additional pages per the table below:
 
