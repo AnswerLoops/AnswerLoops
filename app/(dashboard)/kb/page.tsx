@@ -99,23 +99,39 @@ export default function KBPage() {
 
   async function loadAll() {
     setLoading(true)
-    const data = (await fetch('/api/kb').then((r) => r.json())) as KBArticle[]
-    setArticles(data)
-    setLoading(false)
+    try {
+      const res = await fetch('/api/kb')
+      const data = await res.json()
+      setArticles(Array.isArray(data) ? (data as KBArticle[]) : [])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
     loadAll()
   }, [])
 
+  const [searchError, setSearchError] = useState<string | null>(null)
+
   async function search(e: React.FormEvent) {
     e.preventDefault()
     const q = query.trim()
     if (!q) return loadAll()
     setSearching(true)
+    setSearchError(null)
     try {
-      const data = (await fetch(`/api/kb/search?q=${encodeURIComponent(q)}`).then((r) => r.json())) as KBSearchResult[]
-      setArticles(data)
+      const res = await fetch(`/api/kb/search?q=${encodeURIComponent(q)}`)
+      const data = await res.json()
+      if (!res.ok || !Array.isArray(data)) {
+        setSearchError((data as { error?: string }).error ?? 'Search failed')
+        setArticles([])
+      } else {
+        setArticles(data as KBSearchResult[])
+      }
+    } catch {
+      setSearchError('Search failed — check your AI config and API key.')
+      setArticles([])
     } finally {
       setSearching(false)
     }
@@ -151,6 +167,10 @@ export default function KBPage() {
           </Button>
         )}
       </form>
+
+      {searchError && (
+        <p className="text-xs text-red-500">{searchError}</p>
+      )}
 
       {loading ? (
         <p className="text-sm text-gray-500">Loading…</p>
