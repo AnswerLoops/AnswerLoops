@@ -630,13 +630,43 @@ function TeamSection() {
 }
 
 const CHAT_PROVIDERS = [
-  { value: 'openai', label: 'OpenAI', placeholder: 'gpt-4o' },
-  { value: 'anthropic', label: 'Anthropic', placeholder: 'claude-sonnet-4-6' },
-  { value: 'google', label: 'Google Gemini', placeholder: 'gemini-2.0-flash' },
-  { value: 'groq', label: 'Groq', placeholder: 'llama-3.3-70b-versatile' },
-  { value: 'mistral', label: 'Mistral', placeholder: 'mistral-large-latest' },
-  { value: 'openai-compatible', label: 'OpenAI-compatible (Ollama, LM Studio, vLLM…)', placeholder: 'llama3.2' },
-] as const
+  {
+    value: 'openai',
+    label: 'OpenAI',
+    placeholder: 'gpt-4o',
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'o3', 'o3-mini', 'o4-mini'],
+  },
+  {
+    value: 'anthropic',
+    label: 'Anthropic',
+    placeholder: 'claude-sonnet-4-6',
+    models: ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-haiku-4-5-20251001', 'claude-fable-5'],
+  },
+  {
+    value: 'google',
+    label: 'Google Gemini',
+    placeholder: 'gemini-2.0-flash',
+    models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+  },
+  {
+    value: 'groq',
+    label: 'Groq',
+    placeholder: 'llama-3.3-70b-versatile',
+    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it', 'mixtral-8x7b-32768'],
+  },
+  {
+    value: 'mistral',
+    label: 'Mistral',
+    placeholder: 'mistral-large-latest',
+    models: ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest', 'open-mixtral-8x22b'],
+  },
+  {
+    value: 'openai-compatible',
+    label: 'OpenAI-compatible (Ollama, LM Studio, vLLM…)',
+    placeholder: 'llama3.2',
+    models: [] as string[],
+  },
+]
 
 const EMBEDDING_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -741,11 +771,19 @@ function AIModelSection() {
           <input
             name="chat_model"
             type="text"
+            list="chat-model-suggestions"
             defaultValue={config?.chat_model ?? ''}
             placeholder={chatMeta.placeholder}
             className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
             required
           />
+          {chatMeta.models.length > 0 && (
+            <datalist id="chat-model-suggestions">
+              {chatMeta.models.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
+          )}
         </div>
 
         {/* Chat API key */}
