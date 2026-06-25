@@ -4,6 +4,16 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# No shortcuts
+
+Never cut corners. Implement everything fully and correctly.
+
+- No placeholder implementations, stubs, or half-finished features
+- No workarounds when the proper fix exists
+- No bypassing safety checks, migration steps, or validation
+- No suggesting a "quick fix" instead of the real solution
+- If something is hard, do it right anyway
+
 # Commit message rules
 
 Every commit **must** have a subject line AND a body. No exceptions.
