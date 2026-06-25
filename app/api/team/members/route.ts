@@ -7,6 +7,6 @@ export async function GET() {
   if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const orgId = session.orgId ?? DEFAULT_ORG_ID
-  const members = getOrgMembers(orgId)
+  const members = await getOrgMembers(orgId)
   return Response.json(members)
 }

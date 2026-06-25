@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
-  const tickets = getTickets({
+  const tickets = await getTickets({
     status: url.searchParams.get('status') as TicketStatus | undefined ?? undefined,
     priority: url.searchParams.get('priority') as Priority | undefined ?? undefined,
     category: url.searchParams.get('category') as TicketCategory | undefined ?? undefined,

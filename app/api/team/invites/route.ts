@@ -7,7 +7,6 @@ export async function GET() {
   if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const orgId = session.orgId ?? DEFAULT_ORG_ID
-  const invites = getPendingInvitations(orgId)
-  // Strip token from list response — client only needs id/email/role/expires_at + token for copy-link
+  const invites = await getPendingInvitations(orgId)
   return Response.json(invites)
 }
