@@ -630,13 +630,43 @@ function TeamSection() {
 }
 
 const CHAT_PROVIDERS = [
-  { value: 'openai', label: 'OpenAI', placeholder: 'gpt-4o' },
-  { value: 'anthropic', label: 'Anthropic', placeholder: 'claude-sonnet-4-6' },
-  { value: 'google', label: 'Google Gemini', placeholder: 'gemini-2.0-flash' },
-  { value: 'groq', label: 'Groq', placeholder: 'llama-3.3-70b-versatile' },
-  { value: 'mistral', label: 'Mistral', placeholder: 'mistral-large-latest' },
-  { value: 'openai-compatible', label: 'OpenAI-compatible (Ollama, LM Studio, vLLM…)', placeholder: 'llama3.2' },
-] as const
+  {
+    value: 'openai',
+    label: 'OpenAI',
+    placeholder: 'gpt-4o',
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'o3', 'o3-mini', 'o4-mini'],
+  },
+  {
+    value: 'anthropic',
+    label: 'Anthropic',
+    placeholder: 'claude-sonnet-4-6',
+    models: ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-haiku-4-5-20251001', 'claude-fable-5'],
+  },
+  {
+    value: 'google',
+    label: 'Google Gemini',
+    placeholder: 'gemini-2.0-flash',
+    models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+  },
+  {
+    value: 'groq',
+    label: 'Groq',
+    placeholder: 'llama-3.3-70b-versatile',
+    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it', 'mixtral-8x7b-32768'],
+  },
+  {
+    value: 'mistral',
+    label: 'Mistral',
+    placeholder: 'mistral-large-latest',
+    models: ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest', 'open-mixtral-8x22b'],
+  },
+  {
+    value: 'openai-compatible',
+    label: 'OpenAI-compatible (Ollama, LM Studio, vLLM…)',
+    placeholder: 'llama3.2',
+    models: [] as string[],
+  },
+]
 
 const EMBEDDING_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -741,21 +771,38 @@ function AIModelSection() {
           <input
             name="chat_model"
             type="text"
+            list="chat-model-suggestions"
             defaultValue={config?.chat_model ?? ''}
             placeholder={chatMeta.placeholder}
             className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
             required
           />
+          {chatMeta.models.length > 0 && (
+            <datalist id="chat-model-suggestions">
+              {chatMeta.models.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
+          )}
         </div>
 
         {/* Chat API key */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">API key</label>
+          <div className="flex items-center gap-2 mb-1">
+            <label className="block text-xs font-medium text-gray-600">API key</label>
+            {configured && config.chat_api_key_set
+              ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Key saved
+                </span>
+              : <span className="text-xs text-amber-600 font-medium">No key saved</span>
+            }
+          </div>
           <input
             name="chat_api_key"
             type="password"
             autoComplete="new-password"
-            placeholder={configured && config.chat_api_key_set ? '••••••••• (leave blank to keep current)' : 'sk-…'}
+            placeholder={configured && config.chat_api_key_set ? 'Leave blank to keep current key' : 'sk-…'}
             className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
           />
           {chatProvider === 'openai-compatible' && (
@@ -813,15 +860,23 @@ function AIModelSection() {
 
             {needsEmbedKey && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Embedding API key
-                  {chatProvider === 'openai' ? '' : ' (OpenAI key for embeddings)'}
-                </label>
+                <div className="flex items-center gap-2 mb-1">
+                  <label className="block text-xs font-medium text-gray-600">
+                    Embedding API key{chatProvider === 'openai' ? '' : ' (OpenAI key for embeddings)'}
+                  </label>
+                  {configured && config.embedding_api_key_set
+                    ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        Key saved
+                      </span>
+                    : <span className="text-xs text-amber-600 font-medium">No key saved</span>
+                  }
+                </div>
                 <input
                   name="embedding_api_key"
                   type="password"
                   autoComplete="new-password"
-                  placeholder={configured && config.embedding_api_key_set ? '••••••••• (leave blank to keep current)' : 'sk-…'}
+                  placeholder={configured && config.embedding_api_key_set ? 'Leave blank to keep current key' : 'sk-…'}
                   className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
                 />
               </div>

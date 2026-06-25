@@ -6,10 +6,6 @@ export async function loginWithGitHub(): Promise<void> {
   await signIn('github', { redirectTo: '/dashboard' })
 }
 
-export async function loginWithDiscord(): Promise<void> {
-  await signIn('discord', { redirectTo: '/dashboard' })
-}
-
 export async function loginWithGoogle(): Promise<void> {
   await signIn('google', { redirectTo: '/dashboard' })
 }

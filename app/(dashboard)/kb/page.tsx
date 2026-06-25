@@ -48,13 +48,33 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
             name="url"
             type="url"
             required
+            disabled={pending}
             placeholder="https://docs.example.com"
-            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-50"
           />
-          <Button type="submit" size="sm" disabled={pending}>
+          <Button type="submit" size="sm" disabled={pending} className="flex items-center gap-1.5 min-w-[90px] justify-center">
+            {pending && (
+              <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            )}
             {pending ? 'Importing…' : 'Import'}
           </Button>
         </div>
+
+        {pending && (
+          <div className="flex items-center gap-2 rounded-md border border-indigo-100 bg-indigo-50 px-3 py-2.5">
+            <svg className="h-4 w-4 animate-spin text-indigo-500 shrink-0" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <div>
+              <p className="text-xs font-medium text-indigo-700">Crawling and embedding content…</p>
+              <p className="text-xs text-indigo-500">This can take 15–60 seconds depending on site size.</p>
+            </div>
+          </div>
+        )}
 
         {result.error && (
           <p className="text-xs text-red-500">{result.error}</p>
@@ -79,23 +99,42 @@ export default function KBPage() {
 
   async function loadAll() {
     setLoading(true)
-    const data = (await fetch('/api/kb').then((r) => r.json())) as KBArticle[]
-    setArticles(data)
-    setLoading(false)
+    try {
+      const res = await fetch('/api/kb')
+      const data = await res.json()
+      setArticles(Array.isArray(data) ? (data as KBArticle[]) : [])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
     loadAll()
   }, [])
 
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [searchDegraded, setSearchDegraded] = useState(false)
+
   async function search(e: React.FormEvent) {
     e.preventDefault()
     const q = query.trim()
     if (!q) return loadAll()
     setSearching(true)
+    setSearchError(null)
+    setSearchDegraded(false)
     try {
-      const data = (await fetch(`/api/kb/search?q=${encodeURIComponent(q)}`).then((r) => r.json())) as KBSearchResult[]
-      setArticles(data)
+      const res = await fetch(`/api/kb/search?q=${encodeURIComponent(q)}`)
+      const data = await res.json() as { results?: KBSearchResult[]; degraded?: boolean; error?: string }
+      if (!res.ok || data.error) {
+        setSearchError(data.error ?? 'Search failed')
+        setArticles([])
+      } else {
+        setArticles(data.results ?? [])
+        setSearchDegraded(data.degraded ?? false)
+      }
+    } catch {
+      setSearchError('Search failed — check your AI config and API key.')
+      setArticles([])
     } finally {
       setSearching(false)
     }
@@ -103,6 +142,8 @@ export default function KBPage() {
 
   function clear() {
     setQuery('')
+    setSearchError(null)
+    setSearchDegraded(false)
     loadAll()
   }
 
@@ -116,12 +157,26 @@ export default function KBPage() {
       <UrlIngestSection onImported={loadAll} />
 
       <form onSubmit={search} className="flex items-center gap-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search the knowledge base…"
-          className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm"
-        />
+        <div className="relative flex-1">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search the knowledge base…"
+            className="w-full rounded-md border border-gray-200 px-3 py-2 pr-8 text-sm"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={clear}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
+        </div>
         <Button type="submit" size="sm" disabled={searching}>
           {searching ? 'Searching…' : 'Search'}
         </Button>
@@ -131,6 +186,22 @@ export default function KBPage() {
           </Button>
         )}
       </form>
+
+      {searchError && (
+        <p className="text-xs text-red-500">{searchError}</p>
+      )}
+      {searchDegraded && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+          <svg className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <div>
+            <p className="text-xs font-medium text-amber-800">Keyword search only — semantic search unavailable</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              AI embedding failed (invalid or missing API key). Results are exact text matches only, not natural language.{' '}
+              <a href="/settings" className="underline font-medium">Fix in Settings →</a>
+            </p>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-gray-500">Loading…</p>
