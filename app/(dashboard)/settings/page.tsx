@@ -788,12 +788,21 @@ function AIModelSection() {
 
         {/* Chat API key */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">API key</label>
+          <div className="flex items-center gap-2 mb-1">
+            <label className="block text-xs font-medium text-gray-600">API key</label>
+            {configured && config.chat_api_key_set
+              ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Key saved
+                </span>
+              : <span className="text-xs text-amber-600 font-medium">No key saved</span>
+            }
+          </div>
           <input
             name="chat_api_key"
             type="password"
             autoComplete="new-password"
-            placeholder={configured && config.chat_api_key_set ? '••••••••• (leave blank to keep current)' : 'sk-…'}
+            placeholder={configured && config.chat_api_key_set ? 'Leave blank to keep current key' : 'sk-…'}
             className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
           />
           {chatProvider === 'openai-compatible' && (
@@ -851,15 +860,23 @@ function AIModelSection() {
 
             {needsEmbedKey && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Embedding API key
-                  {chatProvider === 'openai' ? '' : ' (OpenAI key for embeddings)'}
-                </label>
+                <div className="flex items-center gap-2 mb-1">
+                  <label className="block text-xs font-medium text-gray-600">
+                    Embedding API key{chatProvider === 'openai' ? '' : ' (OpenAI key for embeddings)'}
+                  </label>
+                  {configured && config.embedding_api_key_set
+                    ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        Key saved
+                      </span>
+                    : <span className="text-xs text-amber-600 font-medium">No key saved</span>
+                  }
+                </div>
                 <input
                   name="embedding_api_key"
                   type="password"
                   autoComplete="new-password"
-                  placeholder={configured && config.embedding_api_key_set ? '••••••••• (leave blank to keep current)' : 'sk-…'}
+                  placeholder={configured && config.embedding_api_key_set ? 'Leave blank to keep current key' : 'sk-…'}
                   className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
                 />
               </div>
