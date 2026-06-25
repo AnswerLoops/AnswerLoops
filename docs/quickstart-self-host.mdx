@@ -1,0 +1,80 @@
+---
+title: Self-Host Quickstart
+description: Run AnswerLoops on your own infrastructure with Docker.
+---
+
+## Prerequisites
+
+- [Node.js 22+](https://nodejs.org)
+- [Docker + Docker Compose](https://docs.docker.com/get-docker/)
+- [pnpm 11+](https://pnpm.io/installation)
+- An [OpenAI API key](https://platform.openai.com/api-keys) (or other supported AI provider)
+- GitHub or Google OAuth credentials
+
+## 1. Clone the repo
+
+```bash
+git clone https://github.com/NathanTarbert/community-platform.git
+cd community-platform
+```
+
+## 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with at minimum:
+
+```env
+# Required
+DATABASE_URL=postgresql://community:community@postgres:5432/community
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=<openssl rand -hex 32>
+ENCRYPTION_KEY=<openssl rand -hex 32>
+
+# At least one OAuth provider
+AUTH_GITHUB_ID=your_github_client_id
+AUTH_GITHUB_SECRET=your_github_client_secret
+
+# AI (required for deflection and KB search)
+OPENAI_API_KEY=sk-proj-...
+```
+
+See the full [environment variables reference](/reference/environment-variables) for all options.
+
+## 3. Start with Docker
+
+```bash
+docker compose up --build
+```
+
+This starts:
+- **app** on `http://localhost:3000`
+- **postgres** on `localhost:5432` (data persisted in a named volume)
+
+<Warning>
+  Do not use `docker compose down -v` — this deletes your database volume and all data.
+  Use `docker compose down` (no `-v`) to stop without data loss.
+</Warning>
+
+## 4. Create your account
+
+Open [http://localhost:3000](http://localhost:3000), sign in with GitHub or Google, and complete the onboarding wizard. Once you click **Skip** or connect a platform, `onboarded_at` is stamped and you'll never see the wizard again.
+
+## 5. Verify it works
+
+```bash
+# Check the app is healthy
+curl http://localhost:3000/api/feedback
+
+# Check DB tables exist
+docker compose exec postgres psql -U community -d community -c "\dt"
+```
+
+## Next steps
+
+- [Connect Discord or Slack](/self-hosting/discord-bot)
+- [Configure OAuth providers](/self-hosting/oauth)
+- [Set up Stripe billing (optional)](/self-hosting/stripe)
+- [Deploy to production](/self-hosting/production)

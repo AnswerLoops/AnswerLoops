@@ -33,6 +33,26 @@ rows were never committed, causing articles to vanish on page reload.
 
 PRs must also have a meaningful description — not "No description provided."
 
+# Docs + Notion sync
+
+Every time a feature ships or architecture changes, you **must** update all three:
+
+1. **Mintlify docs repo** — update or create the relevant `.mdx` page(s) in `answerloops-docs`
+2. **Notion docs map** — update the status table and any affected rows at `https://app.notion.com/p/38a2539abb6b81969e7cc3a5a9d98cfa`
+3. **Notion architecture/build-plan pages** — per the mapping table in "Build plan hygiene" below
+
+| What changed | Docs pages to update |
+|---|---|
+| New feature | Relevant product guide page + What is AnswerLoops intro if it changes the value prop |
+| New integration | integrations/<name>.mdx + self-hosting guide if setup is required |
+| New env var | self-hosting/environment-variables.mdx + reference/environment-variables.mdx |
+| Schema / data model change | reference/data-model.mdx |
+| API endpoint added/changed | reference/api-endpoints.mdx |
+| Billing / plan change | product/billing.mdx + reference/billing-plans.mdx |
+| Architecture change | reference/data-model.mdx + self-hosting pages as needed |
+
+Docs repo: `answerloops-docs` (Mintlify). Notion docs map page ID: `38a2539abb6b81969e7cc3a5a9d98cfa`
+
 # Build plan hygiene
 
 After completing any phase or significant feature, do ALL of the following before opening the PR:

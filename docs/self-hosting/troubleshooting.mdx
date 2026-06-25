@@ -1,0 +1,75 @@
+---
+title: Troubleshooting
+description: Common issues and how to fix them.
+---
+
+## App won't start
+
+**Check logs:**
+```bash
+docker compose logs app --tail=50
+```
+
+**Common causes:**
+- Missing required env var → logs will show which one
+- `DATABASE_URL` wrong or Postgres not ready → wait a few seconds and retry
+- Port 3000 already in use → change port in `docker-compose.yml`
+
+## "members.map is not a function" or similar page crashes
+
+API route returned a non-array (usually an error object). Check:
+```bash
+docker compose logs app --tail=20 | grep -i error
+```
+
+Usually means a missing API key or DB query failed.
+
+## Search shows "Search failed"
+
+Vector search requires a valid OpenAI API key. Go to **Settings → AI Model** and verify:
+- "Key saved ✓" badge is shown
+- The key is valid (test at [platform.openai.com](https://platform.openai.com))
+
+When no valid key is configured, search falls back to keyword matching with an amber warning banner.
+
+## OAuth redirect mismatch
+
+Error: `redirect_uri_mismatch`
+
+Fix: Add the exact callback URL to your OAuth app's allowed redirect URIs:
+- GitHub: `https://your-domain.com/api/auth/callback/github`
+- Google: `https://your-domain.com/api/auth/callback/google`
+
+Also ensure `NEXTAUTH_URL` matches your actual domain exactly.
+
+## Onboarding shows every login
+
+`onboarded_at` is null in the `orgs` table. This means the onboarding wizard was never completed. Go through it once — name your workspace, then click **Skip** or connect a platform.
+
+To check via DB:
+```bash
+docker compose exec postgres psql -U community -d community \
+  -c "SELECT id, name, onboarded_at FROM orgs;"
+```
+
+## "Imported 0 articles" from KB URL
+
+Two causes:
+1. **Missing `await`** — fixed in v1.1+
+2. **Invalid OpenAI key** — embedding the content requires a valid key
+
+Check logs for the actual error:
+```bash
+docker compose logs app | grep -i "ingest\|embed\|error"
+```
+
+## Data lost after restart
+
+You ran `docker compose down -v`. The `-v` flag deletes volumes. Always use `docker compose down` without `-v`.
+
+## Database connection refused
+
+Postgres takes a few seconds to start. The app retries, but if it fails:
+```bash
+docker compose restart app
+```

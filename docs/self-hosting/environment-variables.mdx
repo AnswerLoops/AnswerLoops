@@ -1,0 +1,86 @@
+---
+title: Environment Variables
+description: Every environment variable AnswerLoops uses, with defaults and requirements.
+---
+
+Copy `.env.example` to `.env` and fill in the values below.
+
+## Core (required)
+
+| Variable | Description | Example |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://community:community@postgres:5432/community` |
+| `NEXTAUTH_URL` | Full URL of your deployment | `http://localhost:3000` |
+| `NEXTAUTH_SECRET` | Random 32-byte hex — signs JWT sessions | `openssl rand -hex 32` |
+| `ENCRYPTION_KEY` | Random 32-byte hex — encrypts stored API keys | `openssl rand -hex 32` |
+
+## OAuth (at least one required)
+
+| Variable | Description |
+|---|---|
+| `AUTH_GITHUB_ID` | GitHub OAuth App client ID |
+| `AUTH_GITHUB_SECRET` | GitHub OAuth App client secret |
+| `AUTH_GOOGLE_ID` | Google OAuth client ID |
+| `AUTH_GOOGLE_SECRET` | Google OAuth client secret |
+
+Callback URLs to register:
+- GitHub: `{NEXTAUTH_URL}/api/auth/callback/github`
+- Google: `{NEXTAUTH_URL}/api/auth/callback/google`
+
+## AI (required for deflection and search)
+
+| Variable | Description |
+|---|---|
+| `OPENAI_API_KEY` | Platform-default OpenAI key. Per-org keys can be set in Settings → AI Model. |
+
+<Info>
+  Per-org AI keys set in the dashboard override `OPENAI_API_KEY` for that org. The platform key is used when no org key is configured.
+</Info>
+
+## Discord (optional)
+
+| Variable | Description |
+|---|---|
+| `DISCORD_TOKEN` | Bot token from Discord Developer Portal |
+| `DISCORD_CHANNEL_IDS` | Comma-separated channel IDs to listen on |
+| `DISCORD_APPLICATION_ID` | Application ID from Developer Portal |
+| `DISCORD_GUILD_ID` | Your server (guild) ID |
+
+## Slack (optional)
+
+| Variable | Description |
+|---|---|
+| `SLACK_BOT_TOKEN` | Bot token (`xoxb-...`) |
+| `SLACK_SIGNING_SECRET` | From Slack app Basic Information |
+| `SLACK_TEAM_ID` | Your workspace team ID (`T...`) |
+
+## Stripe (optional)
+
+| Variable | Description |
+|---|---|
+| `STRIPE_SECRET_KEY` | Live or test secret key (`sk_...`) |
+| `STRIPE_WEBHOOK_SECRET` | Webhook endpoint signing secret (`whsec_...`) |
+| `STRIPE_PRICE_PRO` | Stripe price ID for Pro plan |
+| `STRIPE_PRICE_SCALE` | Stripe price ID for Scale plan |
+| `STRIPE_PRICE_ENTERPRISE` | Stripe price ID for Enterprise plan |
+
+## GitHub App (optional)
+
+| Variable | Description |
+|---|---|
+| `GITHUB_APP_ID` | GitHub App ID |
+| `GITHUB_APP_PRIVATE_KEY` | PEM private key (base64 or raw) |
+| `GITHUB_WEBHOOK_SECRET` | Webhook secret for signature verification |
+
+## Push notifications (optional)
+
+| Variable | Description |
+|---|---|
+| `VAPID_PUBLIC_KEY` | VAPID public key for Web Push |
+| `VAPID_PRIVATE_KEY` | VAPID private key |
+| `VAPID_EMAIL` | `mailto:you@example.com` — identifies your push endpoint |
+
+Generate VAPID keys:
+```bash
+npx web-push generate-vapid-keys
+```

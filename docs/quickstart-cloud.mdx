@@ -1,0 +1,58 @@
+---
+title: Cloud Quickstart
+description: Get AnswerLoops running in your community in under 5 minutes.
+---
+
+## 1. Create an account
+
+Go to [app.answerloops.com/login](https://app.answerloops.com/login) and sign in with GitHub or Google.
+
+## 2. Name your workspace
+
+On first login you'll be prompted to name your workspace. This is for your team's internal reference — your community members never see it.
+
+## 3. Connect your community
+
+Choose Discord or Slack and follow the setup wizard.
+
+<Tabs>
+  <Tab title="Discord">
+    You'll need:
+    - A Discord bot token (from [discord.com/developers](https://discord.com/developers/applications))
+    - The channel IDs where the bot should listen
+
+    See the full [Discord integration guide](/integrations/discord).
+  </Tab>
+  <Tab title="Slack">
+    You'll need:
+    - A Slack bot token (`xoxb-...`)
+    - Your Slack signing secret
+    - Your team ID
+    - The channel IDs where the bot should listen
+
+    See the full [Slack integration guide](/integrations/slack).
+  </Tab>
+</Tabs>
+
+## 4. Add knowledge base content
+
+Go to **Knowledge Base** and import your docs:
+
+1. Paste a URL (single page or entire site up to 25 pages)
+2. Click **Import**
+3. Wait for the crawl and embedding to complete (15–60 seconds)
+
+## 5. Test a deflection
+
+Post a question in one of your connected channels. If the AI finds a match above the confidence threshold, it will reply automatically.
+
+<Tip>
+  Start with a question you know is covered in your docs to verify the pipeline is working end-to-end.
+</Tip>
+
+## Next steps
+
+- [Configure your AI model](/product/ai-config) — switch providers or use your own API key
+- [Tune the confidence threshold](/product/ai-deflection) — control when AI answers vs escalates
+- [Set up escalation routing](/product/escalation) — ping a role when AI isn't confident
+- [Invite your team](/product/team)

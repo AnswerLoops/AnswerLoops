@@ -1,0 +1,38 @@
+---
+title: Knowledge Base
+description: Import, manage, and search your knowledge base articles.
+---
+
+The knowledge base is the source of truth for AI deflection. The AI searches it semantically to find the best answer for each incoming question.
+
+## Importing from a URL
+
+1. Go to **Knowledge Base**
+2. Paste a URL into the import field
+3. Choose **Single page** or **Entire site** (up to 25 pages)
+4. Click **Import** — a spinner shows while the crawler runs (15–60 seconds)
+5. Articles appear in the list when complete
+
+The crawler fetches the page content, splits it into Q&A chunks, embeds each chunk as a vector, and stores it in the database.
+
+## Promoting tickets
+
+When a ticket is resolved, you can promote it to the knowledge base directly from the ticket detail page. This turns the question + answer into a KB article for future deflections.
+
+## Searching
+
+Use the search bar to find articles:
+- With a valid AI key → **semantic search** (natural language, finds related content)
+- Without a valid AI key → **keyword fallback** (exact text match, with amber warning banner)
+
+## Clearing search
+
+Click the **×** inside the search field or the **Clear** button to return to the full article list.
+
+## Article persistence
+
+Articles are stored in the `kb_articles` table in Postgres. They persist across Docker restarts as long as you don't delete the `postgres-data` volume.
+
+<Warning>
+  Never run `docker compose down -v` — this deletes all KB articles along with the rest of your data.
+</Warning>

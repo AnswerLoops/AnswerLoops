@@ -1,0 +1,62 @@
+---
+title: Stripe Setup
+description: Configure Stripe billing for your self-hosted AnswerLoops instance.
+---
+
+Stripe is optional. Without it, all users get the Hobby plan (50 deflections/mo).
+
+## 1. Create products and prices
+
+In your [Stripe dashboard](https://dashboard.stripe.com):
+
+Create three products with monthly recurring prices:
+
+| Plan | Price |
+|---|---|
+| Pro | $29/mo |
+| Scale | $79/mo |
+| Enterprise | $299/mo |
+
+Copy each **Price ID** (`price_...`).
+
+```env
+STRIPE_PRICE_PRO=price_xxx
+STRIPE_PRICE_SCALE=price_xxx
+STRIPE_PRICE_ENTERPRISE=price_xxx
+```
+
+## 2. Get your secret key
+
+Dashboard → Developers → API keys → **Secret key** (`sk_live_...` or `sk_test_...` for testing).
+
+```env
+STRIPE_SECRET_KEY=sk_live_...
+```
+
+## 3. Configure webhook
+
+Dashboard → Developers → Webhooks → **Add endpoint**:
+- URL: `https://your-domain.com/api/billing/webhook`
+- Events to listen for:
+  - `checkout.session.completed`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+  - `invoice.payment_failed`
+
+Copy the **Signing secret** (`whsec_...`):
+
+```env
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+## Testing locally
+
+Use the [Stripe CLI](https://stripe.com/docs/stripe-cli) to forward webhooks:
+
+```bash
+stripe listen --forward-to localhost:3000/api/billing/webhook
+```
+
+<Info>
+  The Stripe CLI gives you a temporary `whsec_...` for local testing. Use that as `STRIPE_WEBHOOK_SECRET` during development.
+</Info>

@@ -1,0 +1,38 @@
+---
+title: Environment Variables Reference
+description: Complete reference for all AnswerLoops environment variables.
+---
+
+See [Self-Hosting → Environment Variables](/self-hosting/environment-variables) for the full annotated reference with setup instructions.
+
+## Quick reference table
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | ✅ | — | PostgreSQL connection string |
+| `NEXTAUTH_URL` | ✅ | — | Full URL of your deployment |
+| `NEXTAUTH_SECRET` | ✅ | — | 32-byte hex — signs JWT sessions |
+| `ENCRYPTION_KEY` | ✅ | — | 32-byte hex — encrypts stored API keys |
+| `AUTH_GITHUB_ID` | ⚠️ one required | — | GitHub OAuth client ID |
+| `AUTH_GITHUB_SECRET` | ⚠️ one required | — | GitHub OAuth client secret |
+| `AUTH_GOOGLE_ID` | ⚠️ one required | — | Google OAuth client ID |
+| `AUTH_GOOGLE_SECRET` | ⚠️ one required | — | Google OAuth client secret |
+| `OPENAI_API_KEY` | ✅ | — | Platform-default AI key |
+| `DISCORD_TOKEN` | Optional | — | Discord bot token |
+| `DISCORD_CHANNEL_IDS` | Optional | — | Comma-separated channel IDs |
+| `DISCORD_APPLICATION_ID` | Optional | — | Discord app ID |
+| `DISCORD_GUILD_ID` | Optional | — | Discord server ID |
+| `SLACK_BOT_TOKEN` | Optional | — | Slack bot token (`xoxb-...`) |
+| `SLACK_SIGNING_SECRET` | Optional | — | Slack signing secret |
+| `SLACK_TEAM_ID` | Optional | — | Slack workspace team ID |
+| `STRIPE_SECRET_KEY` | Optional | — | Stripe secret key |
+| `STRIPE_WEBHOOK_SECRET` | Optional | — | Stripe webhook signing secret |
+| `STRIPE_PRICE_PRO` | Optional | — | Stripe price ID for Pro ($29/mo) |
+| `STRIPE_PRICE_SCALE` | Optional | — | Stripe price ID for Scale ($79/mo) |
+| `STRIPE_PRICE_ENTERPRISE` | Optional | — | Stripe price ID for Enterprise ($299/mo) |
+| `GITHUB_APP_ID` | Optional | — | GitHub App ID |
+| `GITHUB_APP_PRIVATE_KEY` | Optional | — | GitHub App private key (PEM) |
+| `GITHUB_WEBHOOK_SECRET` | Optional | — | GitHub webhook secret |
+| `VAPID_PUBLIC_KEY` | Optional | — | Web Push VAPID public key |
+| `VAPID_PRIVATE_KEY` | Optional | — | Web Push VAPID private key |
+| `VAPID_EMAIL` | Optional | — | `mailto:you@example.com` |

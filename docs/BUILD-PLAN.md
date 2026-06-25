@@ -117,7 +117,7 @@ Run alongside feature phases; none block the others.
 19. ~~**T2-2 Human escalation routing.**~~ ✅ Done — PR #46.
 20. ~~**T2-3 CSAT scoring.**~~ ✅ Done — PR #46.
 21. **T2-4 Discord slash commands** — `/ask` + `/summarize` via Discord Interactions API.
-22. **T2-5 Simulation / dry-run mode** — replay last N tickets through AI pipeline, no writes.
+22. ~~**T2-5 Simulation / dry-run mode**~~ ✅ Done — replay last N tickets through AI pipeline, no writes. `/simulation` page with model/threshold picker and per-ticket confidence + deflect comparison.
 23. **Tier 3 gaps** — Telegram, auto-retrain, outbound campaigns, email channel, custom automations.
 
 ---
@@ -145,7 +145,7 @@ Run alongside feature phases; none block the others.
 | T2-2 | **Human escalation routing** | Mava, eesel AI, Alhena all have clean human handoff. We: low-confidence tickets sit in queue silently. | M | ✅ PR #46 — `@role` mention in Discord/Slack thread on low confidence; per-org threshold + role ID in Settings |
 | T2-3 | **CSAT scoring** | Fini: conversation-level CSAT with smart survey triggers. Mava: satisfaction metrics. We: only 👍/👎. | M | ✅ PR #46 — 1️⃣–5️⃣ reaction prompt after auto-deflect; `csat_ratings` table; avg + breakdown on Analytics |
 | T2-4 | **Discord slash commands** | Competitors offer `/ask`, `/help`, `/summarize` slash commands. We: passive listener only. | M | ⬜ Next |
-| T2-5 | **Simulation / dry-run mode** | eesel AI: run agent over past tickets before going live. Safety net before deploying changes. | M | ⬜ Backlog |
+| T2-5 | **Simulation / dry-run mode** | eesel AI: run agent over past tickets before going live. Safety net before deploying changes. | M | ✅ Done |
 
 ### Tier 3 — Higher effort, strategic
 

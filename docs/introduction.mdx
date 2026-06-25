@@ -1,0 +1,42 @@
+---
+title: What is AnswerLoops?
+description: AI-powered community support that deflects repetitive questions automatically.
+---
+
+AnswerLoops connects to your Discord or Slack community and uses AI to automatically answer support questions — pulling answers from your knowledge base so your team spends less time on repeat questions.
+
+## How it works
+
+1. **Ingest** — A user posts a question in Discord or Slack
+2. **Search** — AnswerLoops searches your knowledge base for a matching answer using semantic vector search
+3. **Deflect** — If confidence is above your threshold (default 0.8), the AI posts an answer directly in the thread
+4. **Escalate** — If confidence is low, it pings your support role so a human can step in
+5. **Learn** — Resolved answers can be promoted back to the knowledge base
+
+## Key features
+
+| Feature | Description |
+|---|---|
+| AI deflection | Answers questions automatically with configurable confidence threshold |
+| Knowledge base | Import docs via URL crawl or promote resolved tickets |
+| Human escalation | Role ping on low-confidence answers |
+| CSAT scoring | Post-resolution rating prompts |
+| Simulation mode | Dry-run AI against past tickets — zero writes |
+| Knowledge gaps | Surfaces questions the AI couldn't answer |
+| Widget | Embeddable chat widget with lead capture |
+| Multi-provider AI | OpenAI, Anthropic, Google, Groq, Mistral, Ollama |
+| Billing | Pro $29/mo · Scale $79/mo · Enterprise $299/mo |
+
+## Deployment options
+
+- **Cloud** — Sign up at [app.answerloops.com](https://app.answerloops.com), no setup required
+- **Self-host** — Run on your own infrastructure with Docker; full data ownership
+
+<CardGroup cols={2}>
+  <Card title="Cloud Quickstart" icon="rocket" href="/quickstart-cloud">
+    Up in 5 minutes, no infrastructure needed
+  </Card>
+  <Card title="Self-Host Quickstart" icon="server" href="/quickstart-self-host">
+    Run on your own infrastructure with Docker
+  </Card>
+</CardGroup>
