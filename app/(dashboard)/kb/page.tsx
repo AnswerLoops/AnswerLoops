@@ -48,13 +48,33 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
             name="url"
             type="url"
             required
+            disabled={pending}
             placeholder="https://docs.example.com"
-            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-50"
           />
-          <Button type="submit" size="sm" disabled={pending}>
+          <Button type="submit" size="sm" disabled={pending} className="flex items-center gap-1.5 min-w-[90px] justify-center">
+            {pending && (
+              <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            )}
             {pending ? 'Importing…' : 'Import'}
           </Button>
         </div>
+
+        {pending && (
+          <div className="flex items-center gap-2 rounded-md border border-indigo-100 bg-indigo-50 px-3 py-2.5">
+            <svg className="h-4 w-4 animate-spin text-indigo-500 shrink-0" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <div>
+              <p className="text-xs font-medium text-indigo-700">Crawling and embedding content…</p>
+              <p className="text-xs text-indigo-500">This can take 15–60 seconds depending on site size.</p>
+            </div>
+          </div>
+        )}
 
         {result.error && (
           <p className="text-xs text-red-500">{result.error}</p>
