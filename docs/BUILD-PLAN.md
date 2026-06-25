@@ -18,7 +18,8 @@
 ✅ Hardening track                     (PRs #18–#39)
 ✅ Competitive gap T1 (all 5)          (PR #45)  ── H
 ✅ Competitive gap T2-1,2,3            (PR #46)  ── I
-── T2-4,5 + T3 track in progress
+✅ T1 gaps + sim + UX hardening + docs (PR #51)  ── J
+── T2-4 + T3 track in progress
 ```
 
 ---
@@ -118,7 +119,8 @@ Run alongside feature phases; none block the others.
 20. ~~**T2-3 CSAT scoring.**~~ ✅ Done — PR #46.
 21. **T2-4 Discord slash commands** — `/ask` + `/summarize` via Discord Interactions API.
 22. ~~**T2-5 Simulation / dry-run mode**~~ ✅ Done — replay last N tickets through AI pipeline, no writes. `/simulation` page with model/threshold picker and per-ticket confidence + deflect comparison.
-23. **Tier 3 gaps** — Telegram, auto-retrain, outbound campaigns, email channel, custom automations.
+23. ~~**Mintlify docs scaffold**~~ ✅ Done (PR #51) — 44 pages in `/docs`; live at `answerloops.mintlify.app`; covers self-hosting, product guide, integrations, reference.
+24. **Tier 3 gaps** — Telegram, auto-retrain, outbound campaigns, email channel, custom automations.
 
 ---
 
