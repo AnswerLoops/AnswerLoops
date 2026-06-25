@@ -1,0 +1,56 @@
+---
+title: Discord Bot Setup
+description: Create and configure the Discord bot for AnswerLoops.
+---
+
+## 1. Create a Discord Application
+
+1. Go to [discord.com/developers/applications](https://discord.com/developers/applications)
+2. Click **New Application** → name it (e.g. "AnswerLoops")
+3. Go to **Bot** tab → **Add Bot**
+4. Under **Token** → **Reset Token** → copy it
+
+```env
+DISCORD_TOKEN=your_bot_token
+DISCORD_APPLICATION_ID=your_application_id  # from General Information tab
+```
+
+## 2. Set bot permissions
+
+Under **Bot** tab, enable these **Privileged Gateway Intents**:
+- Message Content Intent
+- Server Members Intent (optional, for role pings)
+
+## 3. Invite the bot to your server
+
+Go to **OAuth2 → URL Generator**:
+- Scopes: `bot`, `applications.commands`
+- Bot permissions: `Send Messages`, `Read Message History`, `View Channels`, `Use Slash Commands`
+
+Copy the generated URL and open it in your browser to invite the bot.
+
+## 4. Get channel and guild IDs
+
+Enable Developer Mode: Discord → User Settings → Advanced → Developer Mode ✓
+
+- Right-click a channel → **Copy Channel ID**
+- Right-click your server name → **Copy Server ID**
+
+```env
+DISCORD_CHANNEL_IDS=123456789012345678,987654321098765432
+DISCORD_GUILD_ID=111222333444555666
+```
+
+## 5. Configure in AnswerLoops Settings
+
+Go to **Settings → Discord** and enter:
+- **Bot Token** — same as `DISCORD_TOKEN`
+- **Channel IDs** — channels to listen on
+- **Escalation Role ID** (optional) — role to @mention when AI confidence is low
+- **Confidence threshold** — 0–1, default 0.8
+
+## Slash commands
+
+Once connected, AnswerLoops registers these slash commands:
+- `/ask [question]` — search the knowledge base and return the best match
+- `/summarize` — summarize the current thread as bullet points

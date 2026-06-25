@@ -1,0 +1,33 @@
+---
+title: AI Deflection
+description: How AnswerLoops automatically answers questions using your knowledge base.
+---
+
+## How it works
+
+1. A user posts a question in a connected Discord channel or Slack channel
+2. AnswerLoops embeds the question as a vector using your configured embedding model
+3. It searches the knowledge base for articles with high cosine similarity
+4. If the best match exceeds the **confidence threshold**, it generates an answer and posts it in the thread
+5. If confidence is below the threshold, it triggers [human escalation](/product/escalation)
+
+## Confidence threshold
+
+Default: **0.8** (range 0–1)
+
+- Higher threshold → AI answers less, escalates more → higher accuracy, more human work
+- Lower threshold → AI answers more, escalates less → more coverage, higher risk of wrong answers
+
+Configure per-integration in **Settings → Discord** or **Settings → Slack**.
+
+## Embedding model
+
+By default: `text-embedding-3-small` (OpenAI). Articles and queries are both embedded with the same model — they must match for similarity scores to be meaningful.
+
+<Warning>
+  If you change the embedding model, existing KB articles have stale embeddings. Re-import all articles to regenerate vectors with the new model.
+</Warning>
+
+## KB match threshold
+
+Articles below a cosine similarity of **0.45** are filtered out entirely before the LLM sees them. This prevents hallucination from low-quality context.

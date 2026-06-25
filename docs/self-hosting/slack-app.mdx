@@ -1,0 +1,58 @@
+---
+title: Slack App Setup
+description: Create and configure the Slack app for AnswerLoops.
+---
+
+## 1. Create a Slack App
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
+2. Name it and select your workspace
+
+## 2. Configure OAuth scopes
+
+Go to **OAuth & Permissions** → **Bot Token Scopes** and add:
+- `channels:history`
+- `channels:read`
+- `chat:write`
+- `commands`
+- `groups:history`
+- `im:history`
+- `users:read`
+
+## 3. Install to workspace
+
+Click **Install to Workspace** → **Allow**. Copy the **Bot User OAuth Token** (`xoxb-...`).
+
+```env
+SLACK_BOT_TOKEN=xoxb-...
+```
+
+## 4. Get signing secret and team ID
+
+- **Signing secret**: Settings → Basic Information → App Credentials
+- **Team ID**: Your workspace URL `https://app.slack.com/client/T0123ABCDE` — the `T...` part
+
+```env
+SLACK_SIGNING_SECRET=your_signing_secret
+SLACK_TEAM_ID=T0123ABCDE
+```
+
+## 5. Enable Events API
+
+Go to **Event Subscriptions** → Enable Events → Request URL:
+```
+https://your-domain.com/api/slack/events
+```
+
+Subscribe to these bot events:
+- `message.channels`
+- `message.groups`
+- `message.im`
+
+## 6. Configure in AnswerLoops Settings
+
+Go to **Settings → Slack** and enter all credentials plus the channel IDs to listen on.
+
+<Tip>
+  Get channel IDs by right-clicking a channel in Slack → **Copy link** — the ID is the last segment (e.g. `C01234ABCDE`).
+</Tip>
