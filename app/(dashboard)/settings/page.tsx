@@ -31,7 +31,6 @@ interface PendingInvite {
 interface DiscordIntegration {
   id: number
   platform: string
-
   channel_ids: string[]
   escalation_role_id: string | null
   confidence_threshold: number | null
@@ -46,6 +45,35 @@ interface SlackIntegration {
   escalation_role_id: string | null
   confidence_threshold: number | null
   enabled: number
+}
+
+function useToast() {
+  const [message, setMessage] = useState<string | null>(null)
+  const show = (msg: string) => {
+    setMessage(msg)
+    setTimeout(() => setMessage(null), 3000)
+  }
+  return { toastMessage: message, showToast: show }
+}
+
+function Toast({ message }: { message: string }) {
+  return (
+    <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm text-white shadow-xl animate-in fade-in slide-in-from-bottom-2">
+      <svg className="h-4 w-4 shrink-0 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {message}
+    </div>
+  )
+}
+
+function ReadOnlyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 text-xs py-1">
+      <span className="text-gray-500 shrink-0">{label}</span>
+      <span className="font-mono text-gray-700 truncate text-right">{value}</span>
+    </div>
+  )
 }
 
 function SLARow({ config }: { config: SLAConfig }) {
@@ -93,22 +121,28 @@ function RepoRow({ repo, onRemoved }: { repo: GitHubRepo; onRemoved: () => void 
 
 function DiscordIntegrationCard() {
   const [integration, setIntegration] = useState<DiscordIntegration | null | undefined>(undefined)
+  const [editing, setEditing] = useState(false)
+  const { toastMessage, showToast } = useToast()
   const [, startDeleteTransition] = useTransition()
+
   const [saveState, saveAction, savePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveDiscordIntegrationAction(prev, fd)
       if (!result?.error) {
         const updated = await fetch('/api/integrations').then((r) => r.json())
         setIntegration(updated.find((i: DiscordIntegration) => i.platform === 'discord') ?? null)
+        setEditing(false)
+        showToast('Discord settings updated')
       }
       return result
     },
     null
   )
+
   const [deleteState, deleteAction, deletePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await deleteDiscordIntegrationAction(prev, fd)
-      if (!result?.error) setIntegration(null)
+      if (!result?.error) { setIntegration(null); setEditing(false) }
       return result
     },
     null
@@ -125,117 +159,157 @@ function DiscordIntegrationCard() {
   if (integration === undefined) return <p className="text-sm text-gray-400">Loading…</p>
 
   const connected = integration !== null && integration.enabled === 1
+  const showForm = !connected || editing
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-sm font-bold">D</div>
-          <div>
-            <p className="text-sm font-medium text-gray-900">Discord</p>
-            <p className="text-xs text-gray-500">
-              {connected
-                ? `Connected · ${integration.channel_ids.length} channel(s)`
-                : 'Not connected'}
-            </p>
+    <>
+      {toastMessage && <Toast message={toastMessage} />}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-sm font-bold">D</div>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Discord</p>
+              <p className="text-xs text-gray-500">
+                {connected
+                  ? `Connected · ${integration.channel_ids.length} channel(s)`
+                  : 'Not connected'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {connected ? 'Active' : 'Inactive'}
+            </span>
+            {connected && !editing && (
+              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+                Edit
+              </Button>
+            )}
           </div>
         </div>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-          {connected ? 'Active' : 'Inactive'}
-        </span>
-      </div>
 
-      <form action={saveAction} className="space-y-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Bot Token</label>
-          <input
-            name="botToken"
-            type="password"
-            autoComplete="new-password"
-            placeholder={connected ? '••••••••• (leave blank to keep current)' : 'Bot token from Discord Developer Portal'}
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-            required={!connected}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Channel IDs (comma-separated)</label>
-          <input
-            name="channelIds"
-            type="text"
-            defaultValue={integration?.channel_ids.join(', ') ?? ''}
-            placeholder="123456789, 987654321"
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-          />
-        </div>
-        <hr className="border-gray-100" />
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Escalation Role ID <span className="text-gray-400 font-normal">(optional)</span></label>
-          <input
-            name="escalationRoleId"
-            type="text"
-            defaultValue={integration?.escalation_role_id ?? ''}
-            placeholder="Discord role ID — e.g. 123456789012345678"
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-          />
-          <p className="text-xs text-gray-400 mt-1">When AI confidence is below threshold, this role gets @mentioned in the thread.</p>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">
-            Confidence threshold <span className="text-gray-400 font-normal">(0–1, default 0.8)</span>
-          </label>
-          <input
-            name="confidenceThreshold"
-            type="number"
-            min="0"
-            max="1"
-            step="0.05"
-            defaultValue={integration?.confidence_threshold ?? 0.8}
-            className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-          />
-          <p className="text-xs text-gray-400 mt-1">AI answers below this score trigger human escalation.</p>
-        </div>
-        {(saveState as { error?: string } | null)?.error && (
-          <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+        {/* Locked summary */}
+        {connected && !editing && (
+          <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 divide-y divide-gray-100">
+            <ReadOnlyRow label="Bot Token" value="••••••••• (saved)" />
+            <ReadOnlyRow label="Channel IDs" value={integration.channel_ids.join(', ') || '—'} />
+            {integration.escalation_role_id && (
+              <ReadOnlyRow label="Escalation Role ID" value={integration.escalation_role_id} />
+            )}
+            <ReadOnlyRow label="Confidence threshold" value={String(integration.confidence_threshold ?? 0.8)} />
+          </div>
         )}
-        <div className="flex gap-2">
-          <Button type="submit" size="sm" disabled={savePending}>
-            {savePending ? 'Saving…' : connected ? 'Update' : 'Connect'}
-          </Button>
-          {connected && (
-            <Button
-              type="button"
-              size="sm"
-              variant="danger"
-              disabled={deletePending}
-              onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
-            >
-              {deletePending ? 'Removing…' : 'Disconnect'}
-            </Button>
-          )}
-        </div>
-      </form>
-    </div>
+
+        {/* Edit form */}
+        {showForm && (
+          <form key={editing ? 'edit' : 'new'} action={saveAction} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Bot Token</label>
+              <input
+                name="botToken"
+                type="password"
+                autoComplete="new-password"
+                placeholder={connected ? '••••••••• (leave blank to keep current)' : 'Bot token from Discord Developer Portal'}
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Channel IDs (comma-separated)</label>
+              <input
+                name="channelIds"
+                type="text"
+                defaultValue={integration?.channel_ids.join(', ') ?? ''}
+                placeholder="123456789, 987654321"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <hr className="border-gray-100" />
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Escalation Role ID <span className="text-gray-400 font-normal">(optional)</span></label>
+              <input
+                name="escalationRoleId"
+                type="text"
+                defaultValue={integration?.escalation_role_id ?? ''}
+                placeholder="Discord role ID — e.g. 123456789012345678"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+              <p className="text-xs text-gray-400 mt-1">When AI confidence is below threshold, this role gets @mentioned in the thread.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Confidence threshold <span className="text-gray-400 font-normal">(0–1, default 0.8)</span>
+              </label>
+              <input
+                name="confidenceThreshold"
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                defaultValue={integration?.confidence_threshold ?? 0.8}
+                className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+              <p className="text-xs text-gray-400 mt-1">AI answers below this score trigger human escalation.</p>
+            </div>
+            {(saveState as { error?: string } | null)?.error && (
+              <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+            )}
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={savePending}>
+                {savePending ? 'Saving…' : connected ? 'Update' : 'Connect'}
+              </Button>
+              {editing && (
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                  Cancel
+                </Button>
+              )}
+              {connected && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  disabled={deletePending}
+                  onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
+                >
+                  {deletePending ? 'Removing…' : 'Disconnect'}
+                </Button>
+              )}
+            </div>
+          </form>
+        )}
+
+        {(deleteState as { error?: string } | null)?.error && (
+          <p className="text-xs text-red-600">{(deleteState as { error?: string }).error}</p>
+        )}
+      </div>
+    </>
   )
 }
 
 function SlackIntegrationCard() {
   const [integration, setIntegration] = useState<SlackIntegration | null | undefined>(undefined)
+  const [editing, setEditing] = useState(false)
+  const { toastMessage, showToast } = useToast()
   const [, startDeleteTransition] = useTransition()
+
   const [saveState, saveAction, savePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveSlackIntegrationAction(prev, fd)
       if (!result?.error) {
         const updated = await fetch('/api/integrations').then((r) => r.json())
         setIntegration(updated.find((i: SlackIntegration) => i.platform === 'slack') ?? null)
+        setEditing(false)
+        showToast('Slack settings updated')
       }
       return result
     },
     null
   )
+
   const [deleteState, deleteAction, deletePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await deleteSlackIntegrationAction(prev, fd)
-      if (!result?.error) setIntegration(null)
+      if (!result?.error) { setIntegration(null); setEditing(false) }
       return result
     },
     null
@@ -252,127 +326,158 @@ function SlackIntegrationCard() {
   if (integration === undefined) return <p className="text-sm text-gray-400">Loading…</p>
 
   const connected = integration !== null && integration.enabled === 1
+  const showForm = !connected || editing
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-sm font-bold">S</div>
-          <div>
-            <p className="text-sm font-medium text-gray-900">Slack</p>
-            <p className="text-xs text-gray-500">
-              {connected
-                ? `Connected · Team ${integration.team_id ?? '?'} · ${integration.channel_ids.length} channel(s)`
-                : 'Not connected'}
-            </p>
+    <>
+      {toastMessage && <Toast message={toastMessage} />}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-sm font-bold">S</div>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Slack</p>
+              <p className="text-xs text-gray-500">
+                {connected
+                  ? `Connected · Team ${integration.team_id ?? '?'} · ${integration.channel_ids.length} channel(s)`
+                  : 'Not connected'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {connected ? 'Active' : 'Inactive'}
+            </span>
+            {connected && !editing && (
+              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+                Edit
+              </Button>
+            )}
           </div>
         </div>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-          {connected ? 'Active' : 'Inactive'}
-        </span>
-      </div>
 
-      <form action={saveAction} className="space-y-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Bot Token</label>
-          <input
-            name="botToken"
-            type="password"
-            autoComplete="new-password"
-            placeholder={connected ? '••••••••• (leave blank to keep current)' : 'xoxb-…'}
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-            required={!connected}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Signing Secret</label>
-          <input
-            name="signingSecret"
-            type="password"
-            autoComplete="new-password"
-            placeholder={connected ? '••••••••• (leave blank to keep current)' : 'From Slack app Basic Information'}
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-            required={!connected}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Team ID</label>
-          <input
-            name="teamId"
-            type="text"
-            defaultValue={integration?.team_id ?? ''}
-            placeholder="T01234ABCDE"
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Channel IDs (comma-separated)</label>
-          <input
-            name="channelIds"
-            type="text"
-            defaultValue={integration?.channel_ids.join(', ') ?? ''}
-            placeholder="C01234ABCDE, C09876ZYXWV"
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-          />
-        </div>
-        <hr className="border-gray-100" />
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Escalation User Group ID <span className="text-gray-400 font-normal">(optional)</span></label>
-          <input
-            name="escalationRoleId"
-            type="text"
-            defaultValue={integration?.escalation_role_id ?? ''}
-            placeholder="Slack user group ID — e.g. S0123ABCDE or U0123ABCDE"
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-          />
-          <p className="text-xs text-gray-400 mt-1">S… = user group, U… = individual user. Gets pinged when AI can&apos;t confidently answer.</p>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">
-            Confidence threshold <span className="text-gray-400 font-normal">(0–1, default 0.8)</span>
-          </label>
-          <input
-            name="confidenceThreshold"
-            type="number"
-            min="0"
-            max="1"
-            step="0.05"
-            defaultValue={integration?.confidence_threshold ?? 0.8}
-            className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-          />
-        </div>
-        {(saveState as { error?: string } | null)?.error && (
-          <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+        {/* Locked summary */}
+        {connected && !editing && (
+          <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 divide-y divide-gray-100">
+            <ReadOnlyRow label="Bot Token" value="••••••••• (saved)" />
+            <ReadOnlyRow label="Signing Secret" value="••••••••• (saved)" />
+            {integration.team_id && <ReadOnlyRow label="Team ID" value={integration.team_id} />}
+            <ReadOnlyRow label="Channel IDs" value={integration.channel_ids.join(', ') || '—'} />
+            {integration.escalation_role_id && (
+              <ReadOnlyRow label="Escalation Group ID" value={integration.escalation_role_id} />
+            )}
+            <ReadOnlyRow label="Confidence threshold" value={String(integration.confidence_threshold ?? 0.8)} />
+          </div>
         )}
-        <div className="flex gap-2">
-          <Button type="submit" size="sm" disabled={savePending}>
-            {savePending ? 'Saving…' : connected ? 'Update' : 'Connect'}
-          </Button>
-          {connected && (
-            <Button
-              type="button"
-              size="sm"
-              variant="danger"
-              disabled={deletePending}
-              onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
-            >
-              {deletePending ? 'Removing…' : 'Disconnect'}
-            </Button>
-          )}
-        </div>
-      </form>
 
-      {connected && (
-        <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
-          <p className="text-xs text-gray-500 mb-1">Events API endpoint (configure in your Slack app):</p>
-          <code className="text-xs text-gray-700 break-all font-mono">{'{YOUR_DOMAIN}'}/api/slack/events</code>
-        </div>
-      )}
+        {/* Edit form */}
+        {showForm && (
+          <form key={editing ? 'edit' : 'new'} action={saveAction} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Bot Token</label>
+              <input
+                name="botToken"
+                type="password"
+                autoComplete="new-password"
+                placeholder={connected ? '••••••••• (leave blank to keep current)' : 'xoxb-…'}
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Signing Secret</label>
+              <input
+                name="signingSecret"
+                type="password"
+                autoComplete="new-password"
+                placeholder={connected ? '••••••••• (leave blank to keep current)' : 'From Slack app Basic Information'}
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Team ID</label>
+              <input
+                name="teamId"
+                type="text"
+                defaultValue={integration?.team_id ?? ''}
+                placeholder="T01234ABCDE"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Channel IDs (comma-separated)</label>
+              <input
+                name="channelIds"
+                type="text"
+                defaultValue={integration?.channel_ids.join(', ') ?? ''}
+                placeholder="C01234ABCDE, C09876ZYXWV"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <hr className="border-gray-100" />
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Escalation User Group ID <span className="text-gray-400 font-normal">(optional)</span></label>
+              <input
+                name="escalationRoleId"
+                type="text"
+                defaultValue={integration?.escalation_role_id ?? ''}
+                placeholder="Slack user group ID — e.g. S0123ABCDE or U0123ABCDE"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+              <p className="text-xs text-gray-400 mt-1">S… = user group, U… = individual user. Gets pinged when AI can&apos;t confidently answer.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Confidence threshold <span className="text-gray-400 font-normal">(0–1, default 0.8)</span>
+              </label>
+              <input
+                name="confidenceThreshold"
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                defaultValue={integration?.confidence_threshold ?? 0.8}
+                className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            {(saveState as { error?: string } | null)?.error && (
+              <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+            )}
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={savePending}>
+                {savePending ? 'Saving…' : connected ? 'Update' : 'Connect'}
+              </Button>
+              {editing && (
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                  Cancel
+                </Button>
+              )}
+              {connected && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  disabled={deletePending}
+                  onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
+                >
+                  {deletePending ? 'Removing…' : 'Disconnect'}
+                </Button>
+              )}
+            </div>
+          </form>
+        )}
 
-      {(deleteState as { error?: string } | null)?.error && (
-        <p className="text-xs text-red-600">{(deleteState as { error?: string }).error}</p>
-      )}
-    </div>
+        {connected && !editing && (
+          <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
+            <p className="text-xs text-gray-500 mb-1">Events API endpoint (configure in your Slack app):</p>
+            <code className="text-xs text-gray-700 break-all font-mono">{'{YOUR_DOMAIN}'}/api/slack/events</code>
+          </div>
+        )}
+
+        {(deleteState as { error?: string } | null)?.error && (
+          <p className="text-xs text-red-600">{(deleteState as { error?: string }).error}</p>
+        )}
+      </div>
+    </>
   )
 }
 
@@ -671,6 +776,8 @@ function AIModelSection() {
   const [config, setConfig] = useState<AIConfig | null | undefined>(undefined)
   const [chatProvider, setChatProvider] = useState('openai')
   const [embeddingProvider, setEmbeddingProvider] = useState('openai')
+  const [editing, setEditing] = useState(false)
+  const { toastMessage, showToast } = useToast()
   const [, startClearTransition] = useTransition()
 
   const [saveState, saveAction, savePending] = useActionState(
@@ -683,6 +790,8 @@ function AIModelSection() {
           setChatProvider(updated.chat_provider)
           setEmbeddingProvider(updated.embedding_provider)
         }
+        setEditing(false)
+        showToast('AI model settings updated')
       }
       return result
     },
@@ -692,7 +801,7 @@ function AIModelSection() {
   const [clearState, clearAction, clearPending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await clearAIConfigAction(prev, fd)
-      if (!result?.error) setConfig(null)
+      if (!result?.error) { setConfig(null); setEditing(false) }
       return result
     },
     null
@@ -715,202 +824,229 @@ function AIModelSection() {
   const configured = config !== null
   const chatMeta = CHAT_PROVIDERS.find((p) => p.value === chatProvider) ?? CHAT_PROVIDERS[0]
   const needsEmbedKey = chatProvider !== 'openai' || embeddingProvider === 'openai-compatible'
+  const showForm = !configured || editing
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-900">AI Model</p>
-          <p className="text-xs text-gray-500">
-            {configured
-              ? `${chatMeta.label} · ${config.chat_model}`
-              : 'Using platform default (OPENAI_API_KEY from environment)'}
-          </p>
-        </div>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${configured ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
-          {configured ? 'Custom' : 'Platform default'}
-        </span>
-      </div>
-
-      <form action={saveAction} className="space-y-4">
-        {/* Chat provider */}
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Chat provider</label>
-          <select
-            name="chat_provider"
-            value={chatProvider}
-            onChange={(e) => setChatProvider(e.target.value)}
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm bg-white"
-          >
-            {CHAT_PROVIDERS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Chat model */}
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Model ID</label>
-          <input
-            name="chat_model"
-            type="text"
-            list="chat-model-suggestions"
-            defaultValue={config?.chat_model ?? ''}
-            placeholder={chatMeta.placeholder}
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-            required
-          />
-          {chatMeta.models.length > 0 && (
-            <datalist id="chat-model-suggestions">
-              {chatMeta.models.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
-          )}
-        </div>
-
-        {/* Chat API key */}
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <label className="block text-xs font-medium text-gray-600">API key</label>
-            {configured && config.chat_api_key_set
-              ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Key saved
-                </span>
-              : <span className="text-xs text-amber-600 font-medium">No key saved</span>
-            }
-          </div>
-          <input
-            name="chat_api_key"
-            type="password"
-            autoComplete="new-password"
-            placeholder={configured && config.chat_api_key_set ? 'Leave blank to keep current key' : 'sk-…'}
-            className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-          />
-          {chatProvider === 'openai-compatible' && (
-            <p className="text-xs text-gray-400 mt-1">Leave blank for local endpoints that don't require auth.</p>
-          )}
-        </div>
-
-        {/* Base URL — only for openai-compatible */}
-        {chatProvider === 'openai-compatible' && (
+    <>
+      {toastMessage && <Toast message={toastMessage} />}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+        <div className="flex items-center justify-between">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Base URL</label>
-            <input
-              name="chat_base_url"
-              type="url"
-              defaultValue={config?.chat_base_url ?? ''}
-              placeholder="http://localhost:11434/v1"
-              className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-              required
-            />
-            <p className="text-xs text-gray-400 mt-1">Ollama: <code>http://localhost:11434/v1</code> · LM Studio: <code>http://localhost:1234/v1</code></p>
+            <p className="text-sm font-medium text-gray-900">AI Model</p>
+            <p className="text-xs text-gray-500">
+              {configured
+                ? `${chatMeta.label} · ${config.chat_model}`
+                : 'Using platform default (OPENAI_API_KEY from environment)'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${configured ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+              {configured ? 'Custom' : 'Platform default'}
+            </span>
+            {configured && !editing && (
+              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+                Edit
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Locked summary */}
+        {configured && !editing && (
+          <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 divide-y divide-gray-100">
+            <ReadOnlyRow label="Chat provider" value={chatMeta.label} />
+            <ReadOnlyRow label="Model" value={config.chat_model} />
+            <ReadOnlyRow label="Chat API key" value={config.chat_api_key_set ? '••••••••• (saved)' : 'Not set'} />
+            {config.chat_base_url && <ReadOnlyRow label="Base URL" value={config.chat_base_url} />}
+            <ReadOnlyRow label="Embedding provider" value={EMBEDDING_PROVIDERS.find(p => p.value === config.embedding_provider)?.label ?? config.embedding_provider} />
+            <ReadOnlyRow label="Embedding model" value={config.embedding_model} />
+            {config.embedding_api_key_set && <ReadOnlyRow label="Embedding API key" value="••••••••• (saved)" />}
           </div>
         )}
 
-        <hr className="border-gray-100" />
-
-        {/* Embedding section */}
-        <div>
-          <p className="text-xs font-semibold text-gray-600 mb-2">Embeddings</p>
-          <div className="space-y-3">
+        {/* Edit form */}
+        {showForm && (
+          <form key={editing ? 'edit' : 'new'} action={saveAction} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Embedding provider</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Chat provider</label>
               <select
-                name="embedding_provider"
-                value={embeddingProvider}
-                onChange={(e) => setEmbeddingProvider(e.target.value)}
+                name="chat_provider"
+                value={chatProvider}
+                onChange={(e) => setChatProvider(e.target.value)}
                 className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm bg-white"
               >
-                {EMBEDDING_PROVIDERS.map((p) => (
+                {CHAT_PROVIDERS.map((p) => (
                   <option key={p.value} value={p.value}>{p.label}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Embedding model</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Model ID</label>
               <input
-                name="embedding_model"
+                name="chat_model"
                 type="text"
-                defaultValue={config?.embedding_model ?? 'text-embedding-3-small'}
-                placeholder={embeddingProvider === 'openai-compatible' ? 'nomic-embed-text' : 'text-embedding-3-small'}
+                list="chat-model-suggestions"
+                defaultValue={config?.chat_model ?? ''}
+                placeholder={chatMeta.placeholder}
                 className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
                 required
               />
+              {chatMeta.models.length > 0 && (
+                <datalist id="chat-model-suggestions">
+                  {chatMeta.models.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
+              )}
             </div>
 
-            {needsEmbedKey && (
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="block text-xs font-medium text-gray-600">
-                    Embedding API key{chatProvider === 'openai' ? '' : ' (OpenAI key for embeddings)'}
-                  </label>
-                  {configured && config.embedding_api_key_set
-                    ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        Key saved
-                      </span>
-                    : <span className="text-xs text-amber-600 font-medium">No key saved</span>
-                  }
-                </div>
-                <input
-                  name="embedding_api_key"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder={configured && config.embedding_api_key_set ? 'Leave blank to keep current key' : 'sk-…'}
-                  className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-                />
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-xs font-medium text-gray-600">API key</label>
+                {configured && config.chat_api_key_set
+                  ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                      <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      Key saved
+                    </span>
+                  : <span className="text-xs text-amber-600 font-medium">No key saved</span>
+                }
               </div>
-            )}
+              <input
+                name="chat_api_key"
+                type="password"
+                autoComplete="new-password"
+                placeholder={configured && config.chat_api_key_set ? 'Leave blank to keep current key' : 'sk-…'}
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+              {chatProvider === 'openai-compatible' && (
+                <p className="text-xs text-gray-400 mt-1">Leave blank for local endpoints that don't require auth.</p>
+              )}
+            </div>
 
-            {embeddingProvider === 'openai-compatible' && (
+            {chatProvider === 'openai-compatible' && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Embedding base URL</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Base URL</label>
                 <input
-                  name="embedding_base_url"
+                  name="chat_base_url"
                   type="url"
-                  defaultValue={config?.embedding_base_url ?? ''}
+                  defaultValue={config?.chat_base_url ?? ''}
                   placeholder="http://localhost:11434/v1"
                   className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+                  required
                 />
+                <p className="text-xs text-gray-400 mt-1">Ollama: <code>http://localhost:11434/v1</code> · LM Studio: <code>http://localhost:1234/v1</code></p>
               </div>
             )}
-          </div>
-        </div>
 
-        {(saveState as { error?: string } | null)?.error && (
-          <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+            <hr className="border-gray-100" />
+
+            <div>
+              <p className="text-xs font-semibold text-gray-600 mb-2">Embeddings</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Embedding provider</label>
+                  <select
+                    name="embedding_provider"
+                    value={embeddingProvider}
+                    onChange={(e) => setEmbeddingProvider(e.target.value)}
+                    className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm bg-white"
+                  >
+                    {EMBEDDING_PROVIDERS.map((p) => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Embedding model</label>
+                  <input
+                    name="embedding_model"
+                    type="text"
+                    defaultValue={config?.embedding_model ?? 'text-embedding-3-small'}
+                    placeholder={embeddingProvider === 'openai-compatible' ? 'nomic-embed-text' : 'text-embedding-3-small'}
+                    className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+                    required
+                  />
+                </div>
+
+                {needsEmbedKey && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <label className="block text-xs font-medium text-gray-600">
+                        Embedding API key{chatProvider === 'openai' ? '' : ' (OpenAI key for embeddings)'}
+                      </label>
+                      {configured && config.embedding_api_key_set
+                        ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            Key saved
+                          </span>
+                        : <span className="text-xs text-amber-600 font-medium">No key saved</span>
+                      }
+                    </div>
+                    <input
+                      name="embedding_api_key"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder={configured && config.embedding_api_key_set ? 'Leave blank to keep current key' : 'sk-…'}
+                      className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+                    />
+                  </div>
+                )}
+
+                {embeddingProvider === 'openai-compatible' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Embedding base URL</label>
+                    <input
+                      name="embedding_base_url"
+                      type="url"
+                      defaultValue={config?.embedding_base_url ?? ''}
+                      placeholder="http://localhost:11434/v1"
+                      className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {(saveState as { error?: string } | null)?.error && (
+              <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+            )}
+            {(clearState as { error?: string } | null)?.error && (
+              <p className="text-xs text-red-600">{(clearState as { error?: string }).error}</p>
+            )}
+
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={savePending}>
+                {savePending ? 'Saving…' : configured ? 'Update' : 'Save'}
+              </Button>
+              {editing && (
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                  Cancel
+                </Button>
+              )}
+              {configured && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  disabled={clearPending}
+                  onClick={() => startClearTransition(() => { clearAction(new FormData()) })}
+                >
+                  {clearPending ? 'Clearing…' : 'Reset to platform default'}
+                </Button>
+              )}
+            </div>
+          </form>
         )}
-        {(clearState as { error?: string } | null)?.error && (
-          <p className="text-xs text-red-600">{(clearState as { error?: string }).error}</p>
+
+        {!configured && (
+          <p className="text-xs text-gray-400">
+            No custom config — all AI calls use the platform <code>OPENAI_API_KEY</code> env var.
+          </p>
         )}
-
-        <div className="flex gap-2">
-          <Button type="submit" size="sm" disabled={savePending}>
-            {savePending ? 'Saving…' : configured ? 'Update' : 'Save'}
-          </Button>
-          {configured && (
-            <Button
-              type="button"
-              size="sm"
-              variant="danger"
-              disabled={clearPending}
-              onClick={() => startClearTransition(() => { clearAction(new FormData()) })}
-            >
-              {clearPending ? 'Clearing…' : 'Reset to platform default'}
-            </Button>
-          )}
-        </div>
-      </form>
-
-      {!configured && (
-        <p className="text-xs text-gray-400">
-          No custom config — all AI calls use the platform <code>OPENAI_API_KEY</code> env var.
-        </p>
-      )}
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -1035,7 +1171,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetch('/api/github/repos').then((r) => r.json()).then(setRepos)
-    // SLA configs aren't exposed via API yet — load defaults
     setSlaConfigs([
       { id: 1, priority: 'critical', response_hours: 1, resolve_hours: 4, updated_at: '' },
       { id: 2, priority: 'high', response_hours: 4, resolve_hours: 24, updated_at: '' },

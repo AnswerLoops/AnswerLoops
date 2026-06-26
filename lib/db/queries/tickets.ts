@@ -296,3 +296,11 @@ export async function getSLABreachedTickets(orgId = DEFAULT_ORG_ID): Promise<Tic
   `)
   return (rows as Record<string, unknown>[]).map((r) => r as unknown as Ticket)
 }
+
+export async function deleteTicket(id: number): Promise<void> {
+  const db = await getDb()
+  await db.delete(ticketReplies).where(eq(ticketReplies.ticketId, id))
+  await db.delete(ticketEvents).where(eq(ticketEvents.ticketId, id))
+  await db.delete(aiAssessments).where(eq(aiAssessments.ticketId, id))
+  await db.delete(tickets).where(eq(tickets.id, id))
+}
