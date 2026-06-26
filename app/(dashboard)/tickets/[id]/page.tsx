@@ -18,6 +18,7 @@ import { FeedbackButtons } from '@/components/tickets/feedback-buttons'
 import { getArticleBySourceTicket } from '@/lib/db/queries/kb'
 import { PromoteKBButton } from '@/components/tickets/promote-kb-button'
 import { LocalDate } from '@/components/ui/local-date'
+import { getIntegration, parseGuildChannelMap } from '@/lib/db/queries/integrations'
 
 // Always reflect the latest ticket state (drafts, assessments, feedback).
 export const dynamic = 'force-dynamic'
@@ -27,7 +28,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const ticket = await getTicketById(Number(id))
   if (!ticket) notFound()
 
-  const [replies, events, related, assessment, feedback, kbArticle, session, members] = await Promise.all([
+  const [replies, events, related, assessment, feedback, kbArticle, session, members, discordIntegration] = await Promise.all([
     getTicketReplies(ticket.id),
     getTicketEvents(ticket.id),
     getRelatedTickets(ticket.id),
@@ -36,6 +37,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
     getArticleBySourceTicket(ticket.id),
     auth(),
     getOrgMembers(DEFAULT_ORG_ID),
+    getIntegration(DEFAULT_ORG_ID, 'discord'),
   ])
 
   const sla = getSLAStatus(ticket)
@@ -45,6 +47,13 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
 
   const currentUserId = session?.user?.id ? Number(session.user.id) : null
   const isOwner = members.find((m) => m.user_id === currentUserId)?.role === 'owner'
+
+  // Resolve guild ID: prefer per-ticket value (new tickets), fall back to
+  // the channel→guild map auto-saved by the bot on startup (old tickets).
+  const guildChannelMap = discordIntegration ? parseGuildChannelMap(discordIntegration) : {}
+  const resolvedGuildId =
+    ticket.discord_guild_id ??
+    (ticket.discord_channel_id ? guildChannelMap[ticket.discord_channel_id] ?? null : null)
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -89,9 +98,9 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
             From {ticket.discord_author_name ?? 'Unknown'} ·{' '}
             <LocalDate iso={ticket.created_at} time />
           </p>
-          {ticket.discord_guild_id && ticket.discord_channel_id && ticket.discord_message_id && (
+          {resolvedGuildId && ticket.discord_channel_id && ticket.discord_message_id && (
             <a
-              href={`https://discord.com/channels/${ticket.discord_guild_id}/${ticket.discord_channel_id}/${ticket.discord_message_id}`}
+              href={`https://discord.com/channels/${resolvedGuildId}/${ticket.discord_channel_id}/${ticket.discord_message_id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 hover:underline"

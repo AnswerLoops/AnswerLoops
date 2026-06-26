@@ -229,6 +229,7 @@ export const integrations = pgTable(
     botToken: text('bot_token'),
     botSecret: text('bot_secret').unique(),
     channelIds: text('channel_ids'),
+    guildChannelMap: text('guild_channel_map'),
     teamId: text('team_id'),
     webhookSecret: text('webhook_secret'),
     escalationRoleId: text('escalation_role_id'),
