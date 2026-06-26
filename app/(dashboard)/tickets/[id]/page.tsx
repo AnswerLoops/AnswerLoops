@@ -3,6 +3,10 @@ import Link from 'next/link'
 import { getTicketById, getTicketReplies, getTicketEvents } from '@/lib/db/queries/tickets'
 import { StatusBadge, PriorityBadge, CategoryBadge, AIDraftBadge } from '@/components/ui/badge'
 import { TicketStatusForm } from '@/components/tickets/ticket-status-form'
+import { DeleteTicketButton } from '@/components/tickets/delete-ticket-button'
+import { auth } from '@/auth'
+import { getOrgMembers } from '@/lib/db/queries/members'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { ReplyForm } from '@/components/tickets/reply-form'
 import { AIDraftPanel } from '@/components/tickets/ai-draft-panel'
 import { getSLAStatus } from '@/lib/sla/engine'
@@ -22,16 +26,24 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const ticket = await getTicketById(Number(id))
   if (!ticket) notFound()
 
-  const replies = await getTicketReplies(ticket.id)
-  const events = await getTicketEvents(ticket.id)
+  const [replies, events, related, assessment, feedback, kbArticle, session, members] = await Promise.all([
+    getTicketReplies(ticket.id),
+    getTicketEvents(ticket.id),
+    getRelatedTickets(ticket.id),
+    getAssessment(ticket.id),
+    getFeedbackSummary(ticket.id),
+    getArticleBySourceTicket(ticket.id),
+    auth(),
+    getOrgMembers(DEFAULT_ORG_ID),
+  ])
+
   const sla = getSLAStatus(ticket)
-  const related = await getRelatedTickets(ticket.id)
   const duplicateCount = related.filter((r) => r.score >= DUPLICATE_THRESHOLD).length
-  const assessment = await getAssessment(ticket.id)
-  const feedback = await getFeedbackSummary(ticket.id)
-  const kbArticle = await getArticleBySourceTicket(ticket.id)
   const resolved = ticket.status === 'resolved' || ticket.status === 'closed'
   const hasAnswer = Boolean(ticket.resolution_notes || ticket.ai_draft)
+
+  const currentUserId = session?.user?.id ? Number(session.user.id) : null
+  const isOwner = members.find((m) => m.user_id === currentUserId)?.role === 'owner'
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -77,6 +89,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
             {new Date(ticket.created_at).toLocaleString()}
           </p>
         </div>
+        {isOwner && <DeleteTicketButton ticketId={ticket.id} />}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
