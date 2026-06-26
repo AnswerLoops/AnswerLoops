@@ -22,6 +22,7 @@ export interface MessagePayload {
   content: string
   authorId: string
   authorName: string
+  guildId?: string
   channelId: string
   threadId?: string
   platform?: Platform
@@ -45,7 +46,7 @@ export async function processCommunityMessage(
   payload: MessagePayload,
   orgId = DEFAULT_ORG_ID
 ): Promise<PipelineResult> {
-  const { messageId, content, authorId, authorName, channelId, threadId, platform = 'discord' } = payload
+  const { messageId, content, authorId, authorName, guildId, channelId, threadId, platform = 'discord' } = payload
 
   const existing = await getTicketByDiscordMessageId(messageId)
   if (existing) {
@@ -69,6 +70,7 @@ export async function processCommunityMessage(
 
   const ticket = await createTicket({
     discord_message_id: messageId,
+    discord_guild_id: guildId,
     discord_channel_id: channelId,
     discord_thread_id: threadId,
     discord_author_id: authorId,

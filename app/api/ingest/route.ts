@@ -8,6 +8,7 @@ const IngestSchema = z.object({
   content: z.string().min(1),
   author_id: z.string(),
   author_name: z.string(),
+  guild_id: z.string().optional(),
   channel_id: z.string(),
   thread_id: z.string().optional(),
 })
@@ -40,13 +41,14 @@ export async function POST(request: Request) {
     return Response.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { message_id, content, author_id, author_name, channel_id, thread_id } = parsed.data
+  const { message_id, content, author_id, author_name, guild_id, channel_id, thread_id } = parsed.data
 
   const result = await processCommunityMessage({
     messageId: message_id,
     content,
     authorId: author_id,
     authorName: author_name,
+    guildId: guild_id,
     channelId: channel_id,
     threadId: thread_id,
     platform: 'discord',

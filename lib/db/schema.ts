@@ -54,6 +54,7 @@ export const tickets = pgTable(
     id: serial('id').primaryKey(),
     orgId: integer('org_id').notNull().default(1).references(() => orgs.id),
     discordMessageId: text('discord_message_id').unique(),
+    discordGuildId: text('discord_guild_id'),
     discordChannelId: text('discord_channel_id'),
     discordThreadId: text('discord_thread_id'),
     discordAuthorId: text('discord_author_id'),

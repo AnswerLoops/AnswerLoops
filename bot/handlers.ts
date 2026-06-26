@@ -36,6 +36,7 @@ export interface IncomingMessage {
   id: string
   content: string
   channelId: string
+  guildId: string | null
   author: { bot: boolean; id: string; username: string }
   channel: IncomingChannel
 }
@@ -75,6 +76,7 @@ export function buildIngestPayload(message: IncomingMessage) {
     content: message.content,
     author_id: message.author.id,
     author_name: message.author.username,
+    guild_id: message.guildId ?? undefined,
     channel_id: isThread ? message.channel.parentId ?? message.channelId : message.channelId,
     thread_id: isThread ? message.channelId : undefined,
   }
