@@ -17,6 +17,7 @@ import { getFeedbackSummary } from '@/lib/db/queries/feedback'
 import { FeedbackButtons } from '@/components/tickets/feedback-buttons'
 import { getArticleBySourceTicket } from '@/lib/db/queries/kb'
 import { PromoteKBButton } from '@/components/tickets/promote-kb-button'
+import { LocalDate } from '@/components/ui/local-date'
 
 // Always reflect the latest ticket state (drafts, assessments, feedback).
 export const dynamic = 'force-dynamic'
@@ -86,7 +87,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
             From {ticket.discord_author_name ?? 'Unknown'} ·{' '}
-            {new Date(ticket.created_at).toLocaleString()}
+            <LocalDate iso={ticket.created_at} time />
           </p>
         </div>
         {isOwner && <DeleteTicketButton ticketId={ticket.id} />}
@@ -144,7 +145,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
                 <div key={reply.id} className="bg-white rounded-lg border border-gray-200 p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-gray-700">{reply.staff_name}</span>
-                    <span className="text-xs text-gray-400">{new Date(reply.created_at).toLocaleString()}</span>
+                    <span className="text-xs text-gray-400"><LocalDate iso={reply.created_at} time /></span>
                   </div>
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{reply.content}</p>
                 </div>
@@ -245,7 +246,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
               <ul className="space-y-2">
                 {events.map((event) => (
                   <li key={event.id} className="text-xs text-gray-600 flex gap-1.5">
-                    <span className="text-gray-400 shrink-0">{new Date(event.created_at).toLocaleDateString()}</span>
+                    <span className="text-gray-400 shrink-0"><LocalDate iso={event.created_at} /></span>
                     <span>
                       {event.actor && <strong>{event.actor}</strong>}{' '}
                       {event.event_type.replace(/_/g, ' ')}

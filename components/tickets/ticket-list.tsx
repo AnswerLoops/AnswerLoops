@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { Ticket } from '@/types'
 import { StatusBadge, PriorityBadge, CategoryBadge, AIDraftBadge } from '@/components/ui/badge'
 import { getSLAStatus } from '@/lib/sla/engine'
+import { LocalDate } from '@/components/ui/local-date'
 
 function SLAIndicator({ ticket }: { ticket: Ticket }) {
   const sla = getSLAStatus(ticket)
@@ -60,7 +61,7 @@ export function TicketList({ tickets }: { tickets: Ticket[] }) {
               </td>
               <td className="px-4 py-3 text-gray-500 text-xs">{ticket.discord_author_name ?? '—'}</td>
               <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                {new Date(ticket.created_at).toLocaleDateString()}
+                <LocalDate iso={ticket.created_at} />
               </td>
             </tr>
           ))}
