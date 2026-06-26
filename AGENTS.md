@@ -53,6 +53,16 @@ Every time a feature ships or architecture changes, you **must** update all thre
 
 Docs repo: `answerloops-docs` (Mintlify). Notion docs map page ID: `38a2539abb6b81969e7cc3a5a9d98cfa`
 
+# PR creation rule — HARD REQUIREMENT
+
+When creating a PR with `gh pr create`, you **must** do the following IN ORDER. No exceptions, no skipping:
+
+1. Update all required Notion pages via `mcp__notion__notion-update-page` (see mapping table below)
+2. Tick the `- [x] Notion updated` checklist item in the PR body before submitting
+3. Only then run `gh pr create`
+
+**Never create the PR first and update Notion later.** Notion sync happens before `gh pr create` runs. If the session ends before the PR is created, the Notion update has already been done. If the Notion update fails, fix it before creating the PR.
+
 # Build plan hygiene
 
 After completing any phase or significant feature, do ALL of the following before opening the PR:
