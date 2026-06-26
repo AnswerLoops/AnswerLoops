@@ -6,6 +6,7 @@ export type AIDraftStatus = 'pending' | 'posted' | 'approved' | 'overridden'
 export interface Ticket {
   id: number
   discord_message_id: string | null
+  discord_guild_id: string | null
   discord_channel_id: string | null
   discord_thread_id: string | null
   discord_author_id: string | null
@@ -170,6 +171,7 @@ export interface TicketFilters {
 
 export interface CreateTicketInput {
   discord_message_id?: string
+  discord_guild_id?: string
   discord_channel_id?: string
   discord_thread_id?: string
   discord_author_id?: string

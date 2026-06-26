@@ -12,6 +12,7 @@ export interface Integration {
   bot_token: string | null
   bot_secret: string | null
   channel_ids: string | null
+  guild_channel_map: string | null
   team_id: string | null
   webhook_secret: string | null
   escalation_role_id: string | null
@@ -29,6 +30,7 @@ function toIntegration(row: typeof integrations.$inferSelect): Integration {
     bot_token: row.botToken,
     bot_secret: row.botSecret,
     channel_ids: row.channelIds,
+    guild_channel_map: row.guildChannelMap ?? null,
     team_id: row.teamId,
     webhook_secret: row.webhookSecret,
     escalation_role_id: row.escalationRoleId ?? null,
@@ -161,4 +163,24 @@ export function parseChannelIds(integration: Integration): string[] {
   } catch {
     return []
   }
+}
+
+/** Returns a map of { channelId → guildId } built from the bot's connected guilds. */
+export function parseGuildChannelMap(integration: Integration): Record<string, string> {
+  if (!integration.guild_channel_map) return {}
+  try {
+    return JSON.parse(integration.guild_channel_map) as Record<string, string>
+  } catch {
+    return {}
+  }
+}
+
+export async function saveGuildChannelMap(
+  orgId: number,
+  map: Record<string, string>
+): Promise<void> {
+  await getDb()
+    .update(integrations)
+    .set({ guildChannelMap: JSON.stringify(map), updatedAt: new Date().toISOString() })
+    .where(and(eq(integrations.orgId, orgId), eq(integrations.platform, 'discord')))
 }

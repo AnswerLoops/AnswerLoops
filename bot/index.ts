@@ -19,11 +19,22 @@ import {
 } from './handlers'
 import { registerSlashCommands, handleAsk, handleSummarize, type SlashConfig } from './slash'
 import { logger } from '../lib/logger'
-import { getIntegration, parseChannelIds } from '../lib/db/queries/integrations'
+import { getIntegration, parseChannelIds, saveGuildChannelMap } from '../lib/db/queries/integrations'
 import { DEFAULT_ORG_ID } from '../lib/db/schema'
 
 const MOD = 'bot'
 const CONFIG_POLL_MS = 60_000
+
+/** Builds { channelId → guildId } from all guilds the bot is currently in. */
+function buildGuildChannelMap(guilds: Map<string, { channels: { cache: Map<string, unknown> } }>): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const [guildId, guild] of guilds) {
+    for (const channelId of guild.channels.cache.keys()) {
+      map[channelId] = guildId
+    }
+  }
+  return map
+}
 
 async function loadConfig(): Promise<{
   discordToken: string
@@ -77,6 +88,9 @@ async function main() {
     slashConfig: initial.slashConfig,
   }
 
+  // client is declared below — capture via closure after it's assigned
+  let clientRef: Client | null = null
+
   setInterval(async () => {
     const fresh = await loadConfig().catch(() => null)
     if (!fresh) return
@@ -89,6 +103,12 @@ async function main() {
         module: MOD,
         channelCount: fresh.config.channelIds.length,
       })
+    }
+
+    // Refresh guild channel map in case bot joined/left servers
+    if (clientRef?.isReady()) {
+      const guildMap = buildGuildChannelMap(clientRef.guilds.cache as unknown as Map<string, { channels: { cache: Map<string, unknown> } }>)
+      await saveGuildChannelMap(DEFAULT_ORG_ID, guildMap).catch(() => null)
     }
   }, CONFIG_POLL_MS)
 
@@ -103,6 +123,7 @@ async function main() {
     // via the REST API), so we must opt into partials to receive those events.
     partials: [Partials.Message, Partials.Reaction],
   })
+  clientRef = client
 
   client.once(Events.ClientReady, async (c) => {
     logger.info(`logged in as ${c.user.tag}`, {
@@ -119,6 +140,14 @@ async function main() {
         process.env.DISCORD_GUILD_ID
       )
     }
+
+    // Auto-discover which guild owns each channel so source links work
+    // for old tickets (before per-message guild_id capture was added).
+    const guildMap = buildGuildChannelMap(c.guilds.cache as unknown as Map<string, { channels: { cache: Map<string, unknown> } }>)
+    await saveGuildChannelMap(DEFAULT_ORG_ID, guildMap).catch((err) =>
+      logger.warn('failed to save guild channel map', { module: MOD, error: err })
+    )
+    logger.info('guild channel map saved', { module: MOD, guildCount: c.guilds.cache.size })
   })
 
   client.on(Events.MessageCreate, async (message: Message) => {

@@ -17,6 +17,8 @@ import { getFeedbackSummary } from '@/lib/db/queries/feedback'
 import { FeedbackButtons } from '@/components/tickets/feedback-buttons'
 import { getArticleBySourceTicket } from '@/lib/db/queries/kb'
 import { PromoteKBButton } from '@/components/tickets/promote-kb-button'
+import { LocalDate } from '@/components/ui/local-date'
+import { getIntegration, parseGuildChannelMap } from '@/lib/db/queries/integrations'
 
 // Always reflect the latest ticket state (drafts, assessments, feedback).
 export const dynamic = 'force-dynamic'
@@ -26,7 +28,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const ticket = await getTicketById(Number(id))
   if (!ticket) notFound()
 
-  const [replies, events, related, assessment, feedback, kbArticle, session, members] = await Promise.all([
+  const [replies, events, related, assessment, feedback, kbArticle, session, members, discordIntegration] = await Promise.all([
     getTicketReplies(ticket.id),
     getTicketEvents(ticket.id),
     getRelatedTickets(ticket.id),
@@ -35,6 +37,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
     getArticleBySourceTicket(ticket.id),
     auth(),
     getOrgMembers(DEFAULT_ORG_ID),
+    getIntegration(DEFAULT_ORG_ID, 'discord'),
   ])
 
   const sla = getSLAStatus(ticket)
@@ -44,6 +47,17 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
 
   const currentUserId = session?.user?.id ? Number(session.user.id) : null
   const isOwner = members.find((m) => m.user_id === currentUserId)?.role === 'owner'
+
+  // Resolve guild ID: prefer per-ticket value (new tickets), fall back to
+  // the channel→guild map auto-saved by the bot on startup (old tickets).
+  const guildChannelMap = discordIntegration ? parseGuildChannelMap(discordIntegration) : {}
+  const resolvedGuildId =
+    ticket.discord_guild_id ??
+    (ticket.discord_channel_id ? guildChannelMap[ticket.discord_channel_id] ?? null : null)
+
+  // For forum/thread messages the message lives inside a thread (post), not
+  // the parent forum channel. Discord deep links need the thread ID.
+  const resolvedChannelId = ticket.discord_thread_id ?? ticket.discord_channel_id
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -86,8 +100,21 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
             From {ticket.discord_author_name ?? 'Unknown'} ·{' '}
-            {new Date(ticket.created_at).toLocaleString()}
+            <LocalDate iso={ticket.created_at} time />
           </p>
+          {resolvedGuildId && resolvedChannelId && ticket.discord_message_id && (
+            <a
+              href={`https://discord.com/channels/${resolvedGuildId}/${resolvedChannelId}/${ticket.discord_message_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.032.054A19.9 19.9 0 0 0 5.9 20.89a.077.077 0 0 0 .084-.026c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028A19.839 19.839 0 0 0 23.9 18.11a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.029zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+              </svg>
+              View in Discord ↗
+            </a>
+          )}
         </div>
         {isOwner && <DeleteTicketButton ticketId={ticket.id} />}
       </div>
@@ -144,7 +171,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
                 <div key={reply.id} className="bg-white rounded-lg border border-gray-200 p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-gray-700">{reply.staff_name}</span>
-                    <span className="text-xs text-gray-400">{new Date(reply.created_at).toLocaleString()}</span>
+                    <span className="text-xs text-gray-400"><LocalDate iso={reply.created_at} time /></span>
                   </div>
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{reply.content}</p>
                 </div>
@@ -245,7 +272,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
               <ul className="space-y-2">
                 {events.map((event) => (
                   <li key={event.id} className="text-xs text-gray-600 flex gap-1.5">
-                    <span className="text-gray-400 shrink-0">{new Date(event.created_at).toLocaleDateString()}</span>
+                    <span className="text-gray-400 shrink-0"><LocalDate iso={event.created_at} /></span>
                     <span>
                       {event.actor && <strong>{event.actor}</strong>}{' '}
                       {event.event_type.replace(/_/g, ' ')}

@@ -13,6 +13,7 @@ function toTicket(row: typeof tickets.$inferSelect): Ticket {
   return {
     id: row.id,
     discord_message_id: row.discordMessageId,
+    discord_guild_id: row.discordGuildId,
     discord_channel_id: row.discordChannelId,
     discord_thread_id: row.discordThreadId,
     discord_author_id: row.discordAuthorId,
@@ -69,6 +70,7 @@ export async function createTicket(input: CreateTicketInput, orgId = DEFAULT_ORG
     .values({
       orgId,
       discordMessageId: input.discord_message_id ?? null,
+      discordGuildId: input.discord_guild_id ?? null,
       discordChannelId: input.discord_channel_id ?? null,
       discordThreadId: input.discord_thread_id ?? null,
       discordAuthorId: input.discord_author_id ?? null,
