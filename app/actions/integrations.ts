@@ -12,10 +12,7 @@ import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 const DISCORD_TOKEN_RE = /^[A-Za-z0-9_-]{20,30}\.[A-Za-z0-9_-]{4,8}\.[A-Za-z0-9_-]{25,50}$/
 
 const DiscordIntegrationSchema = z.object({
-  botToken: z
-    .string()
-    .min(1, 'Bot token is required')
-    .regex(DISCORD_TOKEN_RE, 'Invalid Discord bot token format'),
+  botToken: z.string().optional(),
   channelIds: z.string().min(1, 'At least one channel ID is required'),
   escalationRoleId: z.string().optional(),
   confidenceThreshold: z.coerce.number().min(0).max(1).optional(),
@@ -38,24 +35,35 @@ export async function saveDiscordIntegrationAction(
     .map((s) => s.trim())
     .filter(Boolean)
 
-  // Verify token against Discord API before storing
-  if (!MOCK_EXTERNALS) {
-    const verify = await fetch('https://discord.com/api/v10/users/@me', {
-      headers: { Authorization: `Bot ${botToken}` },
-    })
-    if (!verify.ok) {
-      return { error: 'Discord rejected this token — check it and try again' }
+  const existing = await getIntegration(orgId, 'discord')
+
+  // Require token on first connect; allow blank to keep existing on update
+  const newToken = botToken?.trim() || null
+  if (!newToken && !existing?.bot_token) {
+    return { error: 'Bot token is required' }
+  }
+
+  // Only validate token format and verify with Discord if a new one was provided
+  if (newToken) {
+    if (!DISCORD_TOKEN_RE.test(newToken)) {
+      return { error: 'Invalid Discord bot token format' }
+    }
+    if (!MOCK_EXTERNALS) {
+      const verify = await fetch('https://discord.com/api/v10/users/@me', {
+        headers: { Authorization: `Bot ${newToken}` },
+      })
+      if (!verify.ok) {
+        return { error: 'Discord rejected this token — check it and try again' }
+      }
     }
   }
 
-  // Generate a new bot_secret only if one doesn't already exist
-  const existing = await getIntegration(orgId, 'discord')
   const botSecret = existing?.bot_secret ?? crypto.randomBytes(32).toString('hex')
 
   await upsertIntegration({
     orgId,
     platform: 'discord',
-    botToken,
+    botToken: newToken ?? undefined,
     botSecret,
     channelIds: channelIdList,
     escalationRoleId: escalationRoleId?.trim() || null,
