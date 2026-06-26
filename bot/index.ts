@@ -57,80 +57,87 @@ async function loadConfig(): Promise<{
   }
 }
 
-const { discordToken, config, slashConfig } = await loadConfig()
+async function main() {
+  const { discordToken, config, slashConfig } = await loadConfig()
 
-if (!discordToken) {
-  logger.error('No Discord token found — set it in Settings → Integrations or DISCORD_TOKEN env var', { module: MOD })
-  process.exit(1)
-}
+  if (!discordToken) {
+    logger.error('No Discord token found — set it in Settings → Integrations or DISCORD_TOKEN env var', { module: MOD })
+    process.exit(1)
+  }
 
-if (!process.env.DISCORD_APPLICATION_ID) {
-  logger.warn('DISCORD_APPLICATION_ID not set — slash commands will not be registered', { module: MOD })
-}
+  if (!process.env.DISCORD_APPLICATION_ID) {
+    logger.warn('DISCORD_APPLICATION_ID not set — slash commands will not be registered', { module: MOD })
+  }
 
-if (config.channelIds.length === 0) {
-  logger.warn('No channel IDs configured — bot will not forward any messages. Set them in Settings → Integrations.', { module: MOD })
-}
+  if (config.channelIds.length === 0) {
+    logger.warn('No channel IDs configured — bot will not forward any messages. Set them in Settings → Integrations.', { module: MOD })
+  }
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions,
-  ],
-  // Reactions arrive on messages the bot didn't cache (e.g. an AI answer posted
-  // via the REST API), so we must opt into partials to receive those events.
-  partials: [Partials.Message, Partials.Reaction],
-})
-
-client.once(Events.ClientReady, async (c) => {
-  logger.info(`logged in as ${c.user.tag}`, {
-    module: MOD,
-    channelCount: config.channelIds.length,
-    targetUrl: config.targetUrl,
+  const client = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
+      GatewayIntentBits.GuildMessageReactions,
+    ],
+    // Reactions arrive on messages the bot didn't cache (e.g. an AI answer posted
+    // via the REST API), so we must opt into partials to receive those events.
+    partials: [Partials.Message, Partials.Reaction],
   })
 
-  const applicationId = process.env.DISCORD_APPLICATION_ID
-  if (applicationId) {
-    await registerSlashCommands(
-      discordToken,
-      applicationId,
-      process.env.DISCORD_GUILD_ID // set for instant guild-scoped commands; omit for global
-    )
-  }
-})
+  client.once(Events.ClientReady, async (c) => {
+    logger.info(`logged in as ${c.user.tag}`, {
+      module: MOD,
+      channelCount: config.channelIds.length,
+      targetUrl: config.targetUrl,
+    })
 
-client.on(Events.MessageCreate, async (message: Message) => {
-  const result = await forwardMessage(message as unknown as IncomingMessage, config)
-  if (result.data?.duplicate) {
-    logger.debug('duplicate message skipped', { module: MOD, messageId: message.id })
-  } else if (result.data?.ticket_id) {
-    logger.info('ticket created', { module: MOD, ticketId: result.data.ticket_id, messageId: message.id })
-  }
-})
-
-client.on(
-  Events.MessageReactionAdd,
-  async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
-    const result = await forwardReaction(reaction as unknown as IncomingReaction, user, config)
-    if (result.data?.ticket_id) {
-      logger.info('feedback recorded', { module: MOD, ticketId: result.data.ticket_id, userId: user.id })
+    const applicationId = process.env.DISCORD_APPLICATION_ID
+    if (applicationId) {
+      await registerSlashCommands(
+        discordToken,
+        applicationId,
+        process.env.DISCORD_GUILD_ID // set for instant guild-scoped commands; omit for global
+      )
     }
-  }
-)
+  })
 
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return
-  const cmd = interaction as ChatInputCommandInteraction
+  client.on(Events.MessageCreate, async (message: Message) => {
+    const result = await forwardMessage(message as unknown as IncomingMessage, config)
+    if (result.data?.duplicate) {
+      logger.debug('duplicate message skipped', { module: MOD, messageId: message.id })
+    } else if (result.data?.ticket_id) {
+      logger.info('ticket created', { module: MOD, ticketId: result.data.ticket_id, messageId: message.id })
+    }
+  })
 
-  logger.info('slash command received', { module: MOD, command: cmd.commandName, userId: cmd.user.id })
+  client.on(
+    Events.MessageReactionAdd,
+    async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
+      const result = await forwardReaction(reaction as unknown as IncomingReaction, user, config)
+      if (result.data?.ticket_id) {
+        logger.info('feedback recorded', { module: MOD, ticketId: result.data.ticket_id, userId: user.id })
+      }
+    }
+  )
 
-  if (cmd.commandName === 'ask') {
-    await handleAsk(cmd, slashConfig)
-  } else if (cmd.commandName === 'summarize') {
-    await handleSummarize(cmd, slashConfig)
-  }
+  client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isChatInputCommand()) return
+    const cmd = interaction as ChatInputCommandInteraction
+
+    logger.info('slash command received', { module: MOD, command: cmd.commandName, userId: cmd.user.id })
+
+    if (cmd.commandName === 'ask') {
+      await handleAsk(cmd, slashConfig)
+    } else if (cmd.commandName === 'summarize') {
+      await handleSummarize(cmd, slashConfig)
+    }
+  })
+
+  client.login(discordToken)
+}
+
+main().catch((err) => {
+  logger.error('bot failed to start', { module: MOD, error: err })
+  process.exit(1)
 })
-
-client.login(discordToken)
