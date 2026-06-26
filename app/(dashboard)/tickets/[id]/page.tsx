@@ -55,6 +55,10 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
     ticket.discord_guild_id ??
     (ticket.discord_channel_id ? guildChannelMap[ticket.discord_channel_id] ?? null : null)
 
+  // For forum/thread messages the message lives inside a thread (post), not
+  // the parent forum channel. Discord deep links need the thread ID.
+  const resolvedChannelId = ticket.discord_thread_id ?? ticket.discord_channel_id
+
   return (
     <div className="max-w-4xl space-y-6">
       {/* Back navigation */}
@@ -98,9 +102,9 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
             From {ticket.discord_author_name ?? 'Unknown'} ·{' '}
             <LocalDate iso={ticket.created_at} time />
           </p>
-          {resolvedGuildId && ticket.discord_channel_id && ticket.discord_message_id && (
+          {resolvedGuildId && resolvedChannelId && ticket.discord_message_id && (
             <a
-              href={`https://discord.com/channels/${resolvedGuildId}/${ticket.discord_channel_id}/${ticket.discord_message_id}`}
+              href={`https://discord.com/channels/${resolvedGuildId}/${resolvedChannelId}/${ticket.discord_message_id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
