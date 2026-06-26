@@ -11,6 +11,7 @@ export interface Ticket {
   discord_thread_id: string | null
   discord_author_id: string | null
   discord_author_name: string | null
+  discord_deleted_at: string | null
   content: string
   // AI triage
   category: TicketCategory | null

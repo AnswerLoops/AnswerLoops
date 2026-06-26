@@ -6,6 +6,7 @@ import {
   Partials,
   MessageReaction,
   PartialMessageReaction,
+  PartialMessage,
   User,
   PartialUser,
   ChatInputCommandInteraction,
@@ -20,6 +21,7 @@ import {
 import { registerSlashCommands, handleAsk, handleSummarize, type SlashConfig } from './slash'
 import { logger } from '../lib/logger'
 import { getIntegration, parseChannelIds, saveGuildChannelMap } from '../lib/db/queries/integrations'
+import { markDiscordDeleted, markThreadDiscordDeleted } from '../lib/db/queries/tickets'
 import { DEFAULT_ORG_ID } from '../lib/db/schema'
 
 const MOD = 'bot'
@@ -168,6 +170,21 @@ async function main() {
       }
     }
   )
+
+  client.on(Events.MessageDelete, async (message: Message | PartialMessage) => {
+    if (!message.id) return
+    await markDiscordDeleted(message.id).catch((err) =>
+      logger.warn('failed to mark message deleted', { module: MOD, messageId: message.id, error: err })
+    )
+    logger.info('discord message deleted — ticket source marked', { module: MOD, messageId: message.id })
+  })
+
+  client.on(Events.ThreadDelete, async (thread) => {
+    await markThreadDiscordDeleted(thread.id).catch((err) =>
+      logger.warn('failed to mark thread deleted', { module: MOD, threadId: thread.id, error: err })
+    )
+    logger.info('discord thread deleted — ticket source marked', { module: MOD, threadId: thread.id })
+  })
 
   client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return
