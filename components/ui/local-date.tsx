@@ -9,7 +9,7 @@ export function LocalDate({
 }) {
   const d = new Date(iso)
   return (
-    <time dateTime={iso}>
+    <time dateTime={iso} suppressHydrationWarning>
       {time ? d.toLocaleString() : d.toLocaleDateString()}
     </time>
   )
