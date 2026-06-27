@@ -116,17 +116,213 @@ function NameStep({ onDone, initialName }: { onDone: () => void; initialName: st
 // ── Step 2: Connect ────────────────────────────────────────────────────────────
 
 type Platform = 'discord' | 'slack' | null
+type DiscordSubStep = 'credentials' | 'invite' | 'channels'
+
+interface GuildChannel { id: string; name: string }
+interface Guild { id: string; name: string; channels: GuildChannel[] }
+
+// Permissions: View Channel + Send Messages + Read Message History + Add Reactions + Embed Links
+const BOT_PERMISSIONS = '85056'
+
+function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+  const [subStep, setSubStep] = useState<DiscordSubStep>('credentials')
+  const [clientId, setClientId] = useState('')
+  const [botToken, setBotToken] = useState('')
+  const [guilds, setGuilds] = useState<Guild[]>([])
+  const [selectedGuild, setSelectedGuild] = useState('')
+  const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set())
+  const [fetching, setFetching] = useState(false)
+  const [fetchError, setFetchError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  const inviteUrl = clientId.trim()
+    ? `https://discord.com/oauth2/authorize?client_id=${clientId.trim()}&scope=bot&permissions=${BOT_PERMISSIONS}`
+    : ''
+
+  async function fetchGuilds() {
+    setFetching(true)
+    setFetchError('')
+    try {
+      const res = await fetch('/api/discord/guilds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: botToken }),
+      })
+      const data = await res.json() as Guild[] | { error: string }
+      if ('error' in data) { setFetchError(data.error); return }
+      setGuilds(data)
+      if (data.length === 1) setSelectedGuild(data[0].id)
+      setSubStep('channels')
+    } catch {
+      setFetchError('Failed to reach Discord. Check your internet connection.')
+    } finally {
+      setFetching(false)
+    }
+  }
+
+  async function save() {
+    const guild = guilds.find((g) => g.id === selectedGuild)
+    if (!guild || selectedChannels.size === 0) return
+    setSaving(true)
+    setSaveError('')
+    const fd = new FormData()
+    fd.set('botToken', botToken)
+    fd.set('channelIds', [...selectedChannels].join(','))
+    const result = await saveDiscordIntegrationAction(null, fd) as { error?: string } | null
+    if (result?.error) { setSaveError(result.error); setSaving(false); return }
+    onDone()
+  }
+
+  function toggleChannel(id: string) {
+    setSelectedChannels((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const activeGuild = guilds.find((g) => g.id === selectedGuild)
+
+  return (
+    <div className="space-y-5">
+      <BackButton onClick={subStep === 'credentials' ? onBack : () => setSubStep(subStep === 'channels' ? 'invite' : 'credentials')} />
+
+      {subStep === 'credentials' && (
+        <>
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3.5 py-3 text-xs text-blue-700 space-y-1">
+            <p className="font-medium">2 things needed from Discord Developer Portal</p>
+            <ol className="list-decimal list-inside space-y-0.5 text-blue-600">
+              <li>Go to <span className="font-mono">discord.com/developers</span> → New Application → give it a name</li>
+              <li>Bot tab → Reset Token → copy it below</li>
+              <li>Enable <strong>Message Content Intent</strong> under Privileged Gateway Intents → Save</li>
+              <li>Copy the <strong>Application ID</strong> from General Information → paste below</li>
+            </ol>
+          </div>
+          <Field label="Application ID" hint="General Information tab — 'Application ID'">
+            <input
+              type="text"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              placeholder="123456789012345678"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Bot Token" hint="Bot tab → Reset Token">
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={botToken}
+              onChange={(e) => setBotToken(e.target.value)}
+              placeholder="Paste your bot token"
+              className={inputCls}
+            />
+          </Field>
+          <button
+            type="button"
+            disabled={!clientId.trim() || !botToken.trim()}
+            onClick={() => setSubStep('invite')}
+            className="w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-white transition-all"
+          >
+            Continue →
+          </button>
+        </>
+      )}
+
+      {subStep === 'invite' && (
+        <>
+          <div>
+            <p className="text-sm text-gray-700 font-medium mb-1">Add the bot to your Discord server</p>
+            <p className="text-xs text-gray-500">Click the button below. Discord will open in a new tab — pick your server and click Authorize, then come back here.</p>
+          </div>
+          <a
+            href={inviteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] px-4 py-3 text-sm font-medium text-white transition-all"
+          >
+            <DiscordIcon className="h-4 w-4" />
+            Add to Discord →
+          </a>
+          <div className="relative flex items-center gap-3 py-1">
+            <div className="flex-1 h-px bg-gray-100" />
+            <span className="text-xs text-gray-400">once you've authorized</span>
+            <div className="flex-1 h-px bg-gray-100" />
+          </div>
+          <button
+            type="button"
+            onClick={fetchGuilds}
+            disabled={fetching}
+            className="w-full rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-gray-700 transition-all flex items-center justify-center gap-2"
+          >
+            {fetching && (
+              <svg className="h-3.5 w-3.5 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            )}
+            {fetching ? 'Fetching your servers…' : "I've added the bot — fetch my channels"}
+          </button>
+          {fetchError && <p className="text-xs text-red-500">{fetchError}</p>}
+        </>
+      )}
+
+      {subStep === 'channels' && (
+        <>
+          <div>
+            <p className="text-sm text-gray-700 font-medium mb-1">Pick channels to monitor</p>
+            <p className="text-xs text-gray-500">Messages posted here become support tickets automatically.</p>
+          </div>
+          {guilds.length > 1 && (
+            <Field label="Server">
+              <select
+                value={selectedGuild}
+                onChange={(e) => { setSelectedGuild(e.target.value); setSelectedChannels(new Set()) }}
+                className={inputCls}
+              >
+                <option value="">Select a server…</option>
+                {guilds.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </Field>
+          )}
+          {activeGuild && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 divide-y divide-gray-100 max-h-48 overflow-y-auto">
+              {activeGuild.channels.length === 0 ? (
+                <p className="px-3.5 py-3 text-xs text-gray-400">No text channels found in this server.</p>
+              ) : (
+                activeGuild.channels.map((ch) => (
+                  <label key={ch.id} className="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-white transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedChannels.has(ch.id)}
+                      onChange={() => toggleChannel(ch.id)}
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-gray-700"># {ch.name}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          )}
+          {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving || selectedChannels.size === 0 || !selectedGuild}
+            className="w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-white transition-all"
+          >
+            {saving ? 'Connecting…' : `Connect ${selectedChannels.size > 0 ? `${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}` : 'Discord'}`}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
 
 function ConnectStep({ onDone }: { onDone: () => void }) {
   const [platform, setPlatform] = useState<Platform>(null)
-  const [discordState, discordAction, discordPending] = useActionState(
-    async (prev: unknown, fd: FormData) => {
-      const result = await saveDiscordIntegrationAction(prev, fd)
-      if (!result?.error) onDone()
-      return result
-    },
-    null
-  )
   const [slackState, slackAction, slackPending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveSlackIntegrationAction(prev, fd)
@@ -144,45 +340,29 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
       </div>
 
       {platform === null && (
-        <div className="grid grid-cols-2 gap-3">
-          <PlatformCard
-            icon={<DiscordIcon className="h-6 w-6 text-[#5865F2]" />}
-            label="Discord"
-            bg="hover:border-[#5865F2]/40 hover:bg-indigo-50/50"
-            onClick={() => setPlatform('discord')}
-          />
-          <PlatformCard
-            icon={<SlackIcon className="h-6 w-6 text-[#4A154B]" />}
-            label="Slack"
-            bg="hover:border-purple-400/40 hover:bg-purple-50/50"
-            onClick={() => setPlatform('slack')}
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <PlatformCard
+              icon={<DiscordIcon className="h-6 w-6 text-[#5865F2]" />}
+              label="Discord"
+              bg="hover:border-[#5865F2]/40 hover:bg-indigo-50/50"
+              onClick={() => setPlatform('discord')}
+            />
+            <PlatformCard
+              icon={<SlackIcon className="h-6 w-6 text-[#4A154B]" />}
+              label="Slack"
+              bg="hover:border-purple-400/40 hover:bg-purple-50/50"
+              onClick={() => setPlatform('slack')}
+            />
+          </div>
+          <button type="button" onClick={onDone} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors pt-1">
+            Skip for now — connect later in Settings
+          </button>
+        </>
       )}
 
       {platform === 'discord' && (
-        <form action={discordAction} className="space-y-4">
-          <BackButton onClick={() => setPlatform(null)} />
-          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3.5 py-3 text-xs text-blue-700 space-y-1">
-            <p className="font-medium">Discord setup — 2 minutes</p>
-            <ol className="list-decimal list-inside space-y-0.5 text-blue-600">
-              <li>Go to <span className="font-mono">discord.com/developers</span> → New Application → Bot tab → Reset Token</li>
-              <li>Enable <strong>Message Content Intent</strong> under Privileged Gateway Intents</li>
-              <li>OAuth2 → URL Generator → scope <code>bot</code> → Send Messages + Read Message History → invite bot to your server</li>
-              <li>Right-click the channel → Copy Channel ID (enable Developer Mode in Discord settings first)</li>
-            </ol>
-          </div>
-          <Field label="Bot Token">
-            <input name="botToken" type="password" autoComplete="new-password" placeholder="Bot token from Discord Developer Portal" className={inputCls} required />
-          </Field>
-          <Field label="Channel IDs" hint="Paste channel IDs to monitor, comma-separated. Right-click channel → Copy Channel ID.">
-            <input name="channelIds" type="text" placeholder="123456789, 987654321" className={inputCls} required />
-          </Field>
-          {(discordState as { error?: string } | null)?.error && (
-            <p className="text-xs text-red-500">{(discordState as { error?: string }).error}</p>
-          )}
-          <SubmitButton pending={discordPending} label="Connect Discord" pendingLabel="Connecting…" color="discord" />
-        </form>
+        <DiscordFlow onDone={onDone} onBack={() => setPlatform(null)} />
       )}
 
       {platform === 'slack' && (
@@ -205,12 +385,6 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
           )}
           <SubmitButton pending={slackPending} label="Connect Slack" pendingLabel="Connecting…" color="slack" />
         </form>
-      )}
-
-      {platform === null && (
-        <button type="button" onClick={onDone} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors pt-1">
-          Skip for now — connect later in Settings
-        </button>
       )}
     </div>
   )
