@@ -37,8 +37,8 @@ PRs must also have a meaningful description — not "No description provided."
 
 Every time a feature ships or architecture changes, you **must** update all three:
 
-1. **Mintlify docs repo** — update or create the relevant `.mdx` page(s) in `answerloops-docs`
-2. **Notion docs map** — update the status table and any affected rows at `https://app.notion.com/p/38a2539abb6b81969e7cc3a5a9d98cfa`
+1. **Mintlify docs** — update or create the relevant `.mdx` page(s) in the `docs/` folder of this repo (Mintlify reads from `docs/` — there is no separate repo)
+2. **Notion docs map** — update the status table and any affected rows (page ID in AGENTS.md Notion table)
 3. **Notion architecture/build-plan pages** — per the mapping table in "Build plan hygiene" below
 
 | What changed | Docs pages to update |
@@ -51,7 +51,74 @@ Every time a feature ships or architecture changes, you **must** update all thre
 | Billing / plan change | product/billing.mdx + reference/billing-plans.mdx |
 | Architecture change | reference/data-model.mdx + self-hosting pages as needed |
 
-Docs repo: `answerloops-docs` (Mintlify). Notion docs map page ID: `38a2539abb6b81969e7cc3a5a9d98cfa`
+Docs are in the `docs/` folder of this repo. Notion docs map: `$NOTION_DOCS_MAP_ID` (see `.env.notion`).
+
+# Mintlify docs — architectural change rule
+
+Any change to how the system works at a pipeline, infrastructure, or integration level **must** update the relevant Mintlify `.mdx` page(s) in `answerloops-docs` in the same PR. This is not optional.
+
+Architectural changes include (but are not limited to):
+- New or replaced background jobs, polling loops, listeners, queues
+- Changes to how config is loaded, cached, or hot-reloaded
+- New DB tables, triggers, or migrations that affect system behavior
+- New or changed API contracts between services (bot ↔ app, widget ↔ app)
+- Changes to deployment topology (new service, new env var, new container)
+- New or changed external service integrations (Discord, Slack, AI providers, etc.)
+
+For each architectural change, identify the affected docs pages from the table above and update them before the PR is opened. If no existing page covers the change, create one.
+
+# Infra-test skill — automated tests on every infrastructure change
+
+On any PR that includes an infrastructure change, run `/project:infra-test` **before** opening the PR.
+
+The skill deploys a subagent to:
+1. Identify every changed infra file (DB migrations, bot, API routes, Docker, compose, schema)
+2. Write vitest/Playwright tests covering the change — placed in `tests/unit/` or `e2e/`
+3. Document the new tests in Notion (Claude Rules & Checks changelog + Build Plan entry)
+4. Add a "Tests added" section to the PR body
+5. Commit the test files to the branch
+
+The orchestrator (main Claude) then:
+- Runs `pnpm test` and verifies all new tests pass
+- Reviews that tests would actually catch a regression
+- Sends weak tests back to the subagent with specific instructions
+- Signs off with an `INFRA-TEST SIGN-OFF` block before the PR is created
+
+**Infrastructure changes** include: DB migrations/triggers, bot changes, new API routes, Docker/compose changes, new env vars, new external service integrations.
+
+# Notion leak prohibition — HARD RULE
+
+**Never include Notion page IDs, workspace URLs, or any `notion.so` / `app.notion.com` links in:**
+
+- Commit messages (subject or body)
+- PR titles or PR bodies
+- Branch names
+- Code or documentation committed to the repo — **except `AGENTS.md`**
+
+Notion page IDs live in `.env.notion` — gitignored, never committed. `AGENTS.md` contains only variable names (`$NOTION_*`), not literal IDs. All other committed files are prohibited from containing IDs. Notion workspace structure must never appear in the public git history or GitHub UI.
+
+# Subagent concurrency limit
+
+**Maximum 4 subagents running at any given time.** No exceptions.
+
+- If a task requires more than 4 subagents, queue the extras and launch them as slots free up
+- Never spawn a 5th subagent while 4 are still running — concurrent conflicts corrupt shared state (git, DB, Notion pages)
+- When queuing: finish and verify each batch of ≤4 before spawning the next
+- This applies to both Agent tool calls and `/project:infra-test` subagent spawns
+
+# Claude rules check on every PR
+
+Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are satisfied:
+
+0. `docs/BUILD-PLAN.md` updated — phase marked ✅, files list updated, Recommended next order updated
+1. Commit has subject + body (no AI attribution)
+2. Mintlify docs updated in `docs/` folder for any feature/architecture change
+3. All required Notion pages updated per the mapping tables
+4. `- [x] Notion updated` checkbox ticked in PR body
+5. `pnpm test` + `pnpm build` both pass
+6. PR has a meaningful description
+7. If infra changed: `/project:infra-test` ran and orchestrator signed off
+8. No Notion page IDs, URLs, or internal links in commit messages, PR bodies, or code (AGENTS.md excepted)
 
 # PR creation rule — HARD REQUIREMENT
 
@@ -67,8 +134,8 @@ When creating a PR with `gh pr create`, you **must** do the following IN ORDER. 
 
 After completing any phase or significant feature, do ALL of the following before opening the PR:
 
-1. Mark it `✅` in `BUILD-PLAN.md` and update the files list.
-2. Update the "Recommended next order" section.
+1. Mark it `✅` in `docs/BUILD-PLAN.md` and update the files list.
+2. Update the "Recommended next order" section in `docs/BUILD-PLAN.md`.
 3. Push to Notion — **every PR must update at minimum: Build Plan + Architecture (main) + Production Setup Guide**. Additional pages per the table below:
 
 | What changed | Pages to update |
@@ -82,12 +149,21 @@ After completing any phase or significant feature, do ALL of the following befor
 | Schema / data model change | Architecture (data model section) |
 | Deployment change | Architecture (deployment section) · Production Setup Guide |
 
-Notion page IDs:
-- Main (Architecture): `3762539abb6b80309582dba90926769d`
-- Build Plan: `37e2539abb6b814d813ce9f5e47d7e7a`
-- Business Value & Positioning: `37a2539abb6b818cbcacdca523e49a29`
-- Multi-Tenant SaaS Plan: `37b2539abb6b8150a561c62b73c5dc66`
-- Competitive Analysis: `3822539abb6b81548dc0e35b8253a5e6`
-- Production Setup Guide: `3822539abb6b8124a3dbf687e54c85ce`
+Notion page IDs — stored in `.env.notion` (gitignored, never committed).
+Read `.env.notion` at the start of any PR workflow to resolve these variable names:
+
+| Variable | Page |
+|---|---|
+| `$NOTION_ARCH_PAGE_ID` | Main (Architecture) |
+| `$NOTION_BUILD_PLAN_ID` | Build Plan |
+| `$NOTION_BUSINESS_VALUE_ID` | Business Value & Positioning |
+| `$NOTION_MULTITENANT_PLAN_ID` | Multi-Tenant SaaS Plan |
+| `$NOTION_COMPETITIVE_ANALYSIS_ID` | Competitive Analysis |
+| `$NOTION_PROD_SETUP_ID` | Production Setup Guide |
+| `$NOTION_CLAUDE_RULES_ID` | Claude Rules & Checks |
+| `$NOTION_SKILLS_PAGE_ID` | Skills & Commands |
+| `$NOTION_DOCS_MAP_ID` | Docs Map (Mintlify structure) |
+
+Setup: `cp .env.notion.example .env.notion` then fill in your workspace IDs.
 
 Use `mcp__notion__notion-update-page` with `command: "update_content"` and targeted `old_str`/`new_str` pairs — never replace entire pages.

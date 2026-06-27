@@ -1,3 +1,4 @@
+import postgres from 'postgres'
 import {
   Client,
   GatewayIntentBits,
@@ -25,7 +26,34 @@ import { markDiscordDeleted, markThreadDiscordDeleted } from '../lib/db/queries/
 import { DEFAULT_ORG_ID } from '../lib/db/schema'
 
 const MOD = 'bot'
-const CONFIG_POLL_MS = 60_000
+
+/**
+ * Opens a dedicated single connection for LISTEN/NOTIFY.
+ * Pooled connections cannot be used for LISTEN — the notification arrives on
+ * whichever connection Postgres chooses, so we need one stable connection.
+ * Returns a cleanup function that closes the connection on shutdown.
+ */
+function watchConfigChanges(onNotify: () => Promise<void>): () => Promise<void> {
+  const url = process.env.DATABASE_URL
+  if (!url) {
+    logger.warn('DATABASE_URL not set — config hot-reload disabled', { module: MOD })
+    return () => Promise.resolve()
+  }
+
+  const listener = postgres(url, { max: 1 })
+
+  listener
+    .listen('config_changed', async () => {
+      logger.info('config_changed notification — reloading', { module: MOD })
+      await onNotify().catch((err) =>
+        logger.warn('config reload failed after notify', { module: MOD, error: err })
+      )
+    })
+    .catch((err) => logger.warn('LISTEN setup failed', { module: MOD, error: err }))
+
+  logger.info('LISTEN config_changed active', { module: MOD })
+  return () => listener.end()
+}
 
 /** Builds { channelId → guildId } from all guilds the bot is currently in. */
 function buildGuildChannelMap(guilds: Map<string, { channels: { cache: Map<string, unknown> } }>): Record<string, string> {
@@ -93,7 +121,7 @@ async function main() {
   // client is declared below — capture via closure after it's assigned
   let clientRef: Client | null = null
 
-  setInterval(async () => {
+  async function reloadConfig() {
     const fresh = await loadConfig().catch(() => null)
     if (!fresh) return
     const prev = live.config.channelIds.join(',')
@@ -106,13 +134,30 @@ async function main() {
         channelCount: fresh.config.channelIds.length,
       })
     }
+  }
 
-    // Refresh guild channel map in case bot joined/left servers
-    if (clientRef?.isReady()) {
-      const guildMap = buildGuildChannelMap(clientRef.guilds.cache as unknown as Map<string, { channels: { cache: Map<string, unknown> } }>)
-      await saveGuildChannelMap(DEFAULT_ORG_ID, guildMap).catch(() => null)
-    }
-  }, CONFIG_POLL_MS)
+  async function refreshGuildMap() {
+    if (!clientRef?.isReady()) return
+    const guildMap = buildGuildChannelMap(
+      clientRef.guilds.cache as unknown as Map<string, { channels: { cache: Map<string, unknown> } }>
+    )
+    await saveGuildChannelMap(DEFAULT_ORG_ID, guildMap).catch(() => null)
+  }
+
+  // Replace polling with Postgres LISTEN/NOTIFY — fires instantly when
+  // the integrations table is written from the settings UI.
+  const stopListening = watchConfigChanges(async () => {
+    await reloadConfig()
+    await refreshGuildMap()
+  })
+
+  // Graceful shutdown
+  for (const sig of ['SIGINT', 'SIGTERM']) {
+    process.once(sig, async () => {
+      await stopListening()
+      process.exit(0)
+    })
+  }
 
   const client = new Client({
     intents: [
@@ -170,6 +215,17 @@ async function main() {
       }
     }
   )
+
+  // Keep guild→channel map current when bot joins or leaves a server.
+  client.on(Events.GuildCreate, async () => {
+    await refreshGuildMap()
+    logger.info('joined new guild — guild channel map updated', { module: MOD })
+  })
+
+  client.on(Events.GuildDelete, async () => {
+    await refreshGuildMap()
+    logger.info('left guild — guild channel map updated', { module: MOD })
+  })
 
   client.on(Events.MessageDelete, async (message: Message | PartialMessage) => {
     if (!message.id) return
