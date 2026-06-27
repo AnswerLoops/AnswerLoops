@@ -156,5 +156,6 @@ Notion page IDs:
 - Competitive Analysis: `3822539abb6b81548dc0e35b8253a5e6`
 - Production Setup Guide: `3822539abb6b8124a3dbf687e54c85ce`
 - Claude Rules & Checks: `38c2539abb6b81c4ac05efa2da553719`
+- Skills & Commands (child of rules page): `38c2539abb6b81789910d7e0b9cf33e2`
 
 Use `mcp__notion__notion-update-page` with `command: "update_content"` and targeted `old_str`/`new_str` pairs — never replace entire pages.
