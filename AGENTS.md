@@ -86,6 +86,17 @@ The orchestrator (main Claude) then:
 
 **Infrastructure changes** include: DB migrations/triggers, bot changes, new API routes, Docker/compose changes, new env vars, new external service integrations.
 
+# Notion leak prohibition — HARD RULE
+
+**Never include Notion page IDs, workspace URLs, or any `notion.so` / `app.notion.com` links in:**
+
+- Commit messages (subject or body)
+- PR titles or PR bodies
+- Branch names
+- Code, comments, or documentation committed to the repo
+
+Notion is internal and sensitive. Page IDs and workspace structure must never appear in the public git history or GitHub UI. Reference Notion work in conversation only — never in artifacts that get pushed.
+
 # Subagent concurrency limit
 
 **Maximum 4 subagents running at any given time.** No exceptions.
@@ -106,6 +117,7 @@ Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are 
 5. `pnpm test` + `pnpm build` both pass
 6. PR has a meaningful description
 7. If infra changed: `/project:infra-test` ran and orchestrator signed off
+8. No Notion page IDs, URLs, or internal links in commit messages, PR bodies, or code
 
 # PR creation rule — HARD REQUIREMENT
 
