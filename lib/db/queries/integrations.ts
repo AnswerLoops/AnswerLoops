@@ -3,7 +3,7 @@ import { getDb } from '../drizzle'
 import { integrations } from '../schema'
 import { encryptToken, decryptToken } from '@/lib/crypto/tokens'
 
-export type Platform = 'discord' | 'slack'
+export type Platform = 'discord' | 'slack' | 'telegram'
 
 export interface Integration {
   id: number
