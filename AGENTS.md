@@ -51,7 +51,7 @@ Every time a feature ships or architecture changes, you **must** update all thre
 | Billing / plan change | product/billing.mdx + reference/billing-plans.mdx |
 | Architecture change | reference/data-model.mdx + self-hosting pages as needed |
 
-Docs repo: `answerloops-docs` (Mintlify). Notion docs map page ID: `38a2539abb6b81969e7cc3a5a9d98cfa`
+Docs are in the `docs/` folder of this repo. Notion docs map: `$NOTION_DOCS_MAP_ID` (see `.env.notion`).
 
 # Mintlify docs — architectural change rule
 
@@ -95,7 +95,7 @@ The orchestrator (main Claude) then:
 - Branch names
 - Code or documentation committed to the repo — **except `AGENTS.md`**
 
-`AGENTS.md` is the sole authorized file in this repo that may contain Notion page IDs. It exists so Claude knows which pages to update via `mcp__notion__notion-update-page`. All other committed files are prohibited. Notion workspace structure must never appear in the public git history or GitHub UI.
+Notion page IDs live in `.env.notion` — gitignored, never committed. `AGENTS.md` contains only variable names (`$NOTION_*`), not literal IDs. All other committed files are prohibited from containing IDs. Notion workspace structure must never appear in the public git history or GitHub UI.
 
 # Subagent concurrency limit
 
@@ -149,14 +149,21 @@ After completing any phase or significant feature, do ALL of the following befor
 | Schema / data model change | Architecture (data model section) |
 | Deployment change | Architecture (deployment section) · Production Setup Guide |
 
-Notion page IDs:
-- Main (Architecture): `3762539abb6b80309582dba90926769d`
-- Build Plan: `37e2539abb6b814d813ce9f5e47d7e7a`
-- Business Value & Positioning: `37a2539abb6b818cbcacdca523e49a29`
-- Multi-Tenant SaaS Plan: `37b2539abb6b8150a561c62b73c5dc66`
-- Competitive Analysis: `3822539abb6b81548dc0e35b8253a5e6`
-- Production Setup Guide: `3822539abb6b8124a3dbf687e54c85ce`
-- Claude Rules & Checks: `38c2539abb6b81c4ac05efa2da553719`
-- Skills & Commands (child of rules page): `38c2539abb6b81789910d7e0b9cf33e2`
+Notion page IDs — stored in `.env.notion` (gitignored, never committed).
+Read `.env.notion` at the start of any PR workflow to resolve these variable names:
+
+| Variable | Page |
+|---|---|
+| `$NOTION_ARCH_PAGE_ID` | Main (Architecture) |
+| `$NOTION_BUILD_PLAN_ID` | Build Plan |
+| `$NOTION_BUSINESS_VALUE_ID` | Business Value & Positioning |
+| `$NOTION_MULTITENANT_PLAN_ID` | Multi-Tenant SaaS Plan |
+| `$NOTION_COMPETITIVE_ANALYSIS_ID` | Competitive Analysis |
+| `$NOTION_PROD_SETUP_ID` | Production Setup Guide |
+| `$NOTION_CLAUDE_RULES_ID` | Claude Rules & Checks |
+| `$NOTION_SKILLS_PAGE_ID` | Skills & Commands |
+| `$NOTION_DOCS_MAP_ID` | Docs Map (Mintlify structure) |
+
+Setup: `cp .env.notion.example .env.notion` then fill in your workspace IDs.
 
 Use `mcp__notion__notion-update-page` with `command: "update_content"` and targeted `old_str`/`new_str` pairs — never replace entire pages.

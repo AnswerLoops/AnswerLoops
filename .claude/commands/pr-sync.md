@@ -9,8 +9,15 @@ Run this before every `gh pr create`. Spawns a subagent that:
 
 ## Steps Claude must execute
 
+### Step 0 — load Notion IDs
+Read `.env.notion` to resolve all `$NOTION_*` variable names before making any Notion API calls:
+```bash
+cat .env.notion
+```
+Parse each `KEY=value` line. Use the resolved IDs in all subsequent Notion tool calls.
+
 ### Step 1 — read the rules
-Fetch Notion page `38c2539abb6b81c4ac05efa2da553719` (Claude Rules & Checks) with `mcp__notion__notion-fetch`.
+Fetch `$NOTION_CLAUDE_RULES_ID` (Claude Rules & Checks) with `mcp__notion__notion-fetch`.
 Verify every rule in the checklist applies correctly to this PR.
 
 ### Step 2 — audit the diff
@@ -29,14 +36,14 @@ Identify the change category from AGENTS.md's mapping table:
 ### Step 3 — update Notion
 For each required page, fetch the current content with `mcp__notion__notion-fetch`, then update with `mcp__notion__notion-update-page` using targeted `old_str`/`new_str` pairs. Never replace entire pages.
 
-Notion page IDs:
-- Architecture (main): `3762539abb6b80309582dba90926769d`
-- Build Plan: `37e2539abb6b814d813ce9f5e47d7e7a`
-- Business Value: `37a2539abb6b818cbcacdca523e49a29`
-- Multi-Tenant SaaS Plan: `37b2539abb6b8150a561c62b73c5dc66`
-- Competitive Analysis: `3822539abb6b81548dc0e35b8253a5e6`
-- Production Setup Guide: `3822539abb6b8124a3dbf687e54c85ce`
-- Claude Rules & Checks: `38c2539abb6b81c4ac05efa2da553719`
+Use IDs resolved from `.env.notion` in Step 0:
+- `$NOTION_ARCH_PAGE_ID` — Architecture (main)
+- `$NOTION_BUILD_PLAN_ID` — Build Plan
+- `$NOTION_BUSINESS_VALUE_ID` — Business Value
+- `$NOTION_MULTITENANT_PLAN_ID` — Multi-Tenant SaaS Plan
+- `$NOTION_COMPETITIVE_ANALYSIS_ID` — Competitive Analysis
+- `$NOTION_PROD_SETUP_ID` — Production Setup Guide
+- `$NOTION_CLAUDE_RULES_ID` — Claude Rules & Checks
 
 ### Step 4 — update Mintlify docs (if architectural or feature change)
 If the diff includes an architectural or feature change, identify the affected `.mdx` pages in `docs/` using the mapping table in AGENTS.md. Edit or create the relevant pages.
