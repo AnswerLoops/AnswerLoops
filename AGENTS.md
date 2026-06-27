@@ -53,6 +53,31 @@ Every time a feature ships or architecture changes, you **must** update all thre
 
 Docs repo: `answerloops-docs` (Mintlify). Notion docs map page ID: `38a2539abb6b81969e7cc3a5a9d98cfa`
 
+# Mintlify docs — architectural change rule
+
+Any change to how the system works at a pipeline, infrastructure, or integration level **must** update the relevant Mintlify `.mdx` page(s) in `answerloops-docs` in the same PR. This is not optional.
+
+Architectural changes include (but are not limited to):
+- New or replaced background jobs, polling loops, listeners, queues
+- Changes to how config is loaded, cached, or hot-reloaded
+- New DB tables, triggers, or migrations that affect system behavior
+- New or changed API contracts between services (bot ↔ app, widget ↔ app)
+- Changes to deployment topology (new service, new env var, new container)
+- New or changed external service integrations (Discord, Slack, AI providers, etc.)
+
+For each architectural change, identify the affected docs pages from the table above and update them before the PR is opened. If no existing page covers the change, create one.
+
+# Claude rules check on every PR
+
+Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are satisfied:
+
+1. Commit has subject + body (no AI attribution)
+2. Mintlify docs updated for any feature/architecture change
+3. All required Notion pages updated per the mapping tables
+4. `- [x] Notion updated` checkbox ticked in PR body
+5. `pnpm test` + `pnpm build` both pass
+6. PR has a meaningful description
+
 # PR creation rule — HARD REQUIREMENT
 
 When creating a PR with `gh pr create`, you **must** do the following IN ORDER. No exceptions, no skipping:
@@ -89,5 +114,6 @@ Notion page IDs:
 - Multi-Tenant SaaS Plan: `37b2539abb6b8150a561c62b73c5dc66`
 - Competitive Analysis: `3822539abb6b81548dc0e35b8253a5e6`
 - Production Setup Guide: `3822539abb6b8124a3dbf687e54c85ce`
+- Claude Rules & Checks: `38c2539abb6b81c4ac05efa2da553719`
 
 Use `mcp__notion__notion-update-page` with `command: "update_content"` and targeted `old_str`/`new_str` pairs — never replace entire pages.
