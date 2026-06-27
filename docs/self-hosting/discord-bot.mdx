@@ -49,6 +49,18 @@ Go to **Settings → Discord** and enter:
 - **Escalation Role ID** (optional) — role to @mention when AI confidence is low
 - **Confidence threshold** — 0–1, default 0.8
 
+## Config hot-reload
+
+The bot uses Postgres `LISTEN/NOTIFY` to pick up config changes instantly — no restart needed.
+
+When you save changes in **Settings → Discord** (channel IDs, bot token, confidence threshold), the database fires a `pg_notify('config_changed')` event. The bot's dedicated listener connection receives it and reloads config within milliseconds.
+
+The bot also updates its channel→guild map automatically whenever it joins or leaves a server (`GuildCreate` / `GuildDelete` events) — no manual ID entry required.
+
+<Note>
+The bot maintains one dedicated Postgres connection for `LISTEN`. This is separate from the connection pool and is closed cleanly on `SIGTERM`/`SIGINT`.
+</Note>
+
 ## Slash commands
 
 Once connected, AnswerLoops registers these slash commands:

@@ -37,8 +37,8 @@ PRs must also have a meaningful description — not "No description provided."
 
 Every time a feature ships or architecture changes, you **must** update all three:
 
-1. **Mintlify docs repo** — update or create the relevant `.mdx` page(s) in `answerloops-docs`
-2. **Notion docs map** — update the status table and any affected rows at `https://app.notion.com/p/38a2539abb6b81969e7cc3a5a9d98cfa`
+1. **Mintlify docs** — update or create the relevant `.mdx` page(s) in the `docs/` folder of this repo (Mintlify reads from `docs/` — there is no separate repo)
+2. **Notion docs map** — update the status table and any affected rows (page ID in AGENTS.md Notion table)
 3. **Notion architecture/build-plan pages** — per the mapping table in "Build plan hygiene" below
 
 | What changed | Docs pages to update |
@@ -93,9 +93,9 @@ The orchestrator (main Claude) then:
 - Commit messages (subject or body)
 - PR titles or PR bodies
 - Branch names
-- Code, comments, or documentation committed to the repo
+- Code or documentation committed to the repo — **except `AGENTS.md`**
 
-Notion is internal and sensitive. Page IDs and workspace structure must never appear in the public git history or GitHub UI. Reference Notion work in conversation only — never in artifacts that get pushed.
+`AGENTS.md` is the sole authorized file in this repo that may contain Notion page IDs. It exists so Claude knows which pages to update via `mcp__notion__notion-update-page`. All other committed files are prohibited. Notion workspace structure must never appear in the public git history or GitHub UI.
 
 # Subagent concurrency limit
 
@@ -110,14 +110,15 @@ Notion is internal and sensitive. Page IDs and workspace structure must never ap
 
 Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are satisfied:
 
+0. `docs/BUILD-PLAN.md` updated — phase marked ✅, files list updated, Recommended next order updated
 1. Commit has subject + body (no AI attribution)
-2. Mintlify docs updated for any feature/architecture change
+2. Mintlify docs updated in `docs/` folder for any feature/architecture change
 3. All required Notion pages updated per the mapping tables
 4. `- [x] Notion updated` checkbox ticked in PR body
 5. `pnpm test` + `pnpm build` both pass
 6. PR has a meaningful description
 7. If infra changed: `/project:infra-test` ran and orchestrator signed off
-8. No Notion page IDs, URLs, or internal links in commit messages, PR bodies, or code
+8. No Notion page IDs, URLs, or internal links in commit messages, PR bodies, or code (AGENTS.md excepted)
 
 # PR creation rule — HARD REQUIREMENT
 
@@ -133,8 +134,8 @@ When creating a PR with `gh pr create`, you **must** do the following IN ORDER. 
 
 After completing any phase or significant feature, do ALL of the following before opening the PR:
 
-1. Mark it `✅` in `BUILD-PLAN.md` and update the files list.
-2. Update the "Recommended next order" section.
+1. Mark it `✅` in `docs/BUILD-PLAN.md` and update the files list.
+2. Update the "Recommended next order" section in `docs/BUILD-PLAN.md`.
 3. Push to Notion — **every PR must update at minimum: Build Plan + Architecture (main) + Production Setup Guide**. Additional pages per the table below:
 
 | What changed | Pages to update |
