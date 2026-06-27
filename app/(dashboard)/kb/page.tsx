@@ -1,9 +1,9 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { useActionState, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import type { KBArticle, KBSearchResult } from '@/types'
+import type { KBArticle, KBSearchResult, KBSource } from '@/types'
 import { ingestUrlAction } from '@/app/actions/ingest-url'
 import type { IngestUrlResult } from '@/app/actions/ingest-url'
 
@@ -11,6 +11,198 @@ type Article = KBArticle | KBSearchResult
 
 function hasScore(a: Article): a is KBSearchResult {
   return 'score' in a
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function FileTypeIcon({ type }: { type: string }) {
+  const colors: Record<string, string> = {
+    pdf: 'text-red-500',
+    docx: 'text-blue-500',
+    md: 'text-gray-600',
+    txt: 'text-gray-500',
+    csv: 'text-green-600',
+  }
+  return (
+    <span className={`text-xs font-bold uppercase tabular-nums ${colors[type] ?? 'text-gray-500'}`}>
+      {type}
+    </span>
+  )
+}
+
+function SourcesList({ onDeleted }: { onDeleted: () => void }) {
+  const [sources, setSources] = useState<KBSource[]>([])
+  const [deleting, setDeleting] = useState<number | null>(null)
+  const [confirming, setConfirming] = useState<number | null>(null)
+
+  async function load() {
+    const res = await fetch('/api/kb/sources')
+    if (res.ok) setSources((await res.json()) as KBSource[])
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function handleDelete(id: number) {
+    setDeleting(id)
+    await fetch(`/api/kb/sources/${id}`, { method: 'DELETE' })
+    setDeleting(null)
+    setConfirming(null)
+    await load()
+    onDeleted()
+  }
+
+  if (sources.length === 0) return null
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="px-4 py-3 border-b border-gray-100">
+        <h2 className="text-sm font-semibold text-gray-900">Uploaded files</h2>
+      </div>
+      <ul className="divide-y divide-gray-100">
+        {sources.map((s) => (
+          <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <FileTypeIcon type={s.file_type} />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{s.filename}</p>
+                <p className="text-xs text-gray-400">
+                  {s.chunk_count} chunk{s.chunk_count !== 1 ? 's' : ''} · {formatBytes(s.size_bytes)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {confirming === s.id ? (
+                <>
+                  <span className="text-xs text-red-600">Delete {s.chunk_count} chunks?</span>
+                  <button
+                    onClick={() => handleDelete(s.id)}
+                    disabled={deleting === s.id}
+                    className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                  >
+                    {deleting === s.id ? 'Deleting…' : 'Confirm'}
+                  </button>
+                  <button
+                    onClick={() => setConfirming(null)}
+                    className="text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirming(s.id)}
+                  className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function FileUploadSection({ onImported }: { onImported: () => void }) {
+  const [dragging, setDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [result, setResult] = useState<{ error?: string; created?: number; filename?: string } | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const upload = useCallback(async (file: File) => {
+    setUploading(true)
+    setResult(null)
+    const fd = new FormData()
+    fd.append('file', file)
+    try {
+      const res = await fetch('/api/kb/upload', { method: 'POST', body: fd })
+      const data = await res.json() as { error?: string; created?: number; filename?: string }
+      setResult(data)
+      if (!data.error) onImported()
+    } catch {
+      setResult({ error: 'Upload failed. Try again.' })
+    } finally {
+      setUploading(false)
+    }
+  }, [onImported])
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) upload(file)
+  }
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) upload(file)
+    e.target.value = ''
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold text-gray-900">Upload file</h2>
+        <p className="text-xs text-gray-500 mt-0.5">
+          PDF, DOCX, MD, TXT, CSV — up to 50 MB. Each file is chunked and embedded into the knowledge base.
+        </p>
+      </div>
+
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        onClick={() => !uploading && inputRef.current?.click()}
+        className={`
+          flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-8 cursor-pointer transition-colors
+          ${dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/30'}
+          ${uploading ? 'pointer-events-none opacity-60' : ''}
+        `}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf,.docx,.md,.txt,.csv"
+          className="hidden"
+          onChange={onFileChange}
+        />
+        {uploading ? (
+          <>
+            <svg className="h-6 w-6 animate-spin text-indigo-500" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <p className="text-sm text-indigo-700 font-medium">Parsing and embedding…</p>
+            <p className="text-xs text-indigo-500">This can take 15–60 seconds for large files.</p>
+          </>
+        ) : (
+          <>
+            <svg className="h-6 w-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M12 16V8m0 0l-3 3m3-3l3 3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <p className="text-sm text-gray-600">
+              <span className="font-medium text-indigo-600">Click to upload</span> or drag and drop
+            </p>
+            <p className="text-xs text-gray-400">PDF · DOCX · MD · TXT · CSV</p>
+          </>
+        )}
+      </div>
+
+      {result?.error && (
+        <p className="text-xs text-red-500">{result.error}</p>
+      )}
+      {result?.created != null && !result.error && (
+        <p className="text-xs text-green-600">
+          Ingested {result.created} chunk{result.created !== 1 ? 's' : ''} from {result.filename}.
+        </p>
+      )}
+    </div>
+  )
 }
 
 function UrlIngestSection({ onImported }: { onImported: () => void }) {
@@ -96,6 +288,7 @@ export default function KBPage() {
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [sourcesKey, setSourcesKey] = useState(0)
 
   async function loadAll() {
     setLoading(true)
@@ -106,6 +299,10 @@ export default function KBPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  function refreshSources() {
+    setSourcesKey((k) => k + 1)
   }
 
   useEffect(() => {
@@ -151,10 +348,12 @@ export default function KBPage() {
     <div className="max-w-3xl space-y-5">
       <div>
         <h1 className="text-lg font-semibold text-gray-900">Knowledge Base</h1>
-        <p className="text-sm text-gray-500">Resolved answers, promoted and semantically searchable</p>
+        <p className="text-sm text-gray-500">Resolved answers, uploaded docs, and crawled pages — all semantically searchable</p>
       </div>
 
+      <FileUploadSection onImported={() => { loadAll(); refreshSources() }} />
       <UrlIngestSection onImported={loadAll} />
+      <SourcesList key={sourcesKey} onDeleted={() => { loadAll(); refreshSources() }} />
 
       <form onSubmit={search} className="flex items-center gap-2">
         <div className="relative flex-1">
@@ -207,7 +406,7 @@ export default function KBPage() {
         <p className="text-sm text-gray-500">Loading…</p>
       ) : articles.length === 0 ? (
         <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-          No articles yet. Import from a URL above or promote a resolved ticket from its detail page.
+          No articles yet. Upload a file, import from a URL, or promote a resolved ticket from its detail page.
         </p>
       ) : (
         <ul className="space-y-3">

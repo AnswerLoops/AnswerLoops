@@ -59,6 +59,7 @@ export const tickets = pgTable(
     discordThreadId: text('discord_thread_id'),
     discordAuthorId: text('discord_author_id'),
     discordAuthorName: text('discord_author_name'),
+    discordDeletedAt: text('discord_deleted_at'),
     content: text('content').notNull(),
     category: text('category'),
     severityScore: doublePrecision('severity_score'),
@@ -200,6 +201,21 @@ export const aiAssessments = pgTable('ai_assessments', {
   createdAt: text('created_at').notNull().default(now),
 })
 
+export const kbSources = pgTable(
+  'kb_sources',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id),
+    filename: text('filename').notNull(),
+    fileType: text('file_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    chunkCount: integer('chunk_count').notNull().default(0),
+    createdAt: text('created_at').notNull().default(now),
+    updatedAt: text('updated_at').notNull().default(now),
+  },
+  (t) => [index('idx_kb_sources_org').on(t.orgId)]
+)
+
 export const kbArticles = pgTable(
   'kb_articles',
   {
@@ -210,6 +226,8 @@ export const kbArticles = pgTable(
     embedding: text('embedding').notNull(),
     model: text('model').notNull(),
     sourceTicketId: integer('source_ticket_id').references(() => tickets.id),
+    sourceId: integer('source_id'),
+    sourcePage: integer('source_page'),
     published: integer('published').notNull().default(1),
     createdAt: text('created_at').notNull().default(now),
     updatedAt: text('updated_at').notNull().default(now),
@@ -217,6 +235,7 @@ export const kbArticles = pgTable(
   (t) => [
     index('idx_kb_articles_published').on(t.published),
     index('idx_kb_articles_source').on(t.sourceTicketId),
+    index('idx_kb_articles_source_id').on(t.sourceId),
   ]
 )
 

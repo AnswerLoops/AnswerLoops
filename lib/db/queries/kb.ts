@@ -11,7 +11,9 @@ function toArticle(row: typeof kbArticles.$inferSelect): KBArticle {
     id: row.id,
     question: row.question,
     answer: row.answer,
-    source_ticket_id: row.sourceTicketId,
+    source_ticket_id: row.sourceTicketId ?? null,
+    source_id: row.sourceId ?? null,
+    source_page: row.sourcePage ?? null,
     published: row.published as 0 | 1,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
@@ -138,6 +140,32 @@ export async function textSearchArticles(query: string, limit = 10, orgId = DEFA
     .orderBy(desc(kbArticles.updatedAt))
     .limit(limit)
   return rows.map(toArticle)
+}
+
+export async function createArticleFromSource(
+  input: {
+    question: string
+    answer: string
+    embedding: number[]
+    model: string
+    sourceId: number
+    sourcePage?: number
+  },
+  orgId = DEFAULT_ORG_ID
+): Promise<KBArticle> {
+  const [row] = await getDb()
+    .insert(kbArticles)
+    .values({
+      orgId,
+      question: input.question,
+      answer: input.answer,
+      embedding: JSON.stringify(input.embedding),
+      model: input.model,
+      sourceId: input.sourceId,
+      sourcePage: input.sourcePage ?? null,
+    })
+    .returning()
+  return toArticle(row)
 }
 
 export async function getKBContext(vector: number[], k = 3, orgId = DEFAULT_ORG_ID): Promise<PriorAnswer[]> {

@@ -18,6 +18,7 @@ function toTicket(row: typeof tickets.$inferSelect): Ticket {
     discord_thread_id: row.discordThreadId,
     discord_author_id: row.discordAuthorId,
     discord_author_name: row.discordAuthorName,
+    discord_deleted_at: row.discordDeletedAt ?? null,
     content: row.content,
     category: row.category as Ticket['category'],
     severity_score: row.severityScore,
@@ -297,6 +298,20 @@ export async function getSLABreachedTickets(orgId = DEFAULT_ORG_ID): Promise<Tic
     ORDER BY created_at ASC
   `)
   return (rows as Record<string, unknown>[]).map((r) => r as unknown as Ticket)
+}
+
+export async function markDiscordDeleted(discordMessageId: string): Promise<void> {
+  await getDb()
+    .update(tickets)
+    .set({ discordDeletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+    .where(eq(tickets.discordMessageId, discordMessageId))
+}
+
+export async function markThreadDiscordDeleted(threadId: string): Promise<void> {
+  await getDb()
+    .update(tickets)
+    .set({ discordDeletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+    .where(eq(tickets.discordThreadId, threadId))
 }
 
 export async function deleteTicket(id: number): Promise<void> {
