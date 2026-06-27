@@ -19,7 +19,7 @@ interface Chunk {
   answer: string
 }
 
-function chunkMarkdown(markdown: string, pageTitle: string): Chunk[] {
+export function chunkMarkdown(markdown: string, pageTitle: string): Chunk[] {
   // Split on h2/h3 headings; each section = one KB article
   const sections = markdown.split(/\n(?=#{2,3} )/)
   const chunks: Chunk[] = []

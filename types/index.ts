@@ -136,7 +136,20 @@ export interface KBArticle {
   question: string
   answer: string
   source_ticket_id: number | null
+  source_id: number | null
+  source_page: number | null
   published: 0 | 1
+  created_at: string
+  updated_at: string
+}
+
+export interface KBSource {
+  id: number
+  org_id: number
+  filename: string
+  file_type: string
+  size_bytes: number
+  chunk_count: number
   created_at: string
   updated_at: string
 }
