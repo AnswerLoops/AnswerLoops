@@ -13,7 +13,6 @@ const DISCORD_TOKEN_RE = /^[A-Za-z0-9_-]{20,30}\.[A-Za-z0-9_-]{4,8}\.[A-Za-z0-9_
 
 const DiscordIntegrationSchema = z.object({
   botToken: z.string().optional(),
-  channelIds: z.string().min(1, 'At least one channel ID is required'),
   escalationRoleId: z.string().optional(),
   confidenceThreshold: z.coerce.number().min(0).max(1).optional(),
 })
@@ -29,46 +28,61 @@ export async function saveDiscordIntegrationAction(
   const parsed = DiscordIntegrationSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { botToken, channelIds, escalationRoleId, confidenceThreshold } = parsed.data
-  const channelIdList = channelIds
-    .split(',')
+  const { botToken, escalationRoleId, confidenceThreshold } = parsed.data
+
+  // channelIds may come as checkboxes (multiple values) or a comma-separated string
+  const rawChannelIds = formData.getAll('channelIds')
+  const channelIdList = rawChannelIds
+    .flatMap((v) => String(v).split(','))
     .map((s) => s.trim())
     .filter(Boolean)
 
+  if (channelIdList.length === 0) return { error: 'At least one channel is required' }
+
   const existing = await getIntegration(orgId, 'discord')
+  const isOAuthConnected = !!existing?.connected_guild_id
 
-  // Require token on first connect; allow blank to keep existing on update
-  const newToken = botToken?.trim() || null
-  if (!newToken && !existing?.bot_token) {
-    return { error: 'Bot token is required' }
-  }
-
-  // Only validate token format and verify with Discord if a new one was provided
-  if (newToken) {
-    if (!DISCORD_TOKEN_RE.test(newToken)) {
-      return { error: 'Invalid Discord bot token format' }
+  // OAuth-connected orgs use the platform bot — no per-org token needed
+  if (!isOAuthConnected) {
+    const newToken = botToken?.trim() || null
+    if (!newToken && !existing?.bot_token) {
+      return { error: 'Bot token is required' }
     }
-    if (!MOCK_EXTERNALS) {
-      const verify = await fetch('https://discord.com/api/v10/users/@me', {
-        headers: { Authorization: `Bot ${newToken}` },
-      })
-      if (!verify.ok) {
-        return { error: 'Discord rejected this token — check it and try again' }
+
+    if (newToken) {
+      if (!DISCORD_TOKEN_RE.test(newToken)) {
+        return { error: 'Invalid Discord bot token format' }
+      }
+      if (!MOCK_EXTERNALS) {
+        const verify = await fetch('https://discord.com/api/v10/users/@me', {
+          headers: { Authorization: `Bot ${newToken}` },
+        })
+        if (!verify.ok) {
+          return { error: 'Discord rejected this token — check it and try again' }
+        }
       }
     }
+
+    const botSecret = existing?.bot_secret ?? crypto.randomBytes(32).toString('hex')
+    await upsertIntegration({
+      orgId,
+      platform: 'discord',
+      botToken: newToken ?? undefined,
+      botSecret,
+      channelIds: channelIdList,
+      escalationRoleId: escalationRoleId?.trim() || null,
+      confidenceThreshold: confidenceThreshold ?? null,
+    })
+  } else {
+    // OAuth path — update channels/settings only, preserve existing guild linkage
+    await upsertIntegration({
+      orgId,
+      platform: 'discord',
+      channelIds: channelIdList,
+      escalationRoleId: escalationRoleId?.trim() || null,
+      confidenceThreshold: confidenceThreshold ?? null,
+    })
   }
-
-  const botSecret = existing?.bot_secret ?? crypto.randomBytes(32).toString('hex')
-
-  await upsertIntegration({
-    orgId,
-    platform: 'discord',
-    botToken: newToken ?? undefined,
-    botSecret,
-    channelIds: channelIdList,
-    escalationRoleId: escalationRoleId?.trim() || null,
-    confidenceThreshold: confidenceThreshold ?? null,
-  })
 
   refresh()
 

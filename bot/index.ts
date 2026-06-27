@@ -21,7 +21,7 @@ import {
 } from './handlers'
 import { registerSlashCommands, handleAsk, handleSummarize, type SlashConfig } from './slash'
 import { logger } from '../lib/logger'
-import { getIntegration, parseChannelIds, saveGuildChannelMap } from '../lib/db/queries/integrations'
+import { getIntegration, getIntegrationByGuildId, parseChannelIds, saveGuildChannelMap } from '../lib/db/queries/integrations'
 import { markDiscordDeleted, markThreadDiscordDeleted } from '../lib/db/queries/tickets'
 import { DEFAULT_ORG_ID } from '../lib/db/schema'
 
@@ -64,6 +64,40 @@ function buildGuildChannelMap(guilds: Map<string, { channels: { cache: Map<strin
     }
   }
   return map
+}
+
+// Per-guild config cache for multi-tenant routing.
+// Maps guildId → per-org BotConfig (or null if no org has that guild connected).
+// Cleared whenever a config_changed LISTEN/NOTIFY fires so fresh DB values are
+// picked up without a bot restart.
+const guildConfigCache = new Map<string, { config: BotConfig; orgId: number } | null>()
+
+function clearGuildConfigCache() {
+  guildConfigCache.clear()
+  logger.info('per-guild config cache cleared', { module: MOD })
+}
+
+/** Resolve per-org config for a specific guildId. Falls back to null if unconfigured. */
+async function loadOrgConfigForGuild(guildId: string): Promise<{ config: BotConfig; orgId: number } | null> {
+  if (guildConfigCache.has(guildId)) return guildConfigCache.get(guildId)!
+
+  const targetUrl = process.env.BOT_TARGET_URL ?? 'http://localhost:3000'
+  const integration = await getIntegrationByGuildId(guildId).catch(() => null)
+
+  let result: { config: BotConfig; orgId: number } | null = null
+  if (integration) {
+    result = {
+      orgId: integration.org_id,
+      config: {
+        targetUrl,
+        botSecret: integration.bot_secret ?? process.env.BOT_SECRET ?? '',
+        channelIds: parseChannelIds(integration),
+      },
+    }
+  }
+
+  guildConfigCache.set(guildId, result)
+  return result
 }
 
 async function loadConfig(): Promise<{
@@ -128,6 +162,8 @@ async function main() {
     const next = fresh.config.channelIds.join(',')
     live.config = fresh.config
     live.slashConfig = fresh.slashConfig
+    // Invalidate per-guild cache so new channel/secret values are used immediately.
+    clearGuildConfigCache()
     if (prev !== next) {
       logger.info('config reloaded — channel list changed', {
         module: MOD,
@@ -198,18 +234,34 @@ async function main() {
   })
 
   client.on(Events.MessageCreate, async (message: Message) => {
-    const result = await forwardMessage(message as unknown as IncomingMessage, live.config)
+    // Multi-tenant: look up per-org config by guild. Falls back to live.config
+    // for single-org (env-var) deployments where no org has a connected guild.
+    const orgCfg = message.guildId
+      ? await loadOrgConfigForGuild(message.guildId).catch(() => null)
+      : null
+    const cfg = orgCfg?.config ?? live.config
+    const result = await forwardMessage(message as unknown as IncomingMessage, cfg)
     if (result.data?.duplicate) {
       logger.debug('duplicate message skipped', { module: MOD, messageId: message.id })
     } else if (result.data?.ticket_id) {
-      logger.info('ticket created', { module: MOD, ticketId: result.data.ticket_id, messageId: message.id })
+      logger.info('ticket created', {
+        module: MOD,
+        ticketId: result.data.ticket_id,
+        messageId: message.id,
+        orgId: orgCfg?.orgId,
+      })
     }
   })
 
   client.on(
     Events.MessageReactionAdd,
     async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
-      const result = await forwardReaction(reaction as unknown as IncomingReaction, user, live.config)
+      const guildId = (reaction.message as { guildId?: string | null }).guildId ?? null
+      const orgCfg = guildId
+        ? await loadOrgConfigForGuild(guildId).catch(() => null)
+        : null
+      const cfg = orgCfg?.config ?? live.config
+      const result = await forwardReaction(reaction as unknown as IncomingReaction, user, cfg)
       if (result.data?.ticket_id) {
         logger.info('feedback recorded', { module: MOD, ticketId: result.data.ticket_id, userId: user.id })
       }

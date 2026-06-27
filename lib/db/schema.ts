@@ -252,6 +252,7 @@ export const integrations = pgTable(
     teamId: text('team_id'),
     webhookSecret: text('webhook_secret'),
     escalationRoleId: text('escalation_role_id'),
+    connectedGuildId: text('connected_guild_id'),
     confidenceThreshold: doublePrecision('confidence_threshold').default(0.8),
     enabled: integer('enabled').notNull().default(1),
     createdAt: text('created_at').notNull().default(now),
