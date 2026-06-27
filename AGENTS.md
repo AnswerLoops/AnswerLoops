@@ -86,6 +86,15 @@ The orchestrator (main Claude) then:
 
 **Infrastructure changes** include: DB migrations/triggers, bot changes, new API routes, Docker/compose changes, new env vars, new external service integrations.
 
+# Subagent concurrency limit
+
+**Maximum 4 subagents running at any given time.** No exceptions.
+
+- If a task requires more than 4 subagents, queue the extras and launch them as slots free up
+- Never spawn a 5th subagent while 4 are still running — concurrent conflicts corrupt shared state (git, DB, Notion pages)
+- When queuing: finish and verify each batch of ≤4 before spawning the next
+- This applies to both Agent tool calls and `/project:infra-test` subagent spawns
+
 # Claude rules check on every PR
 
 Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are satisfied:
