@@ -15,83 +15,85 @@
     "name": "Get Started",
     "url": "https://app.answerloops.com/login"
   },
-  "anchors": [
-    {
-      "name": "GitHub",
-      "icon": "github",
-      "url": "https://github.com/AnswerLoops/AnswerLoops"
-    }
-  ],
-  "navigation": [
-    {
-      "group": "Getting Started",
-      "pages": [
-        "introduction",
-        "quickstart-cloud",
-        "quickstart-self-host"
-      ]
-    },
-    {
-      "group": "Self-Hosting",
-      "pages": [
-        "self-hosting/prerequisites",
-        "self-hosting/environment-variables",
-        "self-hosting/docker",
-        "self-hosting/oauth",
-        "self-hosting/ai-providers",
-        "self-hosting/discord-bot",
-        "self-hosting/slack-app",
-        "self-hosting/stripe",
-        "self-hosting/production",
-        "self-hosting/upgrading",
-        "self-hosting/troubleshooting"
-      ]
-    },
-    {
-      "group": "Product Guide",
-      "pages": [
-        "product/dashboard",
-        "product/knowledge-base",
-        "product/tickets",
-        "product/ai-deflection",
-        "product/escalation",
-        "product/csat",
-        "product/simulation",
-        "product/knowledge-gaps",
-        "product/widget",
-        "product/faq-generator",
-        "product/analytics",
-        "product/team",
-        "product/ai-config",
-        "product/billing"
-      ]
-    },
-    {
-      "group": "Integrations",
-      "pages": [
-        "integrations/discord",
-        "integrations/slack",
-        "integrations/github",
-        "integrations/openai",
-        "integrations/anthropic",
-        "integrations/google-gemini",
-        "integrations/groq",
-        "integrations/mistral",
-        "integrations/ollama",
-        "integrations/stripe"
-      ]
-    },
-    {
-      "group": "Reference",
-      "pages": [
-        "reference/environment-variables",
-        "reference/api-endpoints",
-        "reference/webhooks",
-        "reference/data-model",
-        "reference/billing-plans"
-      ]
-    }
-  ],
+  "navigation": {
+    "anchors": [
+      {
+        "name": "GitHub",
+        "icon": "github",
+        "url": "https://github.com/AnswerLoops/AnswerLoops"
+      }
+    ],
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "introduction",
+          "quickstart-cloud",
+          "quickstart-self-host"
+        ]
+      },
+      {
+        "group": "Self-Hosting",
+        "pages": [
+          "self-hosting/prerequisites",
+          "self-hosting/environment-variables",
+          "self-hosting/docker",
+          "self-hosting/oauth",
+          "self-hosting/ai-providers",
+          "self-hosting/discord-bot",
+          "self-hosting/slack-app",
+          "self-hosting/stripe",
+          "self-hosting/production",
+          "self-hosting/upgrading",
+          "self-hosting/troubleshooting"
+        ]
+      },
+      {
+        "group": "Product Guide",
+        "pages": [
+          "product/dashboard",
+          "product/knowledge-base",
+          "product/tickets",
+          "product/ai-deflection",
+          "product/escalation",
+          "product/csat",
+          "product/simulation",
+          "product/knowledge-gaps",
+          "product/widget",
+          "product/faq-generator",
+          "product/analytics",
+          "product/team",
+          "product/ai-config",
+          "product/billing"
+        ]
+      },
+      {
+        "group": "Integrations",
+        "pages": [
+          "integrations/discord",
+          "integrations/slack",
+          "integrations/github",
+          "integrations/openai",
+          "integrations/anthropic",
+          "integrations/google-gemini",
+          "integrations/groq",
+          "integrations/mistral",
+          "integrations/ollama",
+          "integrations/stripe"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/environment-variables",
+          "reference/api-endpoints",
+          "reference/webhooks",
+          "reference/data-model",
+          "reference/billing-plans"
+        ]
+      }
+    ]
+  },
   "footerSocials": {
     "github": "https://github.com/AnswerLoops/AnswerLoops"
   }
