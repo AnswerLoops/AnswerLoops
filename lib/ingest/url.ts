@@ -1,6 +1,7 @@
 import FirecrawlApp from '@mendable/firecrawl-js'
 import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
 import { createArticle, countArticles } from '@/lib/db/queries/kb'
+import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 
 const MAX_CHUNK_CHARS = 1800
 const MIN_CHUNK_CHARS = 60
@@ -111,6 +112,13 @@ async function saveChunks(chunks: Chunk[], orgId: number): Promise<number> {
 
 /** Scrape a single URL and save each heading section as a KB article. */
 export async function ingestUrl(url: string, orgId: number): Promise<{ created: number }> {
+  if (MOCK_EXTERNALS) {
+    const mockMd = `## Mock Page\n\nThis is mock content for ${url}. It contains enough text to be chunked into a KB article for testing purposes.`
+    const chunks = chunkMarkdown(mockMd, 'Mock Page')
+    const created = await saveChunks(chunks, orgId)
+    return { created }
+  }
+
   const app = makeClient()
 
   const result = await app.scrapeUrl(url, { formats: ['markdown'] })
@@ -130,6 +138,13 @@ export async function ingestSite(
   orgId: number,
   maxPages = MAX_PAGES,
 ): Promise<{ created: number; pages: number }> {
+  if (MOCK_EXTERNALS) {
+    const mockMd = `## Mock Site Page\n\nThis is mock site content for ${url}. It contains enough text to be chunked into a KB article for testing purposes. The site crawl returns multiple pages.`
+    const chunks = chunkMarkdown(mockMd, 'Mock Site Page')
+    const created = await saveChunks(chunks, orgId)
+    return { created, pages: 1 }
+  }
+
   const app = makeClient()
 
   const crawlResult = await app.crawlUrl(url, {

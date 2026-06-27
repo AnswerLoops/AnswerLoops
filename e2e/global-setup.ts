@@ -5,6 +5,9 @@ import { getDb } from '../lib/db/drizzle'
 import { runMigrations } from '../lib/db/migrate'
 import { users, memberships, orgs, githubRepos, integrations } from '../lib/db/schema'
 import { DEFAULT_ORG_ID } from '../lib/db/schema'
+import { ensureWidgetToken } from '../lib/db/queries/widgets'
+
+export const WIDGET_TOKEN_FILE = path.join(__dirname, '.tmp', 'widget-token.json')
 
 const SESSION_COOKIE = 'authjs.session-token'
 const MAX_AGE_SECONDS = 7 * 24 * 60 * 60 // 7 days
@@ -20,7 +23,7 @@ export default async function globalSetup() {
   // Truncate all tables (order matters for FK constraints)
   await db.execute(sql`
     TRUNCATE integrations, github_repos, ticket_feedback, answer_messages,
-      ticket_links, ticket_embeddings, kb_articles, faq_snapshots,
+      ticket_links, ticket_embeddings, kb_articles, kb_sources, faq_snapshots,
       notifications, ticket_events, ticket_replies, tickets,
       ai_assessments, ai_configs, push_subscriptions, sla_configs,
       invitations, memberships, users, orgs
@@ -51,6 +54,10 @@ export default async function globalSetup() {
     .insert(memberships)
     .values({ userId: 1, orgId: DEFAULT_ORG_ID, role: 'owner' })
     .onConflictDoNothing()
+
+  // Seed a widget token for the default org (used by widget.spec.ts)
+  const widgetInfo = await ensureWidgetToken(DEFAULT_ORG_ID)
+  fs.writeFileSync(WIDGET_TOKEN_FILE, JSON.stringify({ token: widgetInfo.token }))
 
   // Seed a Discord integration for the default org
   const botSecret = process.env.BOT_SECRET ?? 'test-bot-secret'

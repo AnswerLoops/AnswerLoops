@@ -6,6 +6,7 @@ import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { ingestUrl, ingestSite, IngestLimitError } from '@/lib/ingest/url'
 import { rateLimit } from '@/lib/ratelimit'
 import { logger } from '@/lib/logger'
+import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 
 const Schema = z.object({
   url: z.string().url('Must be a valid URL').max(2048, 'URL is too long'),
@@ -31,7 +32,7 @@ export async function ingestUrlAction(
   if (!session?.user) return { error: 'Unauthorized' }
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
-  if (!process.env.FIRECRAWL_API_KEY) {
+  if (!MOCK_EXTERNALS && !process.env.FIRECRAWL_API_KEY) {
     return { error: 'FIRECRAWL_API_KEY is not configured. Add it to your .env file.' }
   }
 

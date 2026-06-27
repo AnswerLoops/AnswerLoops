@@ -1,5 +1,8 @@
 import { randomUUID } from 'crypto'
-import type { APIRequestContext } from '@playwright/test'
+import path from 'path'
+import type { APIRequestContext, Page, Route } from '@playwright/test'
+
+export const FIXTURES_DIR = path.join(__dirname, 'fixtures')
 
 export const BOT_SECRET = 'test-bot-secret'
 export const BOT_AUTH = { Authorization: `Bearer ${BOT_SECRET}` }
@@ -102,4 +105,71 @@ export async function waitForTicketField(
     const t = await getTicket(request, ticketId)
     return t != null && t[field] === value
   })
+}
+
+// ---------------------------------------------------------------------------
+// Discord API mock helpers
+// ---------------------------------------------------------------------------
+
+export const MOCK_GUILD = { id: 'guild-1', name: 'Test Server' }
+export const MOCK_CHANNELS = [
+  { id: 'ch-general', name: 'general', type: 0 },
+  { id: 'ch-support', name: 'support', type: 0 },
+]
+
+/**
+ * Intercepts outbound Discord API calls made server-side from /api/discord/guilds.
+ * Must be called before the page/request action that triggers the route.
+ */
+export async function mockDiscordApi(page: Page): Promise<void> {
+  await page.route('https://discord.com/api/v10/users/@me/guilds', (route: Route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MOCK_GUILD]) })
+  )
+  await page.route(`https://discord.com/api/v10/guilds/${MOCK_GUILD.id}/channels`, (route: Route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_CHANNELS) })
+  )
+}
+
+// ---------------------------------------------------------------------------
+// KB source helpers
+// ---------------------------------------------------------------------------
+
+export interface KBSourceResponse {
+  id: number
+  filename: string
+  file_type: string
+  size_bytes: number
+  chunk_count: number
+}
+
+export async function listKBSources(request: APIRequestContext): Promise<KBSourceResponse[]> {
+  const res = await request.get('/api/kb/sources')
+  if (!res.ok()) throw new Error(`listKBSources failed: ${res.status()}`)
+  return (await res.json()) as KBSourceResponse[]
+}
+
+export async function uploadFile(
+  request: APIRequestContext,
+  filename: string,
+  mimeType: string,
+  buffer: Buffer
+): Promise<{ created: number; sourceId: number; filename: string }> {
+  const res = await request.post('/api/kb/upload', {
+    multipart: { file: { name: filename, mimeType, buffer } },
+  })
+  if (!res.ok()) throw new Error(`uploadFile failed: ${res.status()} ${await res.text()}`)
+  return (await res.json()) as { created: number; sourceId: number; filename: string }
+}
+
+// ---------------------------------------------------------------------------
+// Invite helper
+// ---------------------------------------------------------------------------
+
+export async function createTestInvite(
+  request: APIRequestContext,
+  email: string
+): Promise<{ token: string }> {
+  const res = await request.post('/api/team/invites', { data: { email, role: 'member' } })
+  if (!res.ok()) throw new Error(`createTestInvite failed: ${res.status()} ${await res.text()}`)
+  return (await res.json()) as { token: string }
 }
