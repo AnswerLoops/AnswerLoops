@@ -67,6 +67,25 @@ Architectural changes include (but are not limited to):
 
 For each architectural change, identify the affected docs pages from the table above and update them before the PR is opened. If no existing page covers the change, create one.
 
+# Infra-test skill — automated tests on every infrastructure change
+
+On any PR that includes an infrastructure change, run `/project:infra-test` **before** opening the PR.
+
+The skill deploys a subagent to:
+1. Identify every changed infra file (DB migrations, bot, API routes, Docker, compose, schema)
+2. Write vitest/Playwright tests covering the change — placed in `tests/unit/` or `e2e/`
+3. Document the new tests in Notion (Claude Rules & Checks changelog + Build Plan entry)
+4. Add a "Tests added" section to the PR body
+5. Commit the test files to the branch
+
+The orchestrator (main Claude) then:
+- Runs `pnpm test` and verifies all new tests pass
+- Reviews that tests would actually catch a regression
+- Sends weak tests back to the subagent with specific instructions
+- Signs off with an `INFRA-TEST SIGN-OFF` block before the PR is created
+
+**Infrastructure changes** include: DB migrations/triggers, bot changes, new API routes, Docker/compose changes, new env vars, new external service integrations.
+
 # Claude rules check on every PR
 
 Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are satisfied:
@@ -77,6 +96,7 @@ Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are 
 4. `- [x] Notion updated` checkbox ticked in PR body
 5. `pnpm test` + `pnpm build` both pass
 6. PR has a meaningful description
+7. If infra changed: `/project:infra-test` ran and orchestrator signed off
 
 # PR creation rule — HARD REQUIREMENT
 
