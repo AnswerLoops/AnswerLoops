@@ -128,6 +128,13 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
               </svg>
               Slack · #{ticket.discord_channel_id}
             </span>
+          ) : ticket.source_platform === 'email' && ticket.discord_author_id ? (
+            <span className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-amber-600">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Email from {ticket.discord_author_id}
+            </span>
           ) : resolvedGuildId && resolvedChannelId && ticket.discord_message_id ? (
             <a
               href={`https://discord.com/channels/${resolvedGuildId}/${resolvedChannelId}/${ticket.discord_message_id}`}

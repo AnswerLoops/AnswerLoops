@@ -12,6 +12,7 @@ import { assessAnswer, shouldAutoDeflect, ASSESS_MODEL } from '@/lib/ai/assess'
 import { sendToChannel } from '@/lib/discord/send'
 import { sendToSlackChannel } from '@/lib/slack/send'
 import { sendToTelegramChat } from '@/lib/telegram/send'
+import { sendEmailReply } from '@/lib/email/reply'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { checkDeflectionLimit } from '@/lib/billing/usage'
 import { getIntegration } from '@/lib/db/queries/integrations'
@@ -21,11 +22,12 @@ import type { PriorAnswer } from '@/types'
 
 const MOD = 'ai/agent'
 
-type Platform = 'discord' | 'slack' | 'telegram'
+type Platform = 'discord' | 'slack' | 'telegram' | 'email'
 
 async function postReply(channelId: string, content: string, orgId: number, platform: Platform): Promise<string | null> {
   if (platform === 'slack') return sendToSlackChannel(channelId, content, orgId)
   if (platform === 'telegram') return sendToTelegramChat(channelId, content, orgId)
+  if (platform === 'email') return sendEmailReply(channelId, content, orgId)
   return sendToChannel(channelId, content, orgId)
 }
 
@@ -167,6 +169,9 @@ Guidelines:
           } else {
             escalationMention = `\n\n${escalationRoleId} this question needs human review (AI confidence: ${pct}%)`
           }
+        } else if (platform === 'email') {
+          // Email: note escalation contact in reply body (can't @mention)
+          escalationMention = `\n\nThis question has been flagged for human review (AI confidence: ${pct}%). ${escalationRoleId} will follow up.`
         } else {
           // Telegram: plain text mention
           escalationMention = `\n\n@${escalationRoleId} this question needs human review (AI confidence: ${pct}%)`

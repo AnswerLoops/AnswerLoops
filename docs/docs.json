@@ -43,6 +43,7 @@
           "self-hosting/discord-bot",
           "self-hosting/slack-app",
           "self-hosting/telegram-bot",
+          "self-hosting/email-channel",
           "self-hosting/stripe",
           "self-hosting/production",
           "self-hosting/upgrading",

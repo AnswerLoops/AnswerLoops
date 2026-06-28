@@ -3,7 +3,7 @@ export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
 export type TicketCategory = 'bug' | 'feature_request' | 'documentation' | 'how_to' | 'general_question'
 export type AIDraftStatus = 'pending' | 'posted' | 'approved' | 'overridden'
 
-export type SourcePlatform = 'discord' | 'slack' | 'telegram'
+export type SourcePlatform = 'discord' | 'slack' | 'telegram' | 'email'
 
 export interface Ticket {
   id: number

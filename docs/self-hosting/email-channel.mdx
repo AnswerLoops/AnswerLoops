@@ -1,0 +1,81 @@
+---
+title: Email Channel Setup
+description: Route inbound support emails through the AnswerLoops AI pipeline.
+---
+
+## How it works
+
+AnswerLoops accepts inbound emails via a **webhook endpoint** — no IMAP polling, no persistent connection. Your email provider (SendGrid, Mailgun, Postmark, Cloudflare Email Routing, or any provider that supports inbound webhooks) forwards emails to `POST /api/email/ingest`. The AI pipeline triages, embeds, and answers the email, then replies directly to the sender via Resend.
+
+## 1. Prerequisites
+
+- `RESEND_API_KEY` and `RESEND_FROM` must be set (used for outbound replies)
+- An account with a supported email routing provider
+
+## 2. Configure in AnswerLoops Settings
+
+Go to **Settings → Email** and enter:
+
+- **Reply-from address** (optional) — the `From:` address for AI replies. Defaults to `RESEND_FROM` env var if blank.
+- **Allowed sender addresses/domains** (optional) — comma-separated list of emails or domains to accept (e.g. `example.com, partner@other.com`). Leave blank to accept all inbound email.
+- **Escalation email** (optional) — referenced in replies when AI confidence is below threshold.
+- **Confidence threshold** — 0–1, default 0.8.
+
+Click **Connect**. The webhook secret is shown once — copy it before closing.
+
+## 3. Configure your email provider
+
+Point your provider's inbound webhook at:
+
+```
+POST https://yourapp.com/api/email/ingest
+```
+
+Set the custom secret header:
+
+```
+X-Email-Webhook-Secret: <your webhook secret>
+```
+
+### Provider-specific guides
+
+**SendGrid Inbound Parse**
+1. Settings → Inbound Parse → Add Host & URL
+2. Enter your domain and `https://yourapp.com/api/email/ingest`
+3. Set the `X-Email-Webhook-Secret` header via your SendGrid HTTP POST settings
+
+**Mailgun Routes**
+1. Sending → Routes → Create Route
+2. Match filter: `match_recipient("support@yourdomain.com")`
+3. Action: `forward("https://yourapp.com/api/email/ingest")`
+4. Add `X-Email-Webhook-Secret` in the route headers
+
+**Postmark Inbound**
+1. Message Streams → Inbound → Settings
+2. Inbound webhook URL: `https://yourapp.com/api/email/ingest`
+3. Set the `X-Email-Webhook-Secret` header in Postmark webhook settings
+
+**Cloudflare Email Routing**
+1. Email → Email Routing → Rules
+2. Forward to a Worker that POSTs to your webhook URL with the secret header
+
+## 4. Verify
+
+Send an email to your monitored address. A ticket should appear in `/tickets` within a few seconds with source badge "Email from sender@domain.com".
+
+## Environment variables
+
+| Variable | What it is |
+|---|---|
+| `RESEND_API_KEY` | Required for outbound replies |
+| `RESEND_FROM` | Default reply-from address (e.g. `support@yourdomain.com`) |
+
+No additional env vars are required — the webhook secret is stored in the database per org.
+
+## Notes
+
+- Quoted reply chains are stripped — only the new message content is ingested.
+- `Subject` is prepended to the body so triage has full context.
+- Messages under 10 characters are ignored.
+- The webhook secret is auto-generated per org and stable — re-saving settings preserves the same secret.
+- Replies use Resend's `In-Reply-To` header for proper email threading.
