@@ -1,8 +1,8 @@
 'use client'
 
-import { useActionState, useCallback, useRef, useState } from 'react'
+import { useActionState, useCallback, useEffect, useRef, useState } from 'react'
 import { updateWorkspaceNameAction, completeOnboardingAction } from '@/app/actions/onboarding'
-import { saveDiscordIntegrationAction, saveSlackIntegrationAction } from '@/app/actions/integrations'
+import { saveDiscordIntegrationAction, saveSlackIntegrationAction, saveTelegramIntegrationAction } from '@/app/actions/integrations'
 import { ingestUrlAction } from '@/app/actions/ingest-url'
 import type { IngestUrlResult } from '@/app/actions/ingest-url'
 
@@ -24,39 +24,73 @@ function SlackIcon({ className }: { className?: string }) {
   )
 }
 
+function TelegramIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+    </svg>
+  )
+}
+
+function EmailIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
 // ── Shared UI ──────────────────────────────────────────────────────────────────
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">{label}</label>
+      <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">{label}</label>
       {hint && <p className="text-xs text-gray-400 mb-2">{hint}</p>}
       {children}
     </div>
   )
 }
 
-const inputCls = 'w-full rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-colors'
+const inputCls = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-colors'
 
-function SubmitButton({ pending, label, pendingLabel, color }: { pending: boolean; label: string; pendingLabel: string; color?: 'discord' | 'slack' }) {
-  const base = 'w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-all disabled:opacity-60'
+function PrimaryButton({ pending, label, pendingLabel, color, type = 'submit', onClick }: {
+  pending?: boolean; label: string; pendingLabel?: string
+  color?: 'discord' | 'slack' | 'telegram' | 'default'
+  type?: 'submit' | 'button'
+  onClick?: () => void
+}) {
   const colors =
-    color === 'discord' ? 'bg-[#5865F2] hover:bg-[#4752c4] text-white' :
-    color === 'slack'   ? 'bg-[#4A154B] hover:bg-[#3d1040] text-white' :
-                          'bg-indigo-600 hover:bg-indigo-700 text-white'
+    color === 'discord'  ? 'bg-[#5865F2] hover:bg-[#4752c4] text-white shadow-[#5865F2]/25' :
+    color === 'slack'    ? 'bg-[#4A154B] hover:bg-[#3d1040] text-white shadow-[#4A154B]/25' :
+    color === 'telegram' ? 'bg-[#229ED9] hover:bg-[#1a8ec5] text-white shadow-[#229ED9]/25' :
+                           'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/25'
   return (
-    <button type="submit" disabled={pending} className={`${base} ${colors}`}>
-      {pending ? pendingLabel : label}
+    <button
+      type={type}
+      disabled={pending}
+      onClick={onClick}
+      className={`w-full rounded-xl px-4 py-3 text-sm font-semibold shadow-md transition-all disabled:opacity-50 disabled:shadow-none ${colors}`}
+    >
+      {pending ? (pendingLabel ?? label) : label}
     </button>
   )
 }
 
-function PlatformCard({ icon, label, bg, onClick }: { icon: React.ReactNode; label: string; bg: string; onClick: () => void }) {
+function PlatformCard({ icon, label, badge, bg, borderColor, onClick }: {
+  icon: React.ReactNode; label: string; badge?: string; bg: string; borderColor: string; onClick: () => void
+}) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-3 rounded-xl border-2 border-gray-200 p-5 text-sm font-medium text-gray-700 transition-all ${bg} hover:shadow-sm`}
+      className={`relative flex flex-col items-center gap-3 rounded-2xl border-2 p-5 text-sm font-semibold text-gray-700 transition-all hover:shadow-md active:scale-[0.98] ${bg} ${borderColor}`}
     >
+      {badge && (
+        <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider text-white bg-indigo-500 rounded-full px-1.5 py-0.5 leading-tight">
+          {badge}
+        </span>
+      )}
       {icon}
       {label}
     </button>
@@ -65,7 +99,7 @@ function PlatformCard({ icon, label, bg, onClick }: { icon: React.ReactNode; lab
 
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors">
       <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
         <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
@@ -78,6 +112,15 @@ function CheckIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
       <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
     </svg>
   )
 }
@@ -95,19 +138,27 @@ function NameStep({ onDone, initialName }: { onDone: () => void; initialName: st
   )
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Name your workspace</h2>
-        <p className="mt-1 text-sm text-gray-500">This is how your team will identify this workspace.</p>
+    <div className="space-y-8">
+      <div className="space-y-1.5">
+        <h2 className="text-xl font-bold text-gray-900">Name your workspace</h2>
+        <p className="text-sm text-gray-500">This is how your team will identify this workspace.</p>
       </div>
-      <form action={formAction} className="space-y-5">
+      <form action={formAction} className="space-y-6">
         <Field label="Workspace name">
-          <input name="name" type="text" defaultValue={initialName} placeholder="Acme Community" className={inputCls} required />
+          <input
+            name="name"
+            type="text"
+            defaultValue={initialName}
+            placeholder="Acme Community"
+            className={inputCls}
+            required
+            autoFocus
+          />
         </Field>
         {(state as { error?: string } | null)?.error && (
-          <p className="text-xs text-red-500">{(state as { error?: string }).error}</p>
+          <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{(state as { error?: string }).error}</p>
         )}
-        <SubmitButton pending={pending} label="Continue" pendingLabel="Saving…" />
+        <PrimaryButton pending={pending} label="Continue →" pendingLabel="Saving…" />
       </form>
     </div>
   )
@@ -115,17 +166,19 @@ function NameStep({ onDone, initialName }: { onDone: () => void; initialName: st
 
 // ── Step 2: Connect ────────────────────────────────────────────────────────────
 
-type Platform = 'discord' | 'slack' | null
-type DiscordSubStep = 'credentials' | 'invite' | 'channels'
+type Platform = 'discord' | 'slack' | 'telegram' | 'email' | null
+type DiscordSubStep = 'choose' | 'invite' | 'channels' | 'manual'
 
 interface GuildChannel { id: string; name: string }
 interface Guild { id: string; name: string; channels: GuildChannel[] }
 
-// Permissions: View Channel + Send Messages + Read Message History + Add Reactions + Embed Links
 const BOT_PERMISSIONS = '85056'
 
 function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
-  const [subStep, setSubStep] = useState<DiscordSubStep>('credentials')
+  const [subStep, setSubStep] = useState<DiscordSubStep>('choose')
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null)
+  const [loadingUrl, setLoadingUrl] = useState(false)
+  // manual flow state
   const [clientId, setClientId] = useState('')
   const [botToken, setBotToken] = useState('')
   const [guilds, setGuilds] = useState<Guild[]>([])
@@ -136,18 +189,30 @@ function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => voi
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
-  const inviteUrl = clientId.trim()
+  // Check if platform has DISCORD_CLIENT_ID configured (1-click mode)
+  useEffect(() => {
+    setLoadingUrl(true)
+    fetch('/api/discord/invite-url')
+      .then((r) => r.json())
+      .then((data: { url?: string; error?: string }) => {
+        if (data.url) setInviteUrl(data.url)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingUrl(false))
+  }, [])
+
+  const manualInviteUrl = clientId.trim()
     ? `https://discord.com/oauth2/authorize?client_id=${clientId.trim()}&scope=bot&permissions=${BOT_PERMISSIONS}`
     : ''
 
-  async function fetchGuilds() {
+  async function fetchGuilds(token: string) {
     setFetching(true)
     setFetchError('')
     try {
       const res = await fetch('/api/discord/guilds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: botToken }),
+        body: JSON.stringify({ token }),
       })
       const data = await res.json() as Guild[] | { error: string }
       if ('error' in data) { setFetchError(data.error); return }
@@ -155,17 +220,15 @@ function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => voi
       if (data.length === 1) setSelectedGuild(data[0].id)
       setSubStep('channels')
     } catch {
-      setFetchError('Failed to reach Discord. Check your internet connection.')
+      setFetchError('Failed to reach Discord — check your internet connection.')
     } finally {
       setFetching(false)
     }
   }
 
   async function save() {
-    const guild = guilds.find((g) => g.id === selectedGuild)
-    if (!guild || selectedChannels.size === 0) return
-    setSaving(true)
-    setSaveError('')
+    if (!selectedGuild || selectedChannels.size === 0) return
+    setSaving(true); setSaveError('')
     const fd = new FormData()
     fd.set('botToken', botToken)
     fd.set('channelIds', [...selectedChannels].join(','))
@@ -176,147 +239,225 @@ function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => voi
 
   function toggleChannel(id: string) {
     setSelectedChannels((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
+      const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
     })
   }
 
   const activeGuild = guilds.find((g) => g.id === selectedGuild)
 
+  // 1-click: open invite, then user comes back and enters bot token
+  if (subStep === 'choose' && !loadingUrl) {
+    return (
+      <div className="space-y-5">
+        <BackButton onClick={onBack} />
+        {inviteUrl ? (
+          <>
+            <div className="space-y-1.5">
+              <p className="text-sm font-semibold text-gray-800">Add AnswerLoops to your Discord server</p>
+              <p className="text-xs text-gray-500">Click below — Discord opens in a new tab. Pick your server, click Authorize, then come back.</p>
+            </div>
+            <a
+              href={inviteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5865F2] hover:bg-[#4752c4] px-4 py-3 text-sm font-semibold text-white transition-all shadow-md shadow-[#5865F2]/25"
+            >
+              <DiscordIcon className="h-4 w-4" />
+              Add to Discord — 1 click →
+            </a>
+            <div className="relative flex items-center gap-3 py-0.5">
+              <div className="flex-1 h-px bg-gray-100" />
+              <span className="text-[11px] text-gray-400 font-medium">once you've authorized</span>
+              <div className="flex-1 h-px bg-gray-100" />
+            </div>
+            <div className="space-y-3">
+              <Field label="Bot Token" hint="Bot tab → Reset Token in the Discord Developer Portal">
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={botToken}
+                  onChange={(e) => setBotToken(e.target.value)}
+                  placeholder="Paste your bot token"
+                  className={inputCls}
+                />
+              </Field>
+              <button
+                type="button"
+                disabled={!botToken.trim() || fetching}
+                onClick={() => fetchGuilds(botToken)}
+                className="w-full rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-all flex items-center justify-center gap-2"
+              >
+                {fetching && <Spinner className="h-3.5 w-3.5 text-gray-400" />}
+                {fetching ? 'Fetching your servers…' : 'Fetch my channels →'}
+              </button>
+              {fetchError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{fetchError}</p>}
+            </div>
+            <button type="button" onClick={() => setSubStep('manual')} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              Already have a bot? Use manual setup instead
+            </button>
+          </>
+        ) : (
+          // Platform has no DISCORD_CLIENT_ID — manual flow
+          <div className="space-y-4">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700 space-y-1.5">
+              <p className="font-semibold">2 things needed from Discord Developer Portal</p>
+              <ol className="list-decimal list-inside space-y-1 text-blue-600">
+                <li>Go to <span className="font-mono">discord.com/developers</span> → New Application</li>
+                <li>Bot tab → Reset Token → copy it below</li>
+                <li>Enable <strong>Message Content Intent</strong> under Privileged Gateway Intents → Save</li>
+                <li>Copy <strong>Application ID</strong> from General Information → paste below</li>
+              </ol>
+            </div>
+            <Field label="Application ID" hint="General Information tab — 'Application ID'">
+              <input type="text" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="123456789012345678" className={inputCls} />
+            </Field>
+            <Field label="Bot Token" hint="Bot tab → Reset Token">
+              <input type="password" autoComplete="new-password" value={botToken} onChange={(e) => setBotToken(e.target.value)} placeholder="Paste your bot token" className={inputCls} />
+            </Field>
+            <button
+              type="button"
+              disabled={!clientId.trim() || !botToken.trim()}
+              onClick={() => setSubStep('invite')}
+              className="w-full rounded-xl bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 px-4 py-3 text-sm font-semibold text-white transition-all"
+            >
+              Continue →
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (subStep === 'manual') {
+    return (
+      <div className="space-y-4">
+        <BackButton onClick={() => setSubStep('choose')} />
+        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700 space-y-1.5">
+          <p className="font-semibold">Setup from Discord Developer Portal</p>
+          <ol className="list-decimal list-inside space-y-1 text-blue-600">
+            <li>Go to <span className="font-mono">discord.com/developers</span> → New Application</li>
+            <li>Bot tab → Reset Token → copy it below</li>
+            <li>Enable <strong>Message Content Intent</strong> under Privileged Gateway Intents → Save</li>
+            <li>Copy <strong>Application ID</strong> from General Information → paste below</li>
+          </ol>
+        </div>
+        <Field label="Application ID" hint="General Information tab">
+          <input type="text" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="123456789012345678" className={inputCls} />
+        </Field>
+        <Field label="Bot Token" hint="Bot tab → Reset Token">
+          <input type="password" autoComplete="new-password" value={botToken} onChange={(e) => setBotToken(e.target.value)} placeholder="Paste your bot token" className={inputCls} />
+        </Field>
+        <button
+          type="button"
+          disabled={!clientId.trim() || !botToken.trim()}
+          onClick={() => setSubStep('invite')}
+          className="w-full rounded-xl bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 px-4 py-3 text-sm font-semibold text-white transition-all"
+        >
+          Continue →
+        </button>
+      </div>
+    )
+  }
+
+  if (subStep === 'invite') {
+    return (
+      <div className="space-y-5">
+        <BackButton onClick={() => setSubStep('choose')} />
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-gray-800">Add the bot to your Discord server</p>
+          <p className="text-xs text-gray-500">Click below, pick your server, then come back here.</p>
+        </div>
+        <a href={manualInviteUrl} target="_blank" rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5865F2] hover:bg-[#4752c4] px-4 py-3 text-sm font-semibold text-white transition-all">
+          <DiscordIcon className="h-4 w-4" />
+          Add to Discord →
+        </a>
+        <div className="relative flex items-center gap-3 py-0.5">
+          <div className="flex-1 h-px bg-gray-100" />
+          <span className="text-[11px] text-gray-400 font-medium">once you've authorized</span>
+          <div className="flex-1 h-px bg-gray-100" />
+        </div>
+        <button type="button" onClick={() => fetchGuilds(botToken)} disabled={fetching}
+          className="w-full rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-all flex items-center justify-center gap-2">
+          {fetching && <Spinner className="h-3.5 w-3.5 text-gray-400" />}
+          {fetching ? 'Fetching your servers…' : "I've added the bot — fetch my channels"}
+        </button>
+        {fetchError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{fetchError}</p>}
+      </div>
+    )
+  }
+
+  // channels step
   return (
     <div className="space-y-5">
-      <BackButton onClick={subStep === 'credentials' ? onBack : () => setSubStep(subStep === 'channels' ? 'invite' : 'credentials')} />
-
-      {subStep === 'credentials' && (
-        <>
-          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3.5 py-3 text-xs text-blue-700 space-y-1">
-            <p className="font-medium">2 things needed from Discord Developer Portal</p>
-            <ol className="list-decimal list-inside space-y-0.5 text-blue-600">
-              <li>Go to <span className="font-mono">discord.com/developers</span> → New Application → give it a name</li>
-              <li>Bot tab → Reset Token → copy it below</li>
-              <li>Enable <strong>Message Content Intent</strong> under Privileged Gateway Intents → Save</li>
-              <li>Copy the <strong>Application ID</strong> from General Information → paste below</li>
-            </ol>
-          </div>
-          <Field label="Application ID" hint="General Information tab — 'Application ID'">
-            <input
-              type="text"
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              placeholder="123456789012345678"
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Bot Token" hint="Bot tab → Reset Token">
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={botToken}
-              onChange={(e) => setBotToken(e.target.value)}
-              placeholder="Paste your bot token"
-              className={inputCls}
-            />
-          </Field>
-          <button
-            type="button"
-            disabled={!clientId.trim() || !botToken.trim()}
-            onClick={() => setSubStep('invite')}
-            className="w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-white transition-all"
-          >
-            Continue →
-          </button>
-        </>
+      <BackButton onClick={() => setSubStep('invite')} />
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-gray-800">Pick channels to monitor</p>
+        <p className="text-xs text-gray-500">Messages posted here become support tickets automatically.</p>
+      </div>
+      {guilds.length > 1 && (
+        <Field label="Server">
+          <select value={selectedGuild} onChange={(e) => { setSelectedGuild(e.target.value); setSelectedChannels(new Set()) }} className={inputCls}>
+            <option value="">Select a server…</option>
+            {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+        </Field>
       )}
-
-      {subStep === 'invite' && (
-        <>
-          <div>
-            <p className="text-sm text-gray-700 font-medium mb-1">Add the bot to your Discord server</p>
-            <p className="text-xs text-gray-500">Click the button below. Discord will open in a new tab — pick your server and click Authorize, then come back here.</p>
-          </div>
-          <a
-            href={inviteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] px-4 py-3 text-sm font-medium text-white transition-all"
-          >
-            <DiscordIcon className="h-4 w-4" />
-            Add to Discord →
-          </a>
-          <div className="relative flex items-center gap-3 py-1">
-            <div className="flex-1 h-px bg-gray-100" />
-            <span className="text-xs text-gray-400">once you've authorized</span>
-            <div className="flex-1 h-px bg-gray-100" />
-          </div>
-          <button
-            type="button"
-            onClick={fetchGuilds}
-            disabled={fetching}
-            className="w-full rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-gray-700 transition-all flex items-center justify-center gap-2"
-          >
-            {fetching && (
-              <svg className="h-3.5 w-3.5 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-            )}
-            {fetching ? 'Fetching your servers…' : "I've added the bot — fetch my channels"}
-          </button>
-          {fetchError && <p className="text-xs text-red-500">{fetchError}</p>}
-        </>
+      {activeGuild && (
+        <div className="rounded-xl border border-gray-200 bg-gray-50 divide-y divide-gray-100 max-h-48 overflow-y-auto">
+          {activeGuild.channels.length === 0
+            ? <p className="px-4 py-3 text-xs text-gray-400">No text channels found in this server.</p>
+            : activeGuild.channels.map((ch) => (
+              <label key={ch.id} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-white transition-colors">
+                <input type="checkbox" checked={selectedChannels.has(ch.id)} onChange={() => toggleChannel(ch.id)}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                <span className="text-sm text-gray-700"># {ch.name}</span>
+              </label>
+            ))
+          }
+        </div>
       )}
+      {saveError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{saveError}</p>}
+      <button type="button" onClick={save} disabled={saving || selectedChannels.size === 0 || !selectedGuild}
+        className="w-full rounded-xl bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 px-4 py-3 text-sm font-semibold text-white transition-all">
+        {saving ? 'Connecting…' : `Connect ${selectedChannels.size > 0 ? `${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}` : 'Discord'}`}
+      </button>
+    </div>
+  )
+}
 
-      {subStep === 'channels' && (
-        <>
-          <div>
-            <p className="text-sm text-gray-700 font-medium mb-1">Pick channels to monitor</p>
-            <p className="text-xs text-gray-500">Messages posted here become support tickets automatically.</p>
-          </div>
-          {guilds.length > 1 && (
-            <Field label="Server">
-              <select
-                value={selectedGuild}
-                onChange={(e) => { setSelectedGuild(e.target.value); setSelectedChannels(new Set()) }}
-                className={inputCls}
-              >
-                <option value="">Select a server…</option>
-                {guilds.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-            </Field>
-          )}
-          {activeGuild && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 divide-y divide-gray-100 max-h-48 overflow-y-auto">
-              {activeGuild.channels.length === 0 ? (
-                <p className="px-3.5 py-3 text-xs text-gray-400">No text channels found in this server.</p>
-              ) : (
-                activeGuild.channels.map((ch) => (
-                  <label key={ch.id} className="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-white transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={selectedChannels.has(ch.id)}
-                      onChange={() => toggleChannel(ch.id)}
-                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span className="text-sm text-gray-700"># {ch.name}</span>
-                  </label>
-                ))
-              )}
-            </div>
-          )}
-          {saveError && <p className="text-xs text-red-500">{saveError}</p>}
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving || selectedChannels.size === 0 || !selectedGuild}
-            className="w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-white transition-all"
-          >
-            {saving ? 'Connecting…' : `Connect ${selectedChannels.size > 0 ? `${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}` : 'Discord'}`}
-          </button>
-        </>
-      )}
+function TelegramFlow({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+  const [state, formAction, pending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await saveTelegramIntegrationAction(prev, fd)
+      if (!result?.error) onDone()
+      return result
+    },
+    null
+  )
+
+  return (
+    <div className="space-y-5">
+      <BackButton onClick={onBack} />
+      <div className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-xs text-sky-700 space-y-1.5">
+        <p className="font-semibold">Get your bot token from Telegram</p>
+        <ol className="list-decimal list-inside space-y-1 text-sky-600">
+          <li>Open Telegram → search <strong>@BotFather</strong></li>
+          <li>Send <span className="font-mono">/newbot</span> and follow prompts</li>
+          <li>Copy the token (format: <span className="font-mono">123456789:AAHdqTcv…</span>)</li>
+        </ol>
+      </div>
+      <form action={formAction} className="space-y-4">
+        <Field label="Bot Token">
+          <input name="botToken" type="password" autoComplete="new-password"
+            placeholder="123456789:AAHdqTcv…" className={inputCls} required />
+        </Field>
+        <p className="text-xs text-gray-400">After connecting, add your bot to your group and register the webhook in Settings → Telegram.</p>
+        {(state as { error?: string } | null)?.error && (
+          <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{(state as { error?: string }).error}</p>
+        )}
+        <PrimaryButton pending={pending} label="Connect Telegram →" pendingLabel="Connecting…" color="telegram" />
+      </form>
     </div>
   )
 }
@@ -334,25 +475,42 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Connect your community</h2>
-        <p className="mt-1 text-sm text-gray-500">Choose where your community lives. You can change this later in Settings.</p>
+      <div className="space-y-1.5">
+        <h2 className="text-xl font-bold text-gray-900">Connect your community</h2>
+        <p className="text-sm text-gray-500">Choose where your community lives. You can change this later in Settings.</p>
       </div>
 
       {platform === null && (
         <>
           <div className="grid grid-cols-2 gap-3">
             <PlatformCard
-              icon={<DiscordIcon className="h-6 w-6 text-[#5865F2]" />}
+              icon={<DiscordIcon className="h-7 w-7 text-[#5865F2]" />}
               label="Discord"
-              bg="hover:border-[#5865F2]/40 hover:bg-indigo-50/50"
+              badge="1-click"
+              bg="hover:bg-indigo-50/60 bg-white"
+              borderColor="border-gray-200 hover:border-[#5865F2]/50"
               onClick={() => setPlatform('discord')}
             />
             <PlatformCard
-              icon={<SlackIcon className="h-6 w-6 text-[#4A154B]" />}
+              icon={<SlackIcon className="h-7 w-7 text-[#4A154B]" />}
               label="Slack"
-              bg="hover:border-purple-400/40 hover:bg-purple-50/50"
+              bg="hover:bg-purple-50/60 bg-white"
+              borderColor="border-gray-200 hover:border-purple-400/50"
               onClick={() => setPlatform('slack')}
+            />
+            <PlatformCard
+              icon={<TelegramIcon className="h-7 w-7 text-[#229ED9]" />}
+              label="Telegram"
+              bg="hover:bg-sky-50/60 bg-white"
+              borderColor="border-gray-200 hover:border-sky-400/50"
+              onClick={() => setPlatform('telegram')}
+            />
+            <PlatformCard
+              icon={<EmailIcon className="h-7 w-7 text-amber-500" />}
+              label="Email"
+              bg="hover:bg-amber-50/60 bg-white"
+              borderColor="border-gray-200 hover:border-amber-400/50"
+              onClick={() => setPlatform('email')}
             />
           </div>
           <button type="button" onClick={onDone} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors pt-1">
@@ -365,14 +523,43 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
         <DiscordFlow onDone={onDone} onBack={() => setPlatform(null)} />
       )}
 
+      {platform === 'telegram' && (
+        <TelegramFlow onDone={onDone} onBack={() => setPlatform(null)} />
+      )}
+
+      {platform === 'email' && (
+        <div className="space-y-5">
+          <BackButton onClick={() => setPlatform(null)} />
+          <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <EmailIcon className="h-5 w-5 text-amber-600" />
+              <p className="text-sm font-semibold text-amber-800">Email needs webhook setup</p>
+            </div>
+            <p className="text-xs text-amber-700">
+              Email ingest works via a webhook — your provider (SendGrid, Mailgun, Postmark, Cloudflare) posts inbound emails to your AnswerLoops endpoint. Configure it in <strong>Settings → Email</strong> after completing onboarding.
+            </p>
+          </div>
+          <PrimaryButton type="button" label="Continue, I'll set up email in Settings →" onClick={onDone} />
+        </div>
+      )}
+
       {platform === 'slack' && (
         <form action={slackAction} className="space-y-4">
           <BackButton onClick={() => setPlatform(null)} />
+          <div className="rounded-xl border border-purple-100 bg-purple-50 px-4 py-3 text-xs text-purple-700 space-y-1.5">
+            <p className="font-semibold">You need a Slack App</p>
+            <ol className="list-decimal list-inside space-y-1 text-purple-600">
+              <li>Go to <span className="font-mono">api.slack.com/apps</span> → Create New App</li>
+              <li>OAuth &amp; Permissions → Bot Token Scopes: <span className="font-mono">channels:history, chat:write</span></li>
+              <li>Install to workspace → copy Bot Token (<span className="font-mono">xoxb-…</span>)</li>
+              <li>Basic Information → Signing Secret → copy below</li>
+            </ol>
+          </div>
           <Field label="Bot Token">
             <input name="botToken" type="password" autoComplete="new-password" placeholder="xoxb-…" className={inputCls} required />
           </Field>
           <Field label="Signing Secret">
-            <input name="signingSecret" type="password" autoComplete="new-password" placeholder="From Slack app Basic Information" className={inputCls} required />
+            <input name="signingSecret" type="password" autoComplete="new-password" placeholder="From Basic Information" className={inputCls} required />
           </Field>
           <Field label="Team ID">
             <input name="teamId" type="text" placeholder="T01234ABCDE" className={inputCls} required />
@@ -381,9 +568,9 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
             <input name="channelIds" type="text" placeholder="C01234ABCDE" className={inputCls} required />
           </Field>
           {(slackState as { error?: string } | null)?.error && (
-            <p className="text-xs text-red-500">{(slackState as { error?: string }).error}</p>
+            <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{(slackState as { error?: string }).error}</p>
           )}
-          <SubmitButton pending={slackPending} label="Connect Slack" pendingLabel="Connecting…" color="slack" />
+          <PrimaryButton pending={slackPending} label="Connect Slack" pendingLabel="Connecting…" color="slack" />
         </form>
       )}
     </div>
@@ -410,10 +597,8 @@ function SeedStep({ onDone }: { onDone: () => void }) {
   )
 
   const uploadFile = useCallback(async (file: File) => {
-    setUploading(true)
-    setUploadResult(null)
-    const fd = new FormData()
-    fd.append('file', file)
+    setUploading(true); setUploadResult(null)
+    const fd = new FormData(); fd.append('file', file)
     try {
       const res = await fetch('/api/kb/upload', { method: 'POST', body: fd })
       const data = await res.json() as { error?: string; created?: number; filename?: string }
@@ -434,42 +619,33 @@ function SeedStep({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Seed your knowledge base</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Give the bot something to work from before any tickets arrive. Upload existing docs or crawl your docs site.
-        </p>
+      <div className="space-y-1.5">
+        <h2 className="text-xl font-bold text-gray-900">Seed your knowledge base</h2>
+        <p className="text-sm text-gray-500">Give the AI something to work from before any tickets arrive.</p>
       </div>
 
       {mode === 'choose' && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setMode('file')}
-              className="flex flex-col items-center gap-2.5 rounded-xl border-2 border-gray-200 p-5 text-sm font-medium text-gray-700 transition-all hover:border-indigo-300 hover:bg-indigo-50/40 hover:shadow-sm"
-            >
-              <svg className="h-6 w-6 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <button onClick={() => setMode('file')}
+              className="flex flex-col items-center gap-2.5 rounded-2xl border-2 border-gray-200 bg-white p-5 text-sm font-semibold text-gray-700 transition-all hover:border-indigo-300 hover:bg-indigo-50/40 hover:shadow-md">
+              <svg className="h-7 w-7 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M12 16V8m0 0l-3 3m3-3l3 3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Upload file
               <span className="text-[10px] font-normal text-gray-400">PDF · DOCX · MD · TXT · CSV</span>
             </button>
-            <button
-              onClick={() => setMode('url')}
-              className="flex flex-col items-center gap-2.5 rounded-xl border-2 border-gray-200 p-5 text-sm font-medium text-gray-700 transition-all hover:border-indigo-300 hover:bg-indigo-50/40 hover:shadow-sm"
-            >
-              <svg className="h-6 w-6 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <button onClick={() => setMode('url')}
+              className="flex flex-col items-center gap-2.5 rounded-2xl border-2 border-gray-200 bg-white p-5 text-sm font-semibold text-gray-700 transition-all hover:border-indigo-300 hover:bg-indigo-50/40 hover:shadow-md">
+              <svg className="h-7 w-7 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Crawl a URL
               <span className="text-[10px] font-normal text-gray-400">Docs site · Wiki · Blog</span>
             </button>
           </div>
-          <button
-            type="button"
-            onClick={onDone}
-            className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors pt-1"
-          >
+          <button type="button" onClick={onDone}
+            className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors pt-1">
             Skip for now — add content later in the KB page
           </button>
         </div>
@@ -478,49 +654,32 @@ function SeedStep({ onDone }: { onDone: () => void }) {
       {mode === 'file' && (
         <div className="space-y-4">
           <BackButton onClick={() => setMode('choose')} />
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={onDrop}
+          <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}
             onClick={() => !uploading && inputRef.current?.click()}
-            className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 cursor-pointer transition-colors ${
+            className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 cursor-pointer transition-colors ${
               uploading ? 'pointer-events-none opacity-60 border-gray-200' : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30'
-            }`}
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".pdf,.docx,.md,.txt,.csv"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = '' }}
-            />
+            }`}>
+            <input ref={inputRef} type="file" accept=".pdf,.docx,.md,.txt,.csv" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = '' }} />
             {uploading ? (
-              <>
-                <svg className="h-6 w-6 animate-spin text-indigo-500" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-                <p className="text-sm font-medium text-indigo-700">Parsing and embedding…</p>
-                <p className="text-xs text-indigo-500">May take 15–60 s for large files.</p>
-              </>
+              <><Spinner className="h-6 w-6 text-indigo-500" />
+              <p className="text-sm font-medium text-indigo-700">Parsing and embedding…</p>
+              <p className="text-xs text-indigo-500">May take 15–60 s for large files.</p></>
             ) : uploadResult?.created != null ? (
-              <>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-                  <CheckIcon className="h-5 w-5 text-green-600" />
-                </div>
-                <p className="text-sm font-medium text-green-700">{uploadResult.created} chunks added from {uploadResult.filename}</p>
-                <p className="text-xs text-green-500">Continuing…</p>
-              </>
+              <><div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                <CheckIcon className="h-5 w-5 text-green-600" />
+              </div>
+              <p className="text-sm font-medium text-green-700">{uploadResult.created} chunks added from {uploadResult.filename}</p>
+              <p className="text-xs text-green-500">Continuing…</p></>
             ) : (
-              <>
-                <svg className="h-6 w-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M12 16V8m0 0l-3 3m3-3l3 3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <p className="text-sm text-gray-600"><span className="font-medium text-indigo-600">Click to upload</span> or drag and drop</p>
-                <p className="text-xs text-gray-400">PDF · DOCX · MD · TXT · CSV up to 50 MB</p>
-              </>
+              <><svg className="h-6 w-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 16V8m0 0l-3 3m3-3l3 3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <p className="text-sm text-gray-600"><span className="font-semibold text-indigo-600">Click to upload</span> or drag and drop</p>
+              <p className="text-xs text-gray-400">PDF · DOCX · MD · TXT · CSV up to 50 MB</p></>
             )}
           </div>
-          {uploadResult?.error && <p className="text-xs text-red-500">{uploadResult.error}</p>}
+          {uploadResult?.error && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{uploadResult.error}</p>}
         </div>
       )}
 
@@ -530,27 +689,18 @@ function SeedStep({ onDone }: { onDone: () => void }) {
           <form action={urlAction} className="space-y-4">
             <input type="hidden" name="mode" value="page" />
             <Field label="Docs URL" hint="Paste a public docs page or site root. We'll crawl and embed the content.">
-              <input
-                name="url"
-                type="url"
-                required
-                disabled={urlPending}
-                placeholder="https://docs.yourproduct.com"
-                className={inputCls}
-              />
+              <input name="url" type="url" required disabled={urlPending}
+                placeholder="https://docs.yourproduct.com" className={inputCls} />
             </Field>
             {urlPending && (
-              <div className="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50 px-3.5 py-3">
-                <svg className="h-4 w-4 animate-spin text-indigo-500 shrink-0" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
+              <div className="flex items-center gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                <Spinner className="h-4 w-4 text-indigo-500 shrink-0" />
                 <p className="text-xs font-medium text-indigo-700">Crawling and embedding — this can take up to 60 s…</p>
               </div>
             )}
-            {urlResult.error && <p className="text-xs text-red-500">{urlResult.error}</p>}
+            {urlResult.error && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{urlResult.error}</p>}
             {urlResult.created != null && !urlResult.error && (
-              <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 px-3.5 py-3">
+              <div className="flex items-center gap-2.5 rounded-xl border border-green-100 bg-green-50 px-4 py-3">
                 <CheckIcon className="h-4 w-4 text-green-600 shrink-0" />
                 <p className="text-xs font-medium text-green-700">
                   {urlResult.pages != null
@@ -559,7 +709,7 @@ function SeedStep({ onDone }: { onDone: () => void }) {
                 </p>
               </div>
             )}
-            <SubmitButton pending={urlPending} label="Import URL" pendingLabel="Importing…" />
+            <PrimaryButton pending={urlPending} label="Import URL" pendingLabel="Importing…" />
           </form>
         </div>
       )}
@@ -585,48 +735,43 @@ function DoneStep({ completedSteps }: { completedSteps: Set<string> }) {
 
   return (
     <div className="space-y-6">
-      <div className="text-center space-y-1">
-        <div className="flex justify-center mb-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-            <CheckIcon className="h-7 w-7 text-green-600" />
+      <div className="text-center space-y-2">
+        <div className="flex justify-center mb-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 shadow-lg shadow-green-500/25">
+            <CheckIcon className="h-8 w-8 text-white" />
           </div>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900">You're all set!</h2>
+        <h2 className="text-xl font-bold text-gray-900">You're all set!</h2>
         <p className="text-sm text-gray-500">Your workspace is ready. Here's what was completed:</p>
       </div>
 
       <ul className="space-y-2.5">
         {items.map(({ key, label }) => (
           <li key={key} className="flex items-center gap-3">
-            <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${completedSteps.has(key) ? 'bg-green-100' : 'bg-gray-100'}`}>
+            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${completedSteps.has(key) ? 'bg-green-100' : 'bg-gray-100'}`}>
               {completedSteps.has(key)
-                ? <CheckIcon className="h-3 w-3 text-green-600" />
+                ? <CheckIcon className="h-3.5 w-3.5 text-green-600" />
                 : <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
               }
             </div>
-            <span className={`text-sm ${completedSteps.has(key) ? 'text-gray-800' : 'text-gray-400'}`}>{label}</span>
-            {!completedSteps.has(key) && (
-              <span className="text-xs text-gray-300">— skipped</span>
-            )}
+            <span className={`text-sm font-medium ${completedSteps.has(key) ? 'text-gray-800' : 'text-gray-400'}`}>{label}</span>
+            {!completedSteps.has(key) && <span className="text-xs text-gray-300">— skipped</span>}
           </li>
         ))}
       </ul>
 
-      <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-2 text-xs text-gray-500">
-        <p className="font-medium text-gray-700 text-sm">What's next</p>
-        <ul className="space-y-1">
+      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-2">
+        <p className="font-semibold text-gray-800 text-sm">What's next</p>
+        <ul className="space-y-1.5 text-xs text-gray-500">
           <li>• Post a message in your connected channel → it appears as a ticket at <strong>/tickets</strong></li>
-          <li>• The AI will draft an answer automatically and route low-confidence ones to you</li>
+          <li>• The AI drafts an answer automatically and routes low-confidence ones to you</li>
           <li>• Add more content to the KB at <strong>/kb</strong> any time</li>
           <li>• Fine-tune AI model, SLA, and channels in <strong>Settings</strong></li>
         </ul>
       </div>
 
-      <button
-        onClick={handleFinish}
-        disabled={loading}
-        className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-all disabled:opacity-60"
-      >
+      <button onClick={handleFinish} disabled={loading}
+        className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-all disabled:opacity-60 shadow-md shadow-indigo-600/25">
         {loading ? 'Loading dashboard…' : 'Go to dashboard →'}
       </button>
     </div>
@@ -657,38 +802,38 @@ export default function OnboardingWizard({ initialName }: { initialName: string 
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-gray-50 to-indigo-50/30 px-4">
       <div className="w-full max-w-md">
-        <div className="rounded-2xl border border-gray-200 bg-white px-8 py-10 shadow-sm">
+        <div className="rounded-3xl border border-gray-200/80 bg-white px-8 py-10 shadow-xl shadow-gray-900/5">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600">
-                <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <div className="flex items-center gap-2.5 mb-7">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 shadow-md shadow-indigo-600/30">
+                <svg className="h-4.5 w-4.5 text-white" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-gray-800">AnswerLoops</span>
+              <span className="text-sm font-bold text-gray-900 tracking-tight">AnswerLoops</span>
             </div>
 
             {/* Progress stepper */}
-            <div className="flex items-center gap-0">
+            <div className="flex items-center">
               {STEPS.map(({ key, label }, i) => (
                 <div key={key} className="flex items-center flex-1 last:flex-none">
-                  <div className="flex flex-col items-center gap-1">
-                    <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-all ${
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
                       i < stepIndex
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                         : i === stepIndex
                         ? 'border-2 border-indigo-600 text-indigo-600 bg-white'
                         : 'border-2 border-gray-200 text-gray-300 bg-white'
                     }`}>
-                      {i < stepIndex ? <CheckIcon className="h-3.5 w-3.5" /> : i + 1}
+                      {i < stepIndex ? <CheckIcon className="h-4 w-4" /> : i + 1}
                     </div>
-                    <span className={`text-[10px] font-medium whitespace-nowrap ${i === stepIndex ? 'text-indigo-600' : 'text-gray-400'}`}>{label}</span>
+                    <span className={`text-[10px] font-semibold whitespace-nowrap tracking-wide ${i === stepIndex ? 'text-indigo-600' : 'text-gray-400'}`}>{label}</span>
                   </div>
                   {i < STEPS.length - 1 && (
-                    <div className={`flex-1 h-px mx-1.5 mb-4 transition-colors ${i < stepIndex ? 'bg-indigo-600' : 'bg-gray-200'}`} />
+                    <div className={`flex-1 h-0.5 mx-1.5 mb-5 rounded-full transition-colors ${i < stepIndex ? 'bg-indigo-600' : 'bg-gray-200'}`} />
                   )}
                 </div>
               ))}
