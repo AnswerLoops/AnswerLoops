@@ -13,6 +13,15 @@ const ALREADY_EXISTS = new Set([
   '42712', // duplicate rule
 ])
 
+// Drizzle wraps postgres errors: the outer Error has no .code; the postgres
+// code lives on err.cause (or err.cause.cause, etc.). Walk the chain.
+function pgErrorCode(err: unknown): string | undefined {
+  if (!err || typeof err !== 'object') return undefined
+  const e = err as Record<string, unknown>
+  if (typeof e.code === 'string') return e.code
+  return pgErrorCode(e.cause)
+}
+
 // Drizzle's journal-based migrate() only applies migrations registered in
 // drizzle/meta/_journal.json. Our hand-written SQL files (0002+) were never
 // added to the journal so migrate() silently skips them.
@@ -61,7 +70,7 @@ export async function runMigrations() {
       try {
         await db.execute(sql.raw(stmt))
       } catch (err) {
-        const code = (err as { code?: string }).code
+        const code = pgErrorCode(err)
         if (code && ALREADY_EXISTS.has(code)) {
           // Schema already in desired state — skip silently
           continue
