@@ -11,6 +11,7 @@ import { mapCsatMessage } from '@/lib/db/queries/csat'
 import { assessAnswer, shouldAutoDeflect, ASSESS_MODEL } from '@/lib/ai/assess'
 import { sendToChannel } from '@/lib/discord/send'
 import { sendToSlackChannel } from '@/lib/slack/send'
+import { sendToTelegramChat } from '@/lib/telegram/send'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { checkDeflectionLimit } from '@/lib/billing/usage'
 import { getIntegration } from '@/lib/db/queries/integrations'
@@ -20,12 +21,12 @@ import type { PriorAnswer } from '@/types'
 
 const MOD = 'ai/agent'
 
-type Platform = 'discord' | 'slack'
+type Platform = 'discord' | 'slack' | 'telegram'
 
 async function postReply(channelId: string, content: string, orgId: number, platform: Platform): Promise<string | null> {
-  return platform === 'slack'
-    ? sendToSlackChannel(channelId, content, orgId)
-    : sendToChannel(channelId, content, orgId)
+  if (platform === 'slack') return sendToSlackChannel(channelId, content, orgId)
+  if (platform === 'telegram') return sendToTelegramChat(channelId, content, orgId)
+  return sendToChannel(channelId, content, orgId)
 }
 
 export async function runAIAgent(
@@ -157,7 +158,7 @@ Guidelines:
       if (escalationRoleId) {
         if (platform === 'discord') {
           escalationMention = `\n\n<@&${escalationRoleId}> this question needs human review (AI confidence: ${pct}%)`
-        } else {
+        } else if (platform === 'slack') {
           // Slack: S = user group, U = user, else raw
           if (escalationRoleId.startsWith('S')) {
             escalationMention = `\n\n<!subteam^${escalationRoleId}> this question needs human review (AI confidence: ${pct}%)`
@@ -166,6 +167,9 @@ Guidelines:
           } else {
             escalationMention = `\n\n${escalationRoleId} this question needs human review (AI confidence: ${pct}%)`
           }
+        } else {
+          // Telegram: plain text mention
+          escalationMention = `\n\n@${escalationRoleId} this question needs human review (AI confidence: ${pct}%)`
         }
       }
 

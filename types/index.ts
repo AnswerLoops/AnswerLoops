@@ -3,6 +3,8 @@ export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
 export type TicketCategory = 'bug' | 'feature_request' | 'documentation' | 'how_to' | 'general_question'
 export type AIDraftStatus = 'pending' | 'posted' | 'approved' | 'overridden'
 
+export type SourcePlatform = 'discord' | 'slack' | 'telegram'
+
 export interface Ticket {
   id: number
   discord_message_id: string | null
@@ -12,6 +14,7 @@ export interface Ticket {
   discord_author_id: string | null
   discord_author_name: string | null
   discord_deleted_at: string | null
+  source_platform: SourcePlatform
   content: string
   // AI triage
   category: TicketCategory | null
@@ -190,6 +193,7 @@ export interface CreateTicketInput {
   discord_thread_id?: string
   discord_author_id?: string
   discord_author_name?: string
+  source_platform?: SourcePlatform
   content: string
   category?: TicketCategory
   severity_score?: number

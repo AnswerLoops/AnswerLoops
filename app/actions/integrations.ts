@@ -164,3 +164,80 @@ export async function deleteSlackIntegrationAction(
   refresh()
   return null
 }
+
+// ── Telegram ──────────────────────────────────────────────────────────────────
+
+// Telegram bot tokens: {digits}:{alphanumeric+hyphen} e.g. 123456789:AAHdqTcv...
+const TELEGRAM_TOKEN_RE = /^\d{8,12}:[A-Za-z0-9_-]{35}$/
+
+const TelegramIntegrationSchema = z.object({
+  botToken: z.string().optional(),
+  chatIds: z.string().optional(),
+  escalationUsername: z.string().optional(),
+  confidenceThreshold: z.coerce.number().min(0).max(1).optional(),
+})
+
+export async function saveTelegramIntegrationAction(
+  _prevState: unknown,
+  formData: FormData
+): Promise<{ error?: string } | null> {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
+  const parsed = TelegramIntegrationSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { botToken, chatIds, escalationUsername, confidenceThreshold } = parsed.data
+  const chatIdList = (chatIds ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const existing = await getIntegration(orgId, 'telegram')
+
+  const newToken = botToken?.trim() || null
+  if (!newToken && !existing?.bot_token) {
+    return { error: 'Bot token is required' }
+  }
+
+  if (newToken) {
+    if (!TELEGRAM_TOKEN_RE.test(newToken)) {
+      return { error: 'Invalid Telegram bot token format — should be: 123456789:AAHdqTcv...' }
+    }
+    if (!MOCK_EXTERNALS) {
+      const verify = await fetch(`https://api.telegram.org/bot${newToken}/getMe`)
+      if (!verify.ok) {
+        return { error: 'Telegram rejected this token — check it and try again' }
+      }
+    }
+  }
+
+  const botSecret = existing?.bot_secret ?? crypto.randomBytes(32).toString('hex')
+
+  await upsertIntegration({
+    orgId,
+    platform: 'telegram',
+    botToken: newToken ?? undefined,
+    botSecret,
+    channelIds: chatIdList,
+    escalationRoleId: escalationUsername?.trim() || null,
+    confidenceThreshold: confidenceThreshold ?? null,
+  })
+
+  refresh()
+  return null
+}
+
+export async function deleteTelegramIntegrationAction(
+  _prevState: unknown,
+  _formData: FormData
+): Promise<{ error?: string } | null> {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
+  await deleteIntegration(orgId, 'telegram')
+  refresh()
+  return null
+}

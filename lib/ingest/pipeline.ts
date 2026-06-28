@@ -15,7 +15,7 @@ import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/retry'
 import type { Priority } from '@/types'
 
-export type Platform = 'discord' | 'slack'
+export type Platform = 'discord' | 'slack' | 'telegram'
 
 export interface MessagePayload {
   messageId: string
@@ -75,6 +75,7 @@ export async function processCommunityMessage(
     discord_thread_id: threadId,
     discord_author_id: authorId,
     discord_author_name: authorName,
+    source_platform: platform,
     content,
     category: triage.category,
     severity_score: triage.severity_score,
