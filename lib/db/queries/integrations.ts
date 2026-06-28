@@ -13,6 +13,7 @@ export interface Integration {
   bot_secret: string | null
   channel_ids: string | null
   guild_channel_map: string | null
+  connected_guild_id: string | null
   team_id: string | null
   webhook_secret: string | null
   escalation_role_id: string | null
@@ -31,6 +32,7 @@ function toIntegration(row: typeof integrations.$inferSelect): Integration {
     bot_secret: row.botSecret,
     channel_ids: row.channelIds,
     guild_channel_map: row.guildChannelMap ?? null,
+    connected_guild_id: row.connectedGuildId ?? null,
     team_id: row.teamId,
     webhook_secret: row.webhookSecret,
     escalation_role_id: row.escalationRoleId ?? null,
@@ -67,6 +69,21 @@ export async function getIntegrationByBotSecret(botSecret: string): Promise<Inte
   return row ? decryptRow(toIntegration(row)) : null
 }
 
+export async function getIntegrationByGuildId(guildId: string): Promise<Integration | null> {
+  const [row] = await getDb()
+    .select()
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.connectedGuildId, guildId),
+        eq(integrations.platform, 'discord'),
+        eq(integrations.enabled, 1)
+      )
+    )
+    .limit(1)
+  return row ? decryptRow(toIntegration(row)) : null
+}
+
 export async function getIntegrationByTeamId(teamId: string): Promise<Integration | null> {
   const [row] = await getDb()
     .select()
@@ -97,6 +114,7 @@ export async function upsertIntegration(input: {
   botToken?: string | null
   botSecret?: string | null
   channelIds?: string[]
+  connectedGuildId?: string | null
   teamId?: string | null
   webhookSecret?: string | null
   escalationRoleId?: string | null
@@ -114,6 +132,7 @@ export async function upsertIntegration(input: {
         botToken: encryptedBotToken ?? undefined,
         botSecret: input.botSecret ?? undefined,
         channelIds: channelIdsJson ?? undefined,
+        connectedGuildId: input.connectedGuildId !== undefined ? (input.connectedGuildId ?? null) : undefined,
         teamId: input.teamId ?? undefined,
         webhookSecret: encryptedWebhookSecret ?? undefined,
         escalationRoleId: input.escalationRoleId !== undefined ? (input.escalationRoleId ?? null) : undefined,
@@ -133,6 +152,7 @@ export async function upsertIntegration(input: {
       botToken: encryptedBotToken,
       botSecret: input.botSecret ?? null,
       channelIds: channelIdsJson,
+      connectedGuildId: input.connectedGuildId ?? null,
       teamId: input.teamId ?? null,
       webhookSecret: encryptedWebhookSecret ?? null,
       escalationRoleId: input.escalationRoleId ?? null,

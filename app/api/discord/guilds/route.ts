@@ -21,6 +21,34 @@ export interface GuildWithChannels {
 // Discord channel types that can receive messages
 const TEXT_CHANNEL_TYPES = new Set([0, 5, 10, 11, 12, 15])
 
+async function fetchGuildChannels(guildId: string, token: string): Promise<{ id: string; name: string }[]> {
+  const headers = { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' }
+  const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, { headers })
+  if (!res.ok) return []
+  const channels = await res.json() as DiscordChannel[]
+  return channels
+    .filter((c) => TEXT_CHANNEL_TYPES.has(c.type) && c.name)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => ({ id: c.id, name: c.name }))
+}
+
+// GET /api/discord/guilds?guild_id=... — fetch channels for a connected guild
+// using the platform bot token (no user-supplied token needed)
+export async function GET(req: NextRequest) {
+  const session = await auth()
+  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const guildId = req.nextUrl.searchParams.get('guild_id')
+  if (!guildId) return Response.json({ error: 'guild_id required' }, { status: 400 })
+
+  const token = process.env.DISCORD_TOKEN
+  if (!token) return Response.json({ error: 'Platform bot token not configured' }, { status: 503 })
+
+  const channels = await fetchGuildChannels(guildId, token)
+  return Response.json({ guildId, channels })
+}
+
+// POST /api/discord/guilds — legacy: fetch all guilds using a user-supplied bot token
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -41,17 +69,8 @@ export async function POST(req: NextRequest) {
 
   const results: GuildWithChannels[] = await Promise.all(
     guilds.map(async (guild) => {
-      const chRes = await fetch(`https://discord.com/api/v10/guilds/${guild.id}/channels`, { headers })
-      if (!chRes.ok) return { id: guild.id, name: guild.name, channels: [] }
-      const channels = await chRes.json() as DiscordChannel[]
-      return {
-        id: guild.id,
-        name: guild.name,
-        channels: channels
-          .filter((c) => TEXT_CHANNEL_TYPES.has(c.type) && c.name)
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map((c) => ({ id: c.id, name: c.name })),
-      }
+      const channels = await fetchGuildChannels(guild.id, token)
+      return { id: guild.id, name: guild.name, channels }
     })
   )
 

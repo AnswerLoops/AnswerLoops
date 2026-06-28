@@ -1,7 +1,8 @@
 'use client'
 
 import { useActionState, useRef, useTransition } from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { updateSLAAction } from '@/app/actions/sla'
 import { addRepoAction, removeRepoAction } from '@/app/actions/github'
 import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackIntegrationAction, deleteSlackIntegrationAction } from '@/app/actions/integrations'
@@ -32,6 +33,7 @@ interface DiscordIntegration {
   id: number
   platform: string
   channel_ids: string[]
+  connected_guild_id: string | null
   escalation_role_id: string | null
   confidence_threshold: number | null
   enabled: number
@@ -121,17 +123,30 @@ function RepoRow({ repo, onRemoved }: { repo: GitHubRepo; onRemoved: () => void 
 
 function DiscordIntegrationCard() {
   const [integration, setIntegration] = useState<DiscordIntegration | null | undefined>(undefined)
-  const [editing, setEditing] = useState(false)
+  const [editingChannels, setEditingChannels] = useState(false)
+  const [inviting, setInviting] = useState(false)
+  const [channels, setChannels] = useState<{ id: string; name: string }[]>([])
   const { toastMessage, showToast } = useToast()
   const [, startDeleteTransition] = useTransition()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const reloadIntegrations = useCallback(() => {
+    return fetch('/api/integrations')
+      .then((r) => r.json())
+      .then((data: DiscordIntegration[]) => {
+        const discord = data.find((i) => i.platform === 'discord') ?? null
+        setIntegration(discord)
+        return discord
+      })
+  }, [])
 
   const [saveState, saveAction, savePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveDiscordIntegrationAction(prev, fd)
       if (!result?.error) {
-        const updated = await fetch('/api/integrations').then((r) => r.json())
-        setIntegration(updated.find((i: DiscordIntegration) => i.platform === 'discord') ?? null)
-        setEditing(false)
+        await reloadIntegrations()
+        setEditingChannels(false)
         showToast('Discord settings updated')
       }
       return result
@@ -142,24 +157,71 @@ function DiscordIntegrationCard() {
   const [deleteState, deleteAction, deletePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await deleteDiscordIntegrationAction(prev, fd)
-      if (!result?.error) { setIntegration(null); setEditing(false) }
+      if (!result?.error) { setIntegration(null); setEditingChannels(false); setChannels([]) }
       return result
     },
     null
   )
 
   useEffect(() => {
-    fetch('/api/integrations')
-      .then((r) => r.json())
-      .then((data: DiscordIntegration[]) => {
-        setIntegration(data.find((i) => i.platform === 'discord') ?? null)
+    reloadIntegrations()
+  }, [reloadIntegrations])
+
+  // Handle redirect back from Discord OAuth
+  useEffect(() => {
+    const connected = searchParams.get('discord_connected')
+    const error = searchParams.get('discord_error')
+    if (connected === '1') {
+      reloadIntegrations().then(() => {
+        showToast('Discord server connected! Select channels below.')
+        setEditingChannels(true)
       })
+      // Remove params from URL without page reload
+      const url = new URL(window.location.href)
+      url.searchParams.delete('discord_connected')
+      url.searchParams.delete('guild_id')
+      router.replace(url.pathname + url.search, { scroll: false })
+    } else if (error) {
+      showToast(`Discord connection failed: ${error}`)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('discord_error')
+      router.replace(url.pathname + url.search, { scroll: false })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // When guild is connected and channels aren't loaded yet, fetch them
+  useEffect(() => {
+    if (!integration?.connected_guild_id || channels.length > 0) return
+    fetch(`/api/discord/guilds?guild_id=${integration.connected_guild_id}`)
+      .then((r) => r.json())
+      .then((data: { channels?: { id: string; name: string }[] }) => {
+        setChannels(data.channels ?? [])
+      })
+      .catch(() => null)
+  }, [integration?.connected_guild_id, channels.length])
+
+  async function handleAddToDiscord() {
+    setInviting(true)
+    try {
+      const res = await fetch('/api/discord/invite-url')
+      const data = await res.json() as { url?: string; error?: string }
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        showToast(data.error ?? 'Failed to get invite URL')
+        setInviting(false)
+      }
+    } catch {
+      showToast('Failed to get invite URL')
+      setInviting(false)
+    }
+  }
 
   if (integration === undefined) return <p className="text-sm text-gray-400">Loading…</p>
 
   const connected = integration !== null && integration.enabled === 1
-  const showForm = !connected || editing
+  const isOAuthConnected = connected && !!integration.connected_guild_id
 
   return (
     <>
@@ -171,7 +233,9 @@ function DiscordIntegrationCard() {
             <div>
               <p className="text-sm font-medium text-gray-900">Discord</p>
               <p className="text-xs text-gray-500">
-                {connected
+                {isOAuthConnected
+                  ? `Server connected · ${integration.channel_ids.length} channel(s) monitored`
+                  : connected
                   ? `Connected · ${integration.channel_ids.length} channel(s)`
                   : 'Not connected'}
               </p>
@@ -181,16 +245,33 @@ function DiscordIntegrationCard() {
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
               {connected ? 'Active' : 'Inactive'}
             </span>
-            {connected && !editing && (
-              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-                Edit
+            {isOAuthConnected && !editingChannels && (
+              <Button size="sm" variant="secondary" onClick={() => setEditingChannels(true)}>
+                Edit channels
               </Button>
             )}
           </div>
         </div>
 
-        {/* Locked summary */}
-        {connected && !editing && (
+        {/* One-click connect button — shown when not yet connected via OAuth */}
+        {!isOAuthConnected && !connected && (
+          <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-4 space-y-3">
+            <p className="text-sm text-gray-700">
+              Add AnswerLoops to your Discord server with one click — no bot token or Developer Portal required.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              disabled={inviting}
+              onClick={handleAddToDiscord}
+            >
+              {inviting ? 'Redirecting…' : 'Add AnswerLoops to Discord'}
+            </Button>
+          </div>
+        )}
+
+        {/* Legacy manual setup — shown only when already connected without OAuth guild */}
+        {connected && !isOAuthConnected && !editingChannels && (
           <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 divide-y divide-gray-100">
             <ReadOnlyRow label="Bot Token" value="••••••••• (saved)" />
             <ReadOnlyRow label="Channel IDs" value={integration.channel_ids.join(', ') || '—'} />
@@ -201,28 +282,50 @@ function DiscordIntegrationCard() {
           </div>
         )}
 
-        {/* Edit form */}
-        {showForm && (
-          <form key={editing ? 'edit' : 'new'} action={saveAction} className="space-y-3">
+        {/* OAuth-connected summary */}
+        {isOAuthConnected && !editingChannels && (
+          <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 divide-y divide-gray-100">
+            <ReadOnlyRow label="Server ID" value={integration.connected_guild_id!} />
+            <ReadOnlyRow label="Monitored channels" value={integration.channel_ids.join(', ') || '— (none selected)'} />
+            {integration.escalation_role_id && (
+              <ReadOnlyRow label="Escalation Role ID" value={integration.escalation_role_id} />
+            )}
+            <ReadOnlyRow label="Confidence threshold" value={String(integration.confidence_threshold ?? 0.8)} />
+          </div>
+        )}
+
+        {/* Channel picker — shown after OAuth connect or when editing */}
+        {(isOAuthConnected && editingChannels) && (
+          <form action={saveAction} className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Bot Token</label>
-              <input
-                name="botToken"
-                type="password"
-                autoComplete="new-password"
-                placeholder={connected ? '••••••••• (leave blank to keep current)' : 'Bot token from Discord Developer Portal'}
-                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Channel IDs (comma-separated)</label>
-              <input
-                name="channelIds"
-                type="text"
-                defaultValue={integration?.channel_ids.join(', ') ?? ''}
-                placeholder="123456789, 987654321"
-                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-              />
+              <label className="block text-xs font-medium text-gray-600 mb-2">
+                Channels to monitor
+                {channels.length === 0 && <span className="text-gray-400 font-normal ml-1">(loading…)</span>}
+              </label>
+              {channels.length > 0 ? (
+                <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto rounded border border-gray-200 p-2 bg-white">
+                  {channels.map((ch) => (
+                    <label key={ch.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
+                      <input
+                        type="checkbox"
+                        name="channelIds"
+                        value={ch.id}
+                        defaultChecked={integration.channel_ids.includes(ch.id)}
+                        className="rounded"
+                      />
+                      #{ch.name}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <input
+                  name="channelIds"
+                  type="text"
+                  defaultValue={integration.channel_ids.join(', ')}
+                  placeholder="123456789, 987654321"
+                  className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+                />
+              )}
             </div>
             <hr className="border-gray-100" />
             <div>
@@ -230,7 +333,7 @@ function DiscordIntegrationCard() {
               <input
                 name="escalationRoleId"
                 type="text"
-                defaultValue={integration?.escalation_role_id ?? ''}
+                defaultValue={integration.escalation_role_id ?? ''}
                 placeholder="Discord role ID — e.g. 123456789012345678"
                 className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
               />
@@ -246,7 +349,7 @@ function DiscordIntegrationCard() {
                 min="0"
                 max="1"
                 step="0.05"
-                defaultValue={integration?.confidence_threshold ?? 0.8}
+                defaultValue={integration.confidence_threshold ?? 0.8}
                 className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
               />
               <p className="text-xs text-gray-400 mt-1">AI answers below this score trigger human escalation.</p>
@@ -256,26 +359,40 @@ function DiscordIntegrationCard() {
             )}
             <div className="flex gap-2">
               <Button type="submit" size="sm" disabled={savePending}>
-                {savePending ? 'Saving…' : connected ? 'Update' : 'Connect'}
+                {savePending ? 'Saving…' : 'Save channels'}
               </Button>
-              {editing && (
-                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
-                  Cancel
-                </Button>
-              )}
-              {connected && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="danger"
-                  disabled={deletePending}
-                  onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
-                >
-                  {deletePending ? 'Removing…' : 'Disconnect'}
-                </Button>
-              )}
+              <Button type="button" size="sm" variant="ghost" onClick={() => setEditingChannels(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="danger"
+                disabled={deletePending}
+                onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
+              >
+                {deletePending ? 'Removing…' : 'Disconnect'}
+              </Button>
             </div>
           </form>
+        )}
+
+        {/* Disconnect button for legacy (non-OAuth) connected state */}
+        {connected && !isOAuthConnected && (
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setEditingChannels(true)}>
+              Edit
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              disabled={deletePending}
+              onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
+            >
+              {deletePending ? 'Removing…' : 'Disconnect'}
+            </Button>
+          </div>
         )}
 
         {(deleteState as { error?: string } | null)?.error && (
