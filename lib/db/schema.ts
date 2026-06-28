@@ -60,6 +60,7 @@ export const tickets = pgTable(
     discordAuthorId: text('discord_author_id'),
     discordAuthorName: text('discord_author_name'),
     discordDeletedAt: text('discord_deleted_at'),
+    sourcePlatform: text('source_platform').notNull().default('discord'),
     content: text('content').notNull(),
     category: text('category'),
     severityScore: doublePrecision('severity_score'),

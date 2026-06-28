@@ -75,6 +75,7 @@ export async function processCommunityMessage(
     discord_thread_id: threadId,
     discord_author_id: authorId,
     discord_author_name: authorName,
+    source_platform: platform,
     content,
     category: triage.category,
     severity_score: triage.severity_score,
