@@ -3,13 +3,25 @@ import { getDb } from './drizzle'
 import fs from 'node:fs'
 import path from 'node:path'
 
+// Postgres error codes that mean "schema object already exists".
+// Safe to skip — the DB is already in the desired state.
+const ALREADY_EXISTS = new Set([
+  '42P07', // relation already exists (CREATE TABLE)
+  '42701', // column already exists (ALTER TABLE ADD COLUMN)
+  '42710', // duplicate object (constraint/index name)
+  '42P16', // index already exists
+  '42712', // duplicate rule
+])
+
 // Drizzle's journal-based migrate() only applies migrations registered in
 // drizzle/meta/_journal.json. Our hand-written SQL files (0002+) were never
-// added to the journal, so migrate() silently skips them.
+// added to the journal so migrate() silently skips them.
 //
 // This custom runner reads every *.sql file in ./drizzle/ (sorted by name),
-// tracks applied migrations in a __custom_migrations table, and runs any
-// that haven't been applied yet — no journal required.
+// splits on Drizzle's "--> statement-breakpoint" markers, executes each
+// statement individually, and skips "already exists" errors so the runner
+// is idempotent even when transitioning from the old journal-based runner
+// (which applied 0000 and 0001 but left no __custom_migrations record).
 export async function runMigrations() {
   const db = getDb()
 
@@ -33,12 +45,35 @@ export async function runMigrations() {
 
   for (const file of files) {
     if (appliedSet.has(file)) continue
+
     const content = fs.readFileSync(path.join(migrationsDir, file), 'utf8')
     console.log(`[migrate] applying ${file}`)
-    await db.execute(sql.raw(content))
+
+    // Split on Drizzle's statement-breakpoint markers and execute each statement
+    // individually. This lets us skip "already exists" errors per-statement
+    // rather than aborting the whole migration.
+    const statements = content
+      .split('--> statement-breakpoint')
+      .map((s) => s.trim())
+      .filter(Boolean)
+
+    for (const stmt of statements) {
+      try {
+        await db.execute(sql.raw(stmt))
+      } catch (err) {
+        const code = (err as { code?: string }).code
+        if (code && ALREADY_EXISTS.has(code)) {
+          // Schema already in desired state — skip silently
+          continue
+        }
+        throw new Error(`[migrate] ${file} failed:\n${String(err)}`)
+      }
+    }
+
     await db.execute(
       sql`INSERT INTO __custom_migrations (filename) VALUES (${file})`
     )
+    console.log(`[migrate] ${file} done`)
   }
 
   // Idempotent trigger: fires pg_notify('config_changed') whenever the
