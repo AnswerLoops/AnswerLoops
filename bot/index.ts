@@ -182,9 +182,11 @@ async function main() {
 
   // Replace polling with Postgres LISTEN/NOTIFY — fires instantly when
   // the integrations table is written from the settings UI.
+  // Do NOT call refreshGuildMap() here: saveGuildChannelMap() writes to
+  // integrations, which fires config_changed again → infinite loop.
+  // Guild map updates happen only on ClientReady and GuildCreate.
   const stopListening = watchConfigChanges(async () => {
     await reloadConfig()
-    await refreshGuildMap()
   })
 
   // Graceful shutdown
