@@ -45,6 +45,7 @@
           "self-hosting/telegram-bot",
           "self-hosting/email-channel",
           "self-hosting/stripe",
+          "self-hosting/enterprise",
           "self-hosting/production",
           "self-hosting/upgrading",
           "self-hosting/troubleshooting"

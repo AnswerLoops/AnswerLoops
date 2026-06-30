@@ -1,58 +1,116 @@
 ---
 title: Slack App Setup
-description: Create and configure the Slack app for AnswerLoops.
+description: Set up Slack for AnswerLoops — 1-click OAuth or polling mode (no webhook, no admin required).
 ---
 
-## 1. Create a Slack App
+AnswerLoops offers two Slack connection paths. Both feed into the same AI pipeline. Pick based on your security posture.
+
+## Option A: 1-click OAuth (recommended)
+
+### 1. Create a Slack App
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
-2. Name it and select your workspace
+2. Name it (e.g. "AnswerLoops") and select your workspace
 
-## 2. Configure OAuth scopes
+### 2. Configure OAuth scopes
 
 Go to **OAuth & Permissions** → **Bot Token Scopes** and add:
 - `channels:history`
 - `channels:read`
 - `chat:write`
-- `commands`
-- `groups:history`
-- `im:history`
-- `users:read`
+- `reactions:write`
 
-## 3. Install to workspace
+### 3. Add redirect URL
+
+Go to **OAuth & Permissions** → **Redirect URLs** and add:
+
+```
+https://your-domain.com/api/slack/callback
+```
+
+Replace `your-domain.com` with your `AUTH_URL` value.
+
+### 4. Get credentials
+
+Go to **Basic Information** → **App Credentials** and copy:
+
+```bash
+SLACK_CLIENT_ID=1234567890.987654321098
+SLACK_CLIENT_SECRET=abcdef1234567890abcdef1234567890
+SLACK_SIGNING_SECRET=abcdef1234567890abcdef1234567890
+AUTH_URL=https://your-domain.com
+```
+
+### 5. Connect in AnswerLoops
+
+Go to **Settings → Integrations → Slack** → **Add to Slack**. Authorize the workspace. The channel picker loads automatically.
+
+### 6. (Optional) Enable real-time Events API
+
+By default AnswerLoops polls for new messages. For instant delivery:
+
+1. **Event Subscriptions** → Enable Events → Request URL: `https://your-domain.com/api/slack/events`
+2. Subscribe to bot events: `message.channels`, `reaction_added`
+
+<Tip>
+  Events API requires a public HTTPS URL. If your deployment is behind a firewall or VPN, use polling mode — same pipeline, no inbound connections needed.
+</Tip>
+
+---
+
+## Option B: Polling mode (no admin, no webhook)
+
+Designed for teams that cannot expose a public webhook URL, cannot get security approval for inbound HTTP from Slack, or simply prefer outbound-only connections.
+
+**What you don't need:**
+- No public-facing URL
+- No inbound firewall rules
+- No admin approval
+- No signing secret
+
+The bot reaches out to Slack's API on a schedule — Slack never calls back.
+
+### 1. Create a Slack App (minimal scopes)
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
+2. Name it and select your workspace
+3. **OAuth & Permissions** → **Bot Token Scopes** — add only:
+   - `channels:history`
+   - `channels:read`
+   - `chat:write`
+   - `reactions:write`
+
+### 2. Install and copy token
 
 Click **Install to Workspace** → **Allow**. Copy the **Bot User OAuth Token** (`xoxb-...`).
 
-```env
-SLACK_BOT_TOKEN=xoxb-...
+### 3. Get Team ID and Channel IDs
+
+- **Team ID**: your workspace URL — `https://app.slack.com/client/T0123ABCDE` — the `T…` part
+- **Channel IDs**: right-click a channel → **Copy link** — last segment (e.g. `C01234ABCDE`)
+
+### 4. Connect in AnswerLoops
+
+Go to **Settings → Integrations → Slack** → click **Set up manually instead**. Enter the bot token, team ID, and channel IDs.
+
+### 5. (Optional) Adjust poll interval
+
+```bash
+SLACK_POLL_INTERVAL_SECONDS=60  # default. Minimum recommended: 30.
 ```
 
-## 4. Get signing secret and team ID
+<Info>
+  Polling uses `conversations.history` with cursor-based deduplication — messages are never processed twice even if polls overlap.
+</Info>
 
-- **Signing secret**: Settings → Basic Information → App Credentials
-- **Team ID**: Your workspace URL `https://app.slack.com/client/T0123ABCDE` — the `T...` part
+---
 
-```env
-SLACK_SIGNING_SECRET=your_signing_secret
-SLACK_TEAM_ID=T0123ABCDE
+## Invite the bot to channels
+
+Regardless of connection method, invite the bot to each channel you want monitored:
+
+```
+/invite @YourBotName
 ```
 
-## 5. Enable Events API
-
-Go to **Event Subscriptions** → Enable Events → Request URL:
-```
-https://your-domain.com/api/slack/events
-```
-
-Subscribe to these bot events:
-- `message.channels`
-- `message.groups`
-- `message.im`
-
-## 6. Configure in AnswerLoops Settings
-
-Go to **Settings → Slack** and enter all credentials plus the channel IDs to listen on.
-
-<Tip>
-  Get channel IDs by right-clicking a channel in Slack → **Copy link** — the ID is the last segment (e.g. `C01234ABCDE`).
-</Tip>
+Or use the channel picker in **Settings → Integrations → Slack** after connecting.
