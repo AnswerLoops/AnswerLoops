@@ -20,7 +20,7 @@ function Nav({ loggedIn }: { loggedIn: boolean }) {
     <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
         <div className="flex items-center gap-8">
-          <Logo size={28} textSize="text-sm" />
+          <Logo width={110} />
           <nav className="hidden md:flex items-center gap-6">
             <Link href="#features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Features</Link>
             <Link href="#how-it-works" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">How it works</Link>
@@ -126,9 +126,9 @@ function ChatMockup() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-brand-950 via-brand-900 to-[#2A1510]">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-brand-700/40 via-transparent to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-[#E8A83A]/10 via-transparent to-transparent" />
+    <section className="relative overflow-hidden bg-black">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-brand-900/50 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-brand-950/60 via-transparent to-transparent" />
       <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-16">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-300 mb-8">
@@ -596,14 +596,14 @@ function Pricing() {
 
 function CTA() {
   return (
-    <section className="bg-brand-600">
+    <section className="bg-black">
       <div className="mx-auto max-w-6xl px-6 py-20 text-center">
         <h2 className="text-3xl font-bold text-white">Your community deserves better than copy-paste answers.</h2>
-        <p className="mt-4 text-brand-200 text-lg max-w-xl mx-auto">Cloud or self-hosted — AnswerLoops works either way. Your data stays yours.</p>
+        <p className="mt-4 text-gray-400 text-lg max-w-xl mx-auto">Cloud or self-hosted — AnswerLoops works either way. Your data stays yours.</p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/login"
-            className="rounded-xl bg-white px-10 py-3.5 text-base font-semibold text-brand-600 hover:bg-brand-50 transition-colors shadow-sm"
+            className="rounded-xl bg-brand-600 px-10 py-3.5 text-base font-semibold text-white hover:bg-brand-500 transition-colors shadow-sm"
           >
             Start free trial
           </Link>
@@ -611,7 +611,7 @@ function CTA() {
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-xl border border-brand-400 px-10 py-3.5 text-base font-semibold text-white hover:bg-brand-700 transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-10 py-3.5 text-base font-semibold text-white hover:bg-white/10 transition-colors"
           >
             <GithubIcon />
             Self-host free
@@ -631,7 +631,7 @@ function Footer() {
         <div className="flex flex-col md:flex-row items-start justify-between gap-8">
           <div>
             <div className="mb-3">
-              <Logo size={24} textSize="text-sm" />
+              <Logo width={90} />
             </div>
             <p className="text-xs text-gray-400 max-w-xs">AI-powered support automation for developer communities. Open source, self-hostable.</p>
             <div className="mt-4 flex items-center gap-1.5 text-xs text-gray-400">

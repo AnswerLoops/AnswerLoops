@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { LoginForm } from '@/components/login-form'
-import { LogoMark } from '@/components/logo'
+import { Logo } from '@/components/logo'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,12 +31,11 @@ export default async function LoginPage({ searchParams }: Props) {
       <div className="w-full max-w-sm">
         {/* Card */}
         <div className="rounded-2xl border border-gray-200 bg-white px-8 py-10 shadow-sm">
-          {/* Logo / wordmark */}
+          {/* Logo */}
           <div className="mb-8 text-center">
             <div className="mb-3 flex justify-center">
-              <LogoMark size={40} className="text-brand-600" />
+              <Logo width={120} />
             </div>
-            <h1 className="text-xl font-semibold text-gray-900">AnswerLoops</h1>
             <p className="mt-1 text-sm text-gray-500">Create a free workspace or sign in</p>
           </div>
 

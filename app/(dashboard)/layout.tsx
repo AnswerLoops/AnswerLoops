@@ -18,7 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <aside className="w-56 shrink-0 border-r border-gray-200 bg-white flex flex-col">
         <div className="px-4 py-3.5 border-b border-gray-200">
           <Link href="/">
-            <Logo size={22} textSize="text-sm" />
+            <Logo width={120} />
           </Link>
         </div>
         <SidebarNav />
