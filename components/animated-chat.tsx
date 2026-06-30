@@ -172,7 +172,7 @@ export function AnimatedChat() {
                       AnswerLoops <span className="rounded bg-brand-100 px-1 py-0.5 text-brand-600 text-[9px] font-bold">AI</span>{' '}
                       <span className="text-gray-300">{msg.time}</span>
                     </div>
-                    <div className="rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2.5 inline-flex items-center gap-1">
+                    <div className="rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2.5 w-72 flex items-center gap-1">
                       <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:0ms]" />
                       <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:150ms]" />
                       <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:300ms]" />
@@ -212,8 +212,8 @@ export function AnimatedChat() {
                     <div
                       className={
                         isUser
-                          ? 'rounded-xl rounded-tr-none bg-gray-100 px-3 py-2 text-xs text-gray-700 max-w-xs'
-                          : 'rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-gray-700 max-w-sm leading-relaxed'
+                          ? 'rounded-xl rounded-tr-none bg-gray-100 px-3 py-2 text-xs text-gray-700 w-56'
+                          : 'rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-gray-700 w-72 leading-relaxed'
                       }
                     >
                       {displayText}
