@@ -38,7 +38,7 @@ const MESSAGES = [
   },
 ]
 
-const CHAR_DELAY = 30
+const CHAR_DELAY = 33
 const AI_THINKING_DELAY = 900
 const BETWEEN_EXCHANGE_DELAY = 700
 const END_PAUSE = 2800
