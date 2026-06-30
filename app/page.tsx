@@ -389,7 +389,7 @@ function Testimonials() {
     },
   ]
   return (
-    <section className="bg-gray-50 border-y border-gray-100 py-24">
+    <section className="bg-warm-100 border-y border-warm-200 py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center mb-14">
           <h2 className="text-3xl font-bold text-gray-900">Loved by developer communities</h2>
