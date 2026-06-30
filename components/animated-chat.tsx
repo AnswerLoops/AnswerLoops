@@ -38,7 +38,7 @@ const MESSAGES = [
   },
 ]
 
-const CHAR_DELAY = 16
+const CHAR_DELAY = 30
 const AI_THINKING_DELAY = 900
 const BETWEEN_EXCHANGE_DELAY = 700
 const END_PAUSE = 2800
@@ -152,7 +152,7 @@ export function AnimatedChat() {
       </div>
 
       {/* Messages */}
-      <div className="p-4 space-y-4 min-h-[320px] bg-white">
+      <div className="p-4 space-y-4 h-[420px] overflow-hidden bg-white">
         {MESSAGES.map((msg, i) => {
           const isVisible = visibleMsgs.includes(msg.id)
           const displayText = getDisplayText(msg.id)
