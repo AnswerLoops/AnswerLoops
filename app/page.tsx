@@ -174,7 +174,7 @@ function Hero() {
 // ── Trust bar ─────────────────────────────────────────────────────────────────
 
 function TrustBar() {
-  const integrations = ['Discord', 'Slack', 'Telegram', 'Email', 'GitHub', 'Notion', 'Zapier', 'Webhooks']
+  const integrations = ['Discord', 'Slack', 'Telegram', 'Email', 'GitHub', 'Webhooks']
   return (
     <section className="border-b border-gray-100 bg-gray-50 py-8">
       <div className="mx-auto max-w-6xl px-6">
