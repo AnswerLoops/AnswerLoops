@@ -152,11 +152,12 @@ export function AnimatedChat() {
       </div>
 
       {/* Messages */}
-      <div className="p-4 space-y-4 h-[420px] overflow-hidden bg-white">
+      <div className="p-4 space-y-4 h-[520px] overflow-hidden bg-white">
         {MESSAGES.map((msg, i) => {
           const isVisible = visibleMsgs.includes(msg.id)
           const displayText = getDisplayText(msg.id)
           const isDone = completedMsgs.has(msg.id)
+          const isUser = msg.type === 'user'
 
           return (
             <div key={msg.id}>
@@ -182,8 +183,8 @@ export function AnimatedChat() {
 
               {/* Message itself */}
               {isVisible && (
-                <div className="flex gap-2.5 animate-[fadeIn_0.25s_ease]">
-                  {msg.type === 'user' ? (
+                <div className={`flex gap-2.5 animate-[fadeIn_0.25s_ease] ${isUser ? 'flex-row-reverse' : ''}`}>
+                  {isUser ? (
                     <div
                       className={`h-7 w-7 shrink-0 rounded-full ${msg.color} flex items-center justify-center text-white text-[10px] font-bold`}
                     >
@@ -194,9 +195,9 @@ export function AnimatedChat() {
                       <LogoMark size={16} className="text-white" />
                     </div>
                   )}
-                  <div className="flex-1">
-                    <div className="text-[11px] text-gray-400 mb-1">
-                      {msg.type === 'user' ? (
+                  <div className={`flex-1 ${isUser ? 'flex flex-col items-end' : ''}`}>
+                    <div className={`text-[11px] text-gray-400 mb-1 ${isUser ? 'text-right' : ''}`}>
+                      {isUser ? (
                         <>
                           {msg.name} <span className="text-gray-300">{msg.time}</span>
                         </>
@@ -210,8 +211,8 @@ export function AnimatedChat() {
                     </div>
                     <div
                       className={
-                        msg.type === 'user'
-                          ? 'rounded-xl rounded-tl-none bg-gray-100 px-3 py-2 text-xs text-gray-700 max-w-xs'
+                        isUser
+                          ? 'rounded-xl rounded-tr-none bg-gray-100 px-3 py-2 text-xs text-gray-700 max-w-xs'
                           : 'rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-gray-700 max-w-sm leading-relaxed'
                       }
                     >
