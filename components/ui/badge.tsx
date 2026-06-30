@@ -24,7 +24,7 @@ const categoryColors: Record<TicketCategory, string> = {
 
 const draftColors: Record<AIDraftStatus, string> = {
   pending: 'bg-gray-100 text-gray-600',
-  posted: 'bg-indigo-100 text-indigo-800',
+  posted: 'bg-brand-100 text-brand-800',
   approved: 'bg-green-100 text-green-800',
   overridden: 'bg-gray-100 text-gray-500',
 }

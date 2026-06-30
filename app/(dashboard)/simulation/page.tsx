@@ -95,7 +95,7 @@ export default function SimulationPage() {
         <button
           onClick={run}
           disabled={running}
-          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors"
+          className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors"
         >
           {running ? 'Running simulation…' : 'Run simulation'}
         </button>
@@ -173,7 +173,7 @@ export default function SimulationPage() {
                       <td className="px-4 py-3 text-gray-300 max-w-xs">
                         <div className="truncate">{r.content}</div>
                         <details className="mt-1">
-                          <summary className="text-xs text-indigo-400 cursor-pointer">Sim answer</summary>
+                          <summary className="text-xs text-brand-400 cursor-pointer">Sim answer</summary>
                           <div className="text-xs text-gray-400 mt-1 whitespace-pre-wrap">{r.simAnswer}</div>
                         </details>
                       </td>

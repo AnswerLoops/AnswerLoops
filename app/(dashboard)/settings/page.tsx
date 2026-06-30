@@ -229,7 +229,7 @@ function DiscordIntegrationCard() {
       <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-sm font-bold">D</div>
+            <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-sm font-bold">D</div>
             <div>
               <p className="text-sm font-medium text-gray-900">Discord</p>
               <p className="text-xs text-gray-500">
@@ -255,7 +255,7 @@ function DiscordIntegrationCard() {
 
         {/* One-click connect button — shown when not yet connected via OAuth */}
         {!isOAuthConnected && !connected && (
-          <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-4 space-y-3">
+          <div className="rounded-lg bg-brand-50 border border-brand-100 p-4 space-y-3">
             <p className="text-sm text-gray-700">
               Add AnswerLoops to your Discord server with one click — no bot token or Developer Portal required.
             </p>
@@ -1283,7 +1283,7 @@ function TeamSection() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-indigo-600 hover:text-indigo-800"
+                        className="text-brand-600 hover:text-brand-800"
                         onClick={() => setTransferTarget(m)}
                       >
                         Transfer Ownership
@@ -1515,7 +1515,7 @@ function AIModelSection() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${configured ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${configured ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>
               {configured ? 'Custom' : 'Platform default'}
             </span>
             {configured && !editing && (
@@ -1790,7 +1790,7 @@ function WidgetSection() {
           )}
 
           <div>
-            <p className="text-xs font-medium text-gray-600 mb-1.5">Paste this before <code className="text-indigo-600">&lt;/body&gt;</code></p>
+            <p className="text-xs font-medium text-gray-600 mb-1.5">Paste this before <code className="text-brand-600">&lt;/body&gt;</code></p>
             <div className="relative">
               <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 font-mono overflow-x-auto whitespace-pre-wrap break-all">{embedCode}</pre>
               <button
@@ -1808,7 +1808,7 @@ function WidgetSection() {
                 href={`/widget/${token}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
+                className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
               >
                 Preview widget ↗
               </a>

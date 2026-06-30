@@ -44,9 +44,9 @@ export function StatsCards({ total, open, inProgress, resolved, slaBreaches, pen
           <path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>
         </svg>
       ),
-      bg: 'bg-indigo-50 border-indigo-100',
-      iconBg: 'bg-indigo-100 text-indigo-600',
-      valueColor: 'text-indigo-700',
+      bg: 'bg-brand-50 border-brand-100',
+      iconBg: 'bg-brand-100 text-brand-600',
+      valueColor: 'text-brand-700',
     },
     {
       label: 'Open',

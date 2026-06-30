@@ -45,7 +45,7 @@ export default async function KnowledgeGapsPage() {
         </div>
         <Link
           href="/kb"
-          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -114,7 +114,7 @@ export default async function KnowledgeGapsPage() {
                         <Link
                           href={`/kb?sourceTicket=${gap.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="text-[10px] font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5 hover:bg-indigo-50 transition-colors"
+                          className="text-[10px] font-medium text-brand-600 hover:text-brand-700 border border-brand-200 rounded-full px-2 py-0.5 hover:bg-brand-50 transition-colors"
                         >
                           + KB
                         </Link>
@@ -156,7 +156,7 @@ export default async function KnowledgeGapsPage() {
                     </div>
                     <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-indigo-400 transition-all"
+                        className="h-full rounded-full bg-brand-400 transition-all"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -171,7 +171,7 @@ export default async function KnowledgeGapsPage() {
             <p className="text-xs text-gray-500 mb-2">Every KB article you add closes a gap and improves deflection rate.</p>
             <Link
               href="/kb"
-              className="block w-full text-center rounded-lg border border-indigo-200 py-2 text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
+              className="block w-full text-center rounded-lg border border-brand-200 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 transition-colors"
             >
               Open Knowledge Base →
             </Link>

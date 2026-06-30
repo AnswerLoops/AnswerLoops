@@ -50,7 +50,7 @@ export default async function TicketsPage(props: { searchParams: Promise<SearchP
             <option value="how_to">How-to</option>
             <option value="general_question">General Question</option>
           </select>
-          <button type="submit" className="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700">
+          <button type="submit" className="px-3 py-1.5 rounded-md bg-brand-600 text-white text-sm hover:bg-brand-700">
             Filter
           </button>
           <a href="/tickets" className="px-3 py-1.5 rounded-md border border-gray-200 text-gray-600 text-sm hover:bg-gray-50">

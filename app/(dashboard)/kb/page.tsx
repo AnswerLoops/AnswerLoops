@@ -160,7 +160,7 @@ function FileUploadSection({ onImported }: { onImported: () => void }) {
         onClick={() => !uploading && inputRef.current?.click()}
         className={`
           flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-8 cursor-pointer transition-colors
-          ${dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/30'}
+          ${dragging ? 'border-brand-400 bg-brand-50' : 'border-gray-200 bg-white hover:border-brand-300 hover:bg-brand-50/30'}
           ${uploading ? 'pointer-events-none opacity-60' : ''}
         `}
       >
@@ -173,12 +173,12 @@ function FileUploadSection({ onImported }: { onImported: () => void }) {
         />
         {uploading ? (
           <>
-            <svg className="h-6 w-6 animate-spin text-indigo-500" viewBox="0 0 24 24" fill="none">
+            <svg className="h-6 w-6 animate-spin text-brand-500" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-            <p className="text-sm text-indigo-700 font-medium">Parsing and embedding…</p>
-            <p className="text-xs text-indigo-500">This can take 15–60 seconds for large files.</p>
+            <p className="text-sm text-brand-700 font-medium">Parsing and embedding…</p>
+            <p className="text-xs text-brand-500">This can take 15–60 seconds for large files.</p>
           </>
         ) : (
           <>
@@ -186,7 +186,7 @@ function FileUploadSection({ onImported }: { onImported: () => void }) {
               <path d="M12 16V8m0 0l-3 3m3-3l3 3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <p className="text-sm text-gray-600">
-              <span className="font-medium text-indigo-600">Click to upload</span> or drag and drop
+              <span className="font-medium text-brand-600">Click to upload</span> or drag and drop
             </p>
             <p className="text-xs text-gray-400">PDF · DOCX · MD · TXT · CSV</p>
           </>
@@ -242,7 +242,7 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
             required
             disabled={pending}
             placeholder="https://docs.example.com"
-            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-50"
+            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:opacity-50"
           />
           <Button type="submit" size="sm" disabled={pending} className="flex items-center gap-1.5 min-w-[90px] justify-center">
             {pending && (
@@ -256,14 +256,14 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
         </div>
 
         {pending && (
-          <div className="flex items-center gap-2 rounded-md border border-indigo-100 bg-indigo-50 px-3 py-2.5">
-            <svg className="h-4 w-4 animate-spin text-indigo-500 shrink-0" viewBox="0 0 24 24" fill="none">
+          <div className="flex items-center gap-2 rounded-md border border-brand-100 bg-brand-50 px-3 py-2.5">
+            <svg className="h-4 w-4 animate-spin text-brand-500 shrink-0" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
             <div>
-              <p className="text-xs font-medium text-indigo-700">Crawling and embedding content…</p>
-              <p className="text-xs text-indigo-500">This can take 15–60 seconds depending on site size.</p>
+              <p className="text-xs font-medium text-brand-700">Crawling and embedding content…</p>
+              <p className="text-xs text-brand-500">This can take 15–60 seconds depending on site size.</p>
             </div>
           </div>
         )}
@@ -422,7 +422,7 @@ export default function KBPage() {
               {a.source_ticket_id && (
                 <Link
                   href={`/tickets/${a.source_ticket_id}`}
-                  className="mt-2 inline-block text-xs text-indigo-600 hover:underline"
+                  className="mt-2 inline-block text-xs text-brand-600 hover:underline"
                 >
                   From ticket #{a.source_ticket_id} →
                 </Link>

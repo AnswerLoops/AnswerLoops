@@ -65,7 +65,7 @@ interface LogoProps {
 }
 
 export function Logo({ size = 28, textSize = 'text-sm', className = '', color = 'indigo' }: LogoProps) {
-  const iconColor = color === 'white' ? 'text-white' : 'text-indigo-600'
+  const iconColor = color === 'white' ? 'text-white' : 'text-brand-600'
   const textColor = color === 'white' ? 'text-white' : 'text-gray-900'
 
   return (

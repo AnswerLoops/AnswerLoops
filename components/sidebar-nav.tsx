@@ -110,11 +110,11 @@ export function SidebarNav() {
             aria-current={active ? 'page' : undefined}
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               active
-                ? 'bg-indigo-50 text-indigo-700'
+                ? 'bg-brand-50 text-brand-700'
                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
             }`}
           >
-            <span className={active ? 'text-indigo-600' : 'text-gray-400'}>{item.icon}</span>
+            <span className={active ? 'text-brand-600' : 'text-gray-400'}>{item.icon}</span>
             {item.label}
           </Link>
         )

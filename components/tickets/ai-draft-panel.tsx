@@ -19,12 +19,12 @@ export function AIDraftPanel({ ticketId, draft, status }: AIDraftPanelProps) {
   if (status === 'overridden') return null
 
   return (
-    <div className="rounded-lg border border-indigo-200 bg-indigo-50">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-indigo-200">
+    <div className="rounded-lg border border-brand-200 bg-brand-50">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-brand-200">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-indigo-700">AI Draft Answer</span>
+          <span className="text-xs font-semibold text-brand-700">AI Draft Answer</span>
           {status === 'posted' && (
-            <span className="text-xs text-indigo-500">Posted to Discord — awaiting review</span>
+            <span className="text-xs text-brand-500">Posted to Discord — awaiting review</span>
           )}
           {status === 'approved' && (
             <span className="text-xs text-green-600 font-medium">Approved</span>
@@ -62,7 +62,7 @@ export function AIDraftPanel({ ticketId, draft, status }: AIDraftPanelProps) {
               value={editedDraft}
               onChange={(e) => setEditedDraft(e.target.value)}
               rows={8}
-              className="w-full rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm resize-none font-mono text-xs"
+              className="w-full rounded-md border border-brand-200 bg-white px-3 py-2 text-sm resize-none font-mono text-xs"
             />
             <div className="flex gap-2">
               <Button type="submit" size="sm" disabled={isPending}>

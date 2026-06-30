@@ -40,7 +40,7 @@ export function TicketList({ tickets }: { tickets: Ticket[] }) {
             <tr key={ticket.id} className="hover:bg-gray-50 transition-colors">
               <td className="px-4 py-3 text-gray-400">#{ticket.id}</td>
               <td className="px-4 py-3 max-w-xs">
-                <Link href={`/tickets/${ticket.id}`} className="text-gray-900 hover:text-indigo-600 line-clamp-2">
+                <Link href={`/tickets/${ticket.id}`} className="text-gray-900 hover:text-brand-600 line-clamp-2">
                   {ticket.ai_summary ?? ticket.content.slice(0, 100)}
                 </Link>
               </td>
