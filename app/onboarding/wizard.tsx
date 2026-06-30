@@ -2,7 +2,7 @@
 
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react'
 import { updateWorkspaceNameAction, completeOnboardingAction } from '@/app/actions/onboarding'
-import { saveDiscordIntegrationAction, saveSlackIntegrationAction, saveTelegramIntegrationAction } from '@/app/actions/integrations'
+import { saveDiscordIntegrationAction, saveTelegramIntegrationAction } from '@/app/actions/integrations'
 import { ingestUrlAction } from '@/app/actions/ingest-url'
 import type { IngestUrlResult } from '@/app/actions/ingest-url'
 
@@ -464,14 +464,26 @@ function TelegramFlow({ onDone, onBack }: { onDone: () => void; onBack: () => vo
 
 function ConnectStep({ onDone }: { onDone: () => void }) {
   const [platform, setPlatform] = useState<Platform>(null)
-  const [slackState, slackAction, slackPending] = useActionState(
-    async (prev: unknown, fd: FormData) => {
-      const result = await saveSlackIntegrationAction(prev, fd)
-      if (!result?.error) onDone()
-      return result
-    },
-    null
-  )
+  const [connectingSlack, setConnectingSlack] = useState(false)
+  const [slackError, setSlackError] = useState<string | null>(null)
+
+  async function handleAddToSlack() {
+    setConnectingSlack(true)
+    setSlackError(null)
+    try {
+      const res = await fetch('/api/slack/install')
+      const data = await res.json() as { url?: string; error?: string }
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        setSlackError(data.error ?? 'Failed to get Slack install URL')
+        setConnectingSlack(false)
+      }
+    } catch {
+      setSlackError('Failed to connect to Slack')
+      setConnectingSlack(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -494,6 +506,7 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
             <PlatformCard
               icon={<SlackIcon className="h-7 w-7 text-[#4A154B]" />}
               label="Slack"
+              badge="1-click"
               bg="hover:bg-purple-50/60 bg-white"
               borderColor="border-gray-200 hover:border-purple-400/50"
               onClick={() => setPlatform('slack')}
@@ -544,34 +557,33 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
       )}
 
       {platform === 'slack' && (
-        <form action={slackAction} className="space-y-4">
+        <div className="space-y-4">
           <BackButton onClick={() => setPlatform(null)} />
-          <div className="rounded-xl border border-purple-100 bg-purple-50 px-4 py-3 text-xs text-purple-700 space-y-1.5">
-            <p className="font-semibold">You need a Slack App</p>
-            <ol className="list-decimal list-inside space-y-1 text-purple-600">
-              <li>Go to <span className="font-mono">api.slack.com/apps</span> → Create New App</li>
-              <li>OAuth &amp; Permissions → Bot Token Scopes: <span className="font-mono">channels:history, chat:write</span></li>
-              <li>Install to workspace → copy Bot Token (<span className="font-mono">xoxb-…</span>)</li>
-              <li>Basic Information → Signing Secret → copy below</li>
-            </ol>
+          <div className="rounded-xl border border-purple-100 bg-purple-50 px-4 py-3 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <SlackIcon className="h-4 w-4 text-[#4A154B]" />
+              <p className="text-sm font-semibold text-purple-900">Connect Slack in one click</p>
+            </div>
+            <p className="text-xs text-purple-700">
+              Click below to authorize AnswerLoops in your Slack workspace. You&apos;ll pick which channels to monitor after connecting.
+              Uses polling — no webhook or admin permissions required.
+            </p>
           </div>
-          <Field label="Bot Token">
-            <input name="botToken" type="password" autoComplete="new-password" placeholder="xoxb-…" className={inputCls} required />
-          </Field>
-          <Field label="Signing Secret">
-            <input name="signingSecret" type="password" autoComplete="new-password" placeholder="From Basic Information" className={inputCls} required />
-          </Field>
-          <Field label="Team ID">
-            <input name="teamId" type="text" placeholder="T01234ABCDE" className={inputCls} required />
-          </Field>
-          <Field label="Channel IDs" hint="Comma-separated Slack channel IDs (e.g. C01234ABCDE).">
-            <input name="channelIds" type="text" placeholder="C01234ABCDE" className={inputCls} required />
-          </Field>
-          {(slackState as { error?: string } | null)?.error && (
-            <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{(slackState as { error?: string }).error}</p>
+          {slackError && (
+            <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{slackError}</p>
           )}
-          <PrimaryButton pending={slackPending} label="Connect Slack" pendingLabel="Connecting…" color="slack" />
-        </form>
+          <PrimaryButton
+            type="button"
+            pending={connectingSlack}
+            label="Add to Slack"
+            pendingLabel="Redirecting to Slack…"
+            color="slack"
+            onClick={handleAddToSlack}
+          />
+          <button type="button" onClick={onDone} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors pt-1">
+            Skip — I&apos;ll connect Slack in Settings
+          </button>
+        </div>
       )}
     </div>
   )

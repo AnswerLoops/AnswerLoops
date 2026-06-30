@@ -41,18 +41,38 @@ Callback URLs to register:
 
 | Variable | Description |
 |---|---|
-| `DISCORD_TOKEN` | Bot token from Discord Developer Portal |
-| `DISCORD_CHANNEL_IDS` | Comma-separated channel IDs to listen on |
-| `DISCORD_APPLICATION_ID` | Application ID from Developer Portal |
-| `DISCORD_GUILD_ID` | Your server (guild) ID |
+| `DISCORD_TOKEN` | Bot token from Discord Developer Portal → Bot tab |
+| `DISCORD_CLIENT_ID` | Application ID from Discord Developer Portal → General Information. Required for 1-click OAuth install. Same value as `DISCORD_APPLICATION_ID`. |
+| `DISCORD_APPLICATION_ID` | Application ID — used for slash command registration |
+| `DISCORD_CHANNEL_IDS` | Comma-separated channel IDs (env-var fallback if no DB integration set) |
+| `DISCORD_GUILD_ID` | Server (guild) ID — limits slash command registration to one server during dev |
+| `AUTH_URL` | Public URL of your deployment (e.g. `https://app.example.com`). Required for OAuth redirect URIs. |
+
+<Info>
+  Add `{AUTH_URL}/api/discord/callback` to your Discord app's OAuth2 Redirect URIs in the Developer Portal.
+</Info>
 
 ## Slack (optional)
 
+Slack supports two install paths:
+
+| Path | When to use |
+|---|---|
+| **1-click OAuth** | Set `SLACK_CLIENT_ID` + `SLACK_CLIENT_SECRET`. Users click "Add to Slack" — no credentials to copy. |
+| **Polling (manual)** | Omit OAuth vars. Users paste a bot token directly. No webhook or admin access required. |
+
 | Variable | Description |
 |---|---|
-| `SLACK_BOT_TOKEN` | Bot token (`xoxb-...`) |
-| `SLACK_SIGNING_SECRET` | From Slack app Basic Information |
-| `SLACK_TEAM_ID` | Your workspace team ID (`T...`) |
+| `SLACK_CLIENT_ID` | OAuth app Client ID from `api.slack.com/apps` → Basic Information. Enables 1-click install. |
+| `SLACK_CLIENT_SECRET` | OAuth app Client Secret. Required with `SLACK_CLIENT_ID`. |
+| `SLACK_SIGNING_SECRET` | App signing secret from Basic Information. Required only if using the Slack Events API webhook (not needed for polling mode). |
+| `SLACK_POLL_INTERVAL_SECONDS` | How often the bot polls Slack for new messages. Default: `60`. Minimum recommended: `30`. |
+
+<Info>
+  In polling mode the bot calls `conversations.history` on an interval — no public webhook URL required. Ideal for enterprises that cannot grant inbound webhook access.
+  
+  Add `{AUTH_URL}/api/slack/callback` to your Slack app's OAuth Redirect URLs when using 1-click install.
+</Info>
 
 ## Stripe (optional)
 

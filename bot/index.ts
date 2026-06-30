@@ -21,9 +21,10 @@ import {
 } from './handlers'
 import { registerSlashCommands, handleAsk, handleSummarize, type SlashConfig } from './slash'
 import { logger } from '../lib/logger'
-import { getIntegration, getIntegrationByGuildId, parseChannelIds, saveGuildChannelMap } from '../lib/db/queries/integrations'
+import { getIntegration, getIntegrationByGuildId, listIntegrations, parseChannelIds, saveGuildChannelMap } from '../lib/db/queries/integrations'
 import { markDiscordDeleted, markThreadDiscordDeleted } from '../lib/db/queries/tickets'
 import { DEFAULT_ORG_ID } from '../lib/db/schema'
+import { startSlackPoller, reloadSlackPoller, stopSlackPoller } from '../lib/slack/poller'
 
 const MOD = 'bot'
 
@@ -180,6 +181,19 @@ async function main() {
     await saveGuildChannelMap(DEFAULT_ORG_ID, guildMap).catch(() => null)
   }
 
+  async function loadSlackOrgIds(): Promise<number[]> {
+    try {
+      const all = await listIntegrations(DEFAULT_ORG_ID)
+      // In multi-tenant each org has its own row; for now collect all Slack orgs
+      // by scanning integrations where platform=slack and bot_token is set.
+      return all
+        .filter((i) => i.platform === 'slack' && i.enabled === 1 && !!i.bot_token)
+        .map((i) => i.org_id)
+    } catch {
+      return []
+    }
+  }
+
   // Replace polling with Postgres LISTEN/NOTIFY — fires instantly when
   // the integrations table is written from the settings UI.
   // Do NOT call refreshGuildMap() here: saveGuildChannelMap() writes to
@@ -187,11 +201,15 @@ async function main() {
   // Guild map updates happen only on ClientReady and GuildCreate.
   const stopListening = watchConfigChanges(async () => {
     await reloadConfig()
+    // Refresh Slack poller org list when any integration changes
+    const orgIds = await loadSlackOrgIds()
+    reloadSlackPoller(orgIds)
   })
 
   // Graceful shutdown
   for (const sig of ['SIGINT', 'SIGTERM']) {
     process.once(sig, async () => {
+      stopSlackPoller()
       await stopListening()
       process.exit(0)
     })
@@ -308,6 +326,10 @@ async function main() {
       await handleSummarize(cmd, live.slashConfig)
     }
   })
+
+  // Start Slack polling loop — runs independently of Discord gateway
+  const slackOrgIds = await loadSlackOrgIds()
+  startSlackPoller(slackOrgIds)
 
   client.login(initial.discordToken)
 }
