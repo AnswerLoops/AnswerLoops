@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { auth } from '@/auth'
 import { ORDERED_PLANS } from '@/lib/billing/plans'
 import { LogoMark, Logo } from '@/components/logo'
+import { AnimatedChat } from '@/components/animated-chat'
 
 export const dynamic = 'force-dynamic'
 
@@ -163,7 +164,7 @@ function Hero() {
           <p className="mt-4 text-xs text-slate-500">14-day trial on hosted plans. Or clone and self-host forever free.</p>
         </div>
         <div className="mt-16 mx-auto max-w-2xl">
-          <ChatMockup />
+          <AnimatedChat />
         </div>
       </div>
     </section>
@@ -173,7 +174,7 @@ function Hero() {
 // ── Trust bar ─────────────────────────────────────────────────────────────────
 
 function TrustBar() {
-  const integrations = ['Discord', 'Slack', 'GitHub', 'Notion', 'Zapier', 'Webhooks']
+  const integrations = ['Discord', 'Slack', 'Telegram', 'Email', 'GitHub', 'Notion', 'Zapier', 'Webhooks']
   return (
     <section className="border-b border-gray-100 bg-gray-50 py-8">
       <div className="mx-auto max-w-6xl px-6">
