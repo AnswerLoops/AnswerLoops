@@ -109,9 +109,8 @@ const SlackIntegrationSchema = z.object({
     .string()
     .min(1, 'Bot token is required')
     .startsWith('xoxb-', 'Slack bot token must start with xoxb-'),
-  signingSecret: z
-    .string()
-    .min(32, 'Signing secret appears too short — check Slack app Basic Information'),
+  // Optional in polling mode; required only if using Slack Events API webhooks
+  signingSecret: z.string().optional(),
   teamId: z
     .string()
     .regex(/^T[A-Z0-9]{8,}$/, 'Team ID must start with T followed by uppercase letters/numbers'),
@@ -141,7 +140,7 @@ export async function saveSlackIntegrationAction(
     orgId,
     platform: 'slack',
     botToken,
-    webhookSecret: signingSecret,
+    webhookSecret: signingSecret ?? null,
     teamId,
     channelIds: channelIdList,
     escalationRoleId: escalationRoleId?.trim() || null,
@@ -161,6 +160,35 @@ export async function deleteSlackIntegrationAction(
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
   await deleteIntegration(orgId, 'slack')
+  refresh()
+  return null
+}
+
+export async function saveSlackChannelsAction(
+  _prevState: unknown,
+  formData: FormData
+): Promise<{ error?: string } | null> {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
+  const channelIds = String(formData.get('channelIds') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (channelIds.length === 0) return { error: 'Select at least one channel' }
+
+  const escalationRoleId = String(formData.get('escalationRoleId') ?? '').trim() || null
+  const confidenceThreshold = parseFloat(String(formData.get('confidenceThreshold') ?? '0.8'))
+
+  await upsertIntegration({
+    orgId,
+    platform: 'slack',
+    channelIds,
+    escalationRoleId,
+    confidenceThreshold: isNaN(confidenceThreshold) ? null : confidenceThreshold,
+  })
+
   refresh()
   return null
 }

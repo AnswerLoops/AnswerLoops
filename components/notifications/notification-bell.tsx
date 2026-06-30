@@ -32,7 +32,7 @@ export function NotificationBell({ unreadCount }: { unreadCount: number }) {
           <Link
             href="/tickets"
             onClick={() => setOpen(false)}
-            className="block px-2 py-1.5 text-sm text-indigo-600 hover:bg-gray-50 rounded"
+            className="block px-2 py-1.5 text-sm text-brand-600 hover:bg-gray-50 rounded"
           >
             View all tickets →
           </Link>

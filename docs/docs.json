@@ -4,9 +4,9 @@
   "name": "AnswerLoops",
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#4F46E5",
-    "light": "#818CF8",
-    "dark": "#3730A3"
+    "primary": "#C9603A",
+    "light": "#E8956B",
+    "dark": "#7A3218"
   },
   "topbarLinks": [
     { "name": "Dashboard", "url": "https://app.answerloops.com" }
@@ -45,6 +45,7 @@
           "self-hosting/telegram-bot",
           "self-hosting/email-channel",
           "self-hosting/stripe",
+          "self-hosting/enterprise",
           "self-hosting/production",
           "self-hosting/upgrading",
           "self-hosting/troubleshooting"

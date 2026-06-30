@@ -1,8 +1,77 @@
 ---
 title: Slack
-description: Coming soon.
+description: Connect your Slack workspace to AnswerLoops — via 1-click OAuth or polling mode with no webhook required.
 ---
 
-<Info>
-  This page is being written. For Discord setup see [Discord Bot Setup](/self-hosting/discord-bot). For Slack see [Slack App Setup](/self-hosting/slack-app).
-</Info>
+AnswerLoops supports two Slack connection paths. Choose based on your security posture.
+
+<CardGroup cols={2}>
+  <Card title="1-click OAuth" icon="bolt" href="#option-1-click-oauth">
+    Admin installs via OAuth. Channel picker auto-populates. Real-time-capable via Events API.
+  </Card>
+  <Card title="Polling mode" icon="shield" href="#option-polling-mode-no-admin-required">
+    Paste a read-only bot token. No webhook, no inbound connections, no admin approval needed.
+  </Card>
+</CardGroup>
+
+## Option A: 1-click OAuth
+
+The platform operator sets three env vars once. Every user then sees **Add to Slack** and authorizes in one click — no credentials to copy.
+
+**Prerequisites:** `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_SIGNING_SECRET` set on the server. See [Environment Variables](/self-hosting/environment-variables).
+
+**How it works:**
+1. User clicks **Add to Slack** in Settings → Integrations
+2. Slack OAuth page → user selects workspace → authorizes
+3. AnswerLoops exchanges the code for a bot token, stores it encrypted
+4. Channel picker loads automatically from your workspace
+
+<Tip>
+  Add `{AUTH_URL}/api/slack/callback` to your Slack app's **OAuth & Permissions → Redirect URLs** before users connect.
+</Tip>
+
+## Option B: Polling mode (no admin required)
+
+No OAuth setup. No inbound webhook. No firewall rules. The bot reaches out to Slack's API — never the reverse.
+
+**How it works:**
+1. User goes to Settings → Integrations → Slack → **Set up manually**
+2. Pastes a bot token (`xoxb-…`), Team ID, and channel IDs
+3. AnswerLoops polls `conversations.history` on a configurable interval (default: 60s)
+4. New messages feed into the same AI pipeline as the webhook path
+
+**Why enterprises choose polling:**
+- No inbound HTTP from Slack to your servers
+- No public webhook URL required
+- No firewall rule changes
+- Security review scope: one outbound API call per poll interval
+- Read-only token sufficient — no admin scope needed
+
+```bash
+SLACK_POLL_INTERVAL_SECONDS=60  # default. Minimum recommended: 30.
+```
+
+## Feature comparison
+
+| | 1-click OAuth | Polling mode |
+|---|---|---|
+| Setup time | ~1 min | ~2 min |
+| Admin approval needed | No | No |
+| Inbound webhook required | Optional | No |
+| Message latency | Instant (Events API) or 60s (polling) | Configurable (default 60s) |
+| Channel picker | Auto | Manual (paste IDs) |
+| Signing secret needed | For webhook verification only | No |
+| Enterprise firewall-friendly | If webhook is blocked, use polling | ✅ Yes |
+
+## Shared capabilities
+
+Both paths share the same pipeline:
+- AI deflection with configurable confidence threshold
+- 👍/👎 reaction feedback
+- CSAT rating prompts (1️⃣–5️⃣ reactions)
+- Escalation ping when AI confidence is low
+- Ticket creation + deduplication
+
+## Setup guide
+
+See [Slack App Setup](/self-hosting/slack-app) for step-by-step instructions for both paths.

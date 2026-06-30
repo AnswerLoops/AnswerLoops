@@ -62,12 +62,12 @@ export default async function InvitePage({ params, searchParams }: Props) {
     <InviteShell>
       <div className="space-y-5">
         <div className="text-center space-y-1">
-          <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xl font-bold mx-auto">
+          <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xl font-bold mx-auto">
             {org?.name?.[0]?.toUpperCase() ?? '?'}
           </div>
           <h1 className="text-base font-semibold text-gray-900 mt-3">
             You've been invited to join{' '}
-            <span className="text-indigo-600">{org?.name ?? 'a workspace'}</span>
+            <span className="text-brand-600">{org?.name ?? 'a workspace'}</span>
           </h1>
           {inviter && (
             <p className="text-sm text-gray-500">
@@ -98,7 +98,7 @@ function InviteShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-5">
-          <span className="text-sm font-bold text-indigo-600 tracking-tight">AnswerLoops</span>
+          <span className="text-sm font-bold text-brand-600 tracking-tight">AnswerLoops</span>
         </div>
         {children}
       </div>
@@ -112,7 +112,7 @@ function ErrorCard({ message }: { message: string }) {
       <div className="rounded-md bg-red-50 border border-red-200 p-4">
         <p className="text-sm text-red-700">{message}</p>
       </div>
-      <a href="/dashboard" className="block text-center text-sm text-indigo-600 hover:underline">
+      <a href="/dashboard" className="block text-center text-sm text-brand-600 hover:underline">
         Go to dashboard
       </a>
     </div>

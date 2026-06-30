@@ -2,7 +2,7 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #2A2A2A;
 }
 
 @theme inline {
@@ -10,10 +10,44 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* AnswerLoops brand — terracotta from logo */
+  --color-brand-50:  #FEF3EE;
+  --color-brand-100: #FDDECF;
+  --color-brand-200: #FABDA0;
+  --color-brand-300: #F49B70;
+  --color-brand-400: #EE7A4A;
+  --color-brand-500: #DC6840;
+  --color-brand-600: #C9603A;  /* primary — logo terracotta */
+  --color-brand-700: #A64A28;
+  --color-brand-800: #7A3218;
+  --color-brand-900: #52200F;
+  --color-brand-950: #2D1008;
+
+  /* Warm cream — logo background */
+  --color-warm-50:  #FFFDF9;
+  --color-warm-100: #F5EBE0;  /* logo bg */
+  --color-warm-200: #EDD8C4;
+
+  /* Complementary amber */
+  --color-amber-brand: #E8A83A;
+
+  /* Complementary teal (cool contrast) */
+  --color-teal-brand: #3A7C8C;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
 }

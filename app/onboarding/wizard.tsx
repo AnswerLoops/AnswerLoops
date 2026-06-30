@@ -2,7 +2,7 @@
 
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react'
 import { updateWorkspaceNameAction, completeOnboardingAction } from '@/app/actions/onboarding'
-import { saveDiscordIntegrationAction, saveSlackIntegrationAction, saveTelegramIntegrationAction } from '@/app/actions/integrations'
+import { saveDiscordIntegrationAction, saveTelegramIntegrationAction } from '@/app/actions/integrations'
 import { ingestUrlAction } from '@/app/actions/ingest-url'
 import type { IngestUrlResult } from '@/app/actions/ingest-url'
 
@@ -52,7 +52,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
-const inputCls = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-colors'
+const inputCls = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100 transition-colors'
 
 function PrimaryButton({ pending, label, pendingLabel, color, type = 'submit', onClick }: {
   pending?: boolean; label: string; pendingLabel?: string
@@ -64,7 +64,7 @@ function PrimaryButton({ pending, label, pendingLabel, color, type = 'submit', o
     color === 'discord'  ? 'bg-[#5865F2] hover:bg-[#4752c4] text-white shadow-[#5865F2]/25' :
     color === 'slack'    ? 'bg-[#4A154B] hover:bg-[#3d1040] text-white shadow-[#4A154B]/25' :
     color === 'telegram' ? 'bg-[#229ED9] hover:bg-[#1a8ec5] text-white shadow-[#229ED9]/25' :
-                           'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/25'
+                           'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/25'
   return (
     <button
       type={type}
@@ -87,7 +87,7 @@ function PlatformCard({ icon, label, badge, bg, borderColor, onClick }: {
       className={`relative flex flex-col items-center gap-3 rounded-2xl border-2 p-5 text-sm font-semibold text-gray-700 transition-all hover:shadow-md active:scale-[0.98] ${bg} ${borderColor}`}
     >
       {badge && (
-        <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider text-white bg-indigo-500 rounded-full px-1.5 py-0.5 leading-tight">
+        <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider text-white bg-brand-500 rounded-full px-1.5 py-0.5 leading-tight">
           {badge}
         </span>
       )}
@@ -410,7 +410,7 @@ function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => voi
             : activeGuild.channels.map((ch) => (
               <label key={ch.id} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-white transition-colors">
                 <input type="checkbox" checked={selectedChannels.has(ch.id)} onChange={() => toggleChannel(ch.id)}
-                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                 <span className="text-sm text-gray-700"># {ch.name}</span>
               </label>
             ))
@@ -464,14 +464,26 @@ function TelegramFlow({ onDone, onBack }: { onDone: () => void; onBack: () => vo
 
 function ConnectStep({ onDone }: { onDone: () => void }) {
   const [platform, setPlatform] = useState<Platform>(null)
-  const [slackState, slackAction, slackPending] = useActionState(
-    async (prev: unknown, fd: FormData) => {
-      const result = await saveSlackIntegrationAction(prev, fd)
-      if (!result?.error) onDone()
-      return result
-    },
-    null
-  )
+  const [connectingSlack, setConnectingSlack] = useState(false)
+  const [slackError, setSlackError] = useState<string | null>(null)
+
+  async function handleAddToSlack() {
+    setConnectingSlack(true)
+    setSlackError(null)
+    try {
+      const res = await fetch('/api/slack/install')
+      const data = await res.json() as { url?: string; error?: string }
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        setSlackError(data.error ?? 'Failed to get Slack install URL')
+        setConnectingSlack(false)
+      }
+    } catch {
+      setSlackError('Failed to connect to Slack')
+      setConnectingSlack(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -487,13 +499,14 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
               icon={<DiscordIcon className="h-7 w-7 text-[#5865F2]" />}
               label="Discord"
               badge="1-click"
-              bg="hover:bg-indigo-50/60 bg-white"
+              bg="hover:bg-brand-50/60 bg-white"
               borderColor="border-gray-200 hover:border-[#5865F2]/50"
               onClick={() => setPlatform('discord')}
             />
             <PlatformCard
               icon={<SlackIcon className="h-7 w-7 text-[#4A154B]" />}
               label="Slack"
+              badge="1-click"
               bg="hover:bg-purple-50/60 bg-white"
               borderColor="border-gray-200 hover:border-purple-400/50"
               onClick={() => setPlatform('slack')}
@@ -544,34 +557,33 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
       )}
 
       {platform === 'slack' && (
-        <form action={slackAction} className="space-y-4">
+        <div className="space-y-4">
           <BackButton onClick={() => setPlatform(null)} />
-          <div className="rounded-xl border border-purple-100 bg-purple-50 px-4 py-3 text-xs text-purple-700 space-y-1.5">
-            <p className="font-semibold">You need a Slack App</p>
-            <ol className="list-decimal list-inside space-y-1 text-purple-600">
-              <li>Go to <span className="font-mono">api.slack.com/apps</span> → Create New App</li>
-              <li>OAuth &amp; Permissions → Bot Token Scopes: <span className="font-mono">channels:history, chat:write</span></li>
-              <li>Install to workspace → copy Bot Token (<span className="font-mono">xoxb-…</span>)</li>
-              <li>Basic Information → Signing Secret → copy below</li>
-            </ol>
+          <div className="rounded-xl border border-purple-100 bg-purple-50 px-4 py-3 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <SlackIcon className="h-4 w-4 text-[#4A154B]" />
+              <p className="text-sm font-semibold text-purple-900">Connect Slack in one click</p>
+            </div>
+            <p className="text-xs text-purple-700">
+              Click below to authorize AnswerLoops in your Slack workspace. You&apos;ll pick which channels to monitor after connecting.
+              Uses polling — no webhook or admin permissions required.
+            </p>
           </div>
-          <Field label="Bot Token">
-            <input name="botToken" type="password" autoComplete="new-password" placeholder="xoxb-…" className={inputCls} required />
-          </Field>
-          <Field label="Signing Secret">
-            <input name="signingSecret" type="password" autoComplete="new-password" placeholder="From Basic Information" className={inputCls} required />
-          </Field>
-          <Field label="Team ID">
-            <input name="teamId" type="text" placeholder="T01234ABCDE" className={inputCls} required />
-          </Field>
-          <Field label="Channel IDs" hint="Comma-separated Slack channel IDs (e.g. C01234ABCDE).">
-            <input name="channelIds" type="text" placeholder="C01234ABCDE" className={inputCls} required />
-          </Field>
-          {(slackState as { error?: string } | null)?.error && (
-            <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{(slackState as { error?: string }).error}</p>
+          {slackError && (
+            <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{slackError}</p>
           )}
-          <PrimaryButton pending={slackPending} label="Connect Slack" pendingLabel="Connecting…" color="slack" />
-        </form>
+          <PrimaryButton
+            type="button"
+            pending={connectingSlack}
+            label="Add to Slack"
+            pendingLabel="Redirecting to Slack…"
+            color="slack"
+            onClick={handleAddToSlack}
+          />
+          <button type="button" onClick={onDone} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors pt-1">
+            Skip — I&apos;ll connect Slack in Settings
+          </button>
+        </div>
       )}
     </div>
   )
@@ -628,16 +640,16 @@ function SeedStep({ onDone }: { onDone: () => void }) {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <button onClick={() => setMode('file')}
-              className="flex flex-col items-center gap-2.5 rounded-2xl border-2 border-gray-200 bg-white p-5 text-sm font-semibold text-gray-700 transition-all hover:border-indigo-300 hover:bg-indigo-50/40 hover:shadow-md">
-              <svg className="h-7 w-7 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              className="flex flex-col items-center gap-2.5 rounded-2xl border-2 border-gray-200 bg-white p-5 text-sm font-semibold text-gray-700 transition-all hover:border-brand-300 hover:bg-brand-50/40 hover:shadow-md">
+              <svg className="h-7 w-7 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M12 16V8m0 0l-3 3m3-3l3 3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Upload file
               <span className="text-[10px] font-normal text-gray-400">PDF · DOCX · MD · TXT · CSV</span>
             </button>
             <button onClick={() => setMode('url')}
-              className="flex flex-col items-center gap-2.5 rounded-2xl border-2 border-gray-200 bg-white p-5 text-sm font-semibold text-gray-700 transition-all hover:border-indigo-300 hover:bg-indigo-50/40 hover:shadow-md">
-              <svg className="h-7 w-7 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              className="flex flex-col items-center gap-2.5 rounded-2xl border-2 border-gray-200 bg-white p-5 text-sm font-semibold text-gray-700 transition-all hover:border-brand-300 hover:bg-brand-50/40 hover:shadow-md">
+              <svg className="h-7 w-7 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Crawl a URL
@@ -657,14 +669,14 @@ function SeedStep({ onDone }: { onDone: () => void }) {
           <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}
             onClick={() => !uploading && inputRef.current?.click()}
             className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 cursor-pointer transition-colors ${
-              uploading ? 'pointer-events-none opacity-60 border-gray-200' : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30'
+              uploading ? 'pointer-events-none opacity-60 border-gray-200' : 'border-gray-200 hover:border-brand-300 hover:bg-brand-50/30'
             }`}>
             <input ref={inputRef} type="file" accept=".pdf,.docx,.md,.txt,.csv" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = '' }} />
             {uploading ? (
-              <><Spinner className="h-6 w-6 text-indigo-500" />
-              <p className="text-sm font-medium text-indigo-700">Parsing and embedding…</p>
-              <p className="text-xs text-indigo-500">May take 15–60 s for large files.</p></>
+              <><Spinner className="h-6 w-6 text-brand-500" />
+              <p className="text-sm font-medium text-brand-700">Parsing and embedding…</p>
+              <p className="text-xs text-brand-500">May take 15–60 s for large files.</p></>
             ) : uploadResult?.created != null ? (
               <><div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
                 <CheckIcon className="h-5 w-5 text-green-600" />
@@ -675,7 +687,7 @@ function SeedStep({ onDone }: { onDone: () => void }) {
               <><svg className="h-6 w-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M12 16V8m0 0l-3 3m3-3l3 3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <p className="text-sm text-gray-600"><span className="font-semibold text-indigo-600">Click to upload</span> or drag and drop</p>
+              <p className="text-sm text-gray-600"><span className="font-semibold text-brand-600">Click to upload</span> or drag and drop</p>
               <p className="text-xs text-gray-400">PDF · DOCX · MD · TXT · CSV up to 50 MB</p></>
             )}
           </div>
@@ -693,9 +705,9 @@ function SeedStep({ onDone }: { onDone: () => void }) {
                 placeholder="https://docs.yourproduct.com" className={inputCls} />
             </Field>
             {urlPending && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
-                <Spinner className="h-4 w-4 text-indigo-500 shrink-0" />
-                <p className="text-xs font-medium text-indigo-700">Crawling and embedding — this can take up to 60 s…</p>
+              <div className="flex items-center gap-2.5 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3">
+                <Spinner className="h-4 w-4 text-brand-500 shrink-0" />
+                <p className="text-xs font-medium text-brand-700">Crawling and embedding — this can take up to 60 s…</p>
               </div>
             )}
             {urlResult.error && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{urlResult.error}</p>}
@@ -771,7 +783,7 @@ function DoneStep({ completedSteps }: { completedSteps: Set<string> }) {
       </div>
 
       <button onClick={handleFinish} disabled={loading}
-        className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-all disabled:opacity-60 shadow-md shadow-indigo-600/25">
+        className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-700 transition-all disabled:opacity-60 shadow-md shadow-brand-600/25">
         {loading ? 'Loading dashboard…' : 'Go to dashboard →'}
       </button>
     </div>
@@ -802,13 +814,13 @@ export default function OnboardingWizard({ initialName }: { initialName: string 
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-gray-50 to-indigo-50/30 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-gray-50 to-brand-50/30 px-4">
       <div className="w-full max-w-md">
         <div className="rounded-3xl border border-gray-200/80 bg-white px-8 py-10 shadow-xl shadow-gray-900/5">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-2.5 mb-7">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 shadow-md shadow-indigo-600/30">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 shadow-md shadow-brand-600/30">
                 <svg className="h-4.5 w-4.5 text-white" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
                 </svg>
@@ -823,17 +835,17 @@ export default function OnboardingWizard({ initialName }: { initialName: string 
                   <div className="flex flex-col items-center gap-1.5">
                     <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
                       i < stepIndex
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                        ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
                         : i === stepIndex
-                        ? 'border-2 border-indigo-600 text-indigo-600 bg-white'
+                        ? 'border-2 border-brand-600 text-brand-600 bg-white'
                         : 'border-2 border-gray-200 text-gray-300 bg-white'
                     }`}>
                       {i < stepIndex ? <CheckIcon className="h-4 w-4" /> : i + 1}
                     </div>
-                    <span className={`text-[10px] font-semibold whitespace-nowrap tracking-wide ${i === stepIndex ? 'text-indigo-600' : 'text-gray-400'}`}>{label}</span>
+                    <span className={`text-[10px] font-semibold whitespace-nowrap tracking-wide ${i === stepIndex ? 'text-brand-600' : 'text-gray-400'}`}>{label}</span>
                   </div>
                   {i < STEPS.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-1.5 mb-5 rounded-full transition-colors ${i < stepIndex ? 'bg-indigo-600' : 'bg-gray-200'}`} />
+                    <div className={`flex-1 h-0.5 mx-1.5 mb-5 rounded-full transition-colors ${i < stepIndex ? 'bg-brand-600' : 'bg-gray-200'}`} />
                   )}
                 </div>
               ))}

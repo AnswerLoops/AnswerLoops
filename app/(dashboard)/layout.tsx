@@ -16,9 +16,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <AutoRefresh intervalMs={5000} />
       {/* Sidebar */}
       <aside className="w-56 shrink-0 border-r border-gray-200 bg-white flex flex-col">
-        <div className="px-4 py-3.5 border-b border-gray-200">
-          <Link href="/">
-            <Logo size={22} textSize="text-sm" />
+        <div className="px-3 py-3 border-b border-gray-200">
+          <Link href="/" className="block">
+            <div className="rounded-xl overflow-hidden w-fit">
+              <Logo width={116} />
+            </div>
           </Link>
         </div>
         <SidebarNav />

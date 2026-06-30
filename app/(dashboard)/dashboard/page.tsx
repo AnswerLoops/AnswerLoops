@@ -28,7 +28,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/tickets"
-          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
               <h2 className="text-sm font-semibold text-gray-900">Open Tickets</h2>
               <p className="text-xs text-gray-400">Oldest unresolved questions</p>
             </div>
-            <Link href="/tickets" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+            <Link href="/tickets" className="text-xs text-brand-600 hover:text-brand-700 font-medium">
               View all →
             </Link>
           </div>
@@ -142,7 +142,7 @@ export default async function DashboardPage() {
                   href={action.href}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors group"
                 >
-                  <span className="text-gray-400 group-hover:text-indigo-500 transition-colors">{action.icon}</span>
+                  <span className="text-gray-400 group-hover:text-brand-500 transition-colors">{action.icon}</span>
                   {action.label}
                   <svg className="h-3.5 w-3.5 ml-auto text-gray-300 group-hover:text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m9 18 6-6-6-6"/>

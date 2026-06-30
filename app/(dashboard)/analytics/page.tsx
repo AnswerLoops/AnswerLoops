@@ -16,7 +16,7 @@ const pct = (n: number) => `${Math.round(n * 100)}%`
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`
 const hours = (n: number) => `${n.toFixed(1)}h`
 
-function Bar({ value, max, className = 'bg-indigo-500' }: { value: number; max: number; className?: string }) {
+function Bar({ value, max, className = 'bg-brand-500' }: { value: number; max: number; className?: string }) {
   const width = max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 0
   return (
     <div className="h-2 flex-1 rounded-full bg-gray-100">
@@ -222,7 +222,7 @@ export default async function AnalyticsPage() {
             {docGaps.map((g) => (
               <li key={g.id} className="flex items-center gap-2 text-sm">
                 <span className="text-xs text-gray-400">#{g.id}</span>
-                <Link href={`/tickets/${g.id}`} className="text-gray-700 hover:text-indigo-600 line-clamp-1">
+                <Link href={`/tickets/${g.id}`} className="text-gray-700 hover:text-brand-600 line-clamp-1">
                   {g.summary}
                 </Link>
               </li>

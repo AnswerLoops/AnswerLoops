@@ -44,7 +44,7 @@ const PLAN_FEATURES: Record<string, string[]> = {
 
 function CheckIcon() {
   return (
-    <svg className="h-3.5 w-3.5 text-indigo-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <svg className="h-3.5 w-3.5 text-brand-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
       <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   )
@@ -59,13 +59,13 @@ function TrialBanner({ trialEndsAt }: { trialEndsAt: string }) {
   const days = daysRemaining(trialEndsAt)
   const urgent = days <= 3
   return (
-    <div className={`rounded-xl border p-4 flex items-start gap-3 ${urgent ? 'border-amber-300 bg-amber-50' : 'border-indigo-200 bg-indigo-50'}`}>
-      <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${urgent ? 'bg-amber-500' : 'bg-indigo-500'}`} />
+    <div className={`rounded-xl border p-4 flex items-start gap-3 ${urgent ? 'border-amber-300 bg-amber-50' : 'border-brand-200 bg-brand-50'}`}>
+      <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${urgent ? 'bg-amber-500' : 'bg-brand-500'}`} />
       <div>
-        <p className={`text-sm font-semibold ${urgent ? 'text-amber-800' : 'text-indigo-800'}`}>
+        <p className={`text-sm font-semibold ${urgent ? 'text-amber-800' : 'text-brand-800'}`}>
           {days === 0 ? 'Your trial ends today' : `${days} day${days === 1 ? '' : 's'} left in your trial`}
         </p>
-        <p className={`mt-0.5 text-xs ${urgent ? 'text-amber-700' : 'text-indigo-700'}`}>
+        <p className={`mt-0.5 text-xs ${urgent ? 'text-amber-700' : 'text-brand-700'}`}>
           Your card will be charged when the trial ends. Cancel anytime before then.
         </p>
       </div>
@@ -81,7 +81,7 @@ function TrialExpiredBanner({ onUpgrade, pending }: { onUpgrade: (planId: string
       <button
         onClick={() => onUpgrade('pro')}
         disabled={pending}
-        className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+        className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60 transition-colors"
       >
         {pending ? 'Redirecting…' : 'Start Pro — $29/mo'}
       </button>
@@ -131,7 +131,7 @@ function UsageBar({ used, limit, planId, currentPeriodEnd, cancelAtPeriodEnd, st
           </div>
           <div className="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden">
             <div
-              className={`h-2.5 rounded-full transition-all duration-500 ${over ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-indigo-500'}`}
+              className={`h-2.5 rounded-full transition-all duration-500 ${over ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-brand-500'}`}
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -168,14 +168,14 @@ function PlanCard({
   return (
     <div className={`relative rounded-xl border-2 p-5 flex flex-col transition-all ${
       current
-        ? 'border-indigo-500 bg-indigo-50/40'
+        ? 'border-brand-500 bg-brand-50/40'
         : highlighted
-        ? 'border-indigo-300 bg-white shadow-sm'
+        ? 'border-brand-300 bg-white shadow-sm'
         : 'border-gray-200 bg-white hover:border-gray-300'
     }`}>
       {highlighted && !current && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="rounded-full bg-indigo-600 px-3 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider shadow">
+          <span className="rounded-full bg-brand-600 px-3 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider shadow">
             Most popular
           </span>
         </div>
@@ -186,7 +186,7 @@ function PlanCard({
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-gray-900">{plan.name}</span>
             {label && (
-              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 uppercase tracking-wide">
+              <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700 uppercase tracking-wide">
                 {label}
               </span>
             )}
@@ -208,7 +208,7 @@ function PlanCard({
       </ul>
 
       {current ? (
-        <div className="w-full rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-center text-xs font-medium text-indigo-700">
+        <div className="w-full rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-center text-xs font-medium text-brand-700">
           {isTrialing ? 'Active trial' : 'Your current plan'}
         </div>
       ) : (
@@ -217,7 +217,7 @@ function PlanCard({
           disabled={pending}
           className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-60 ${
             highlighted
-              ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+              ? 'bg-brand-600 text-white hover:bg-brand-700'
               : 'border border-gray-200 bg-white text-gray-800 hover:bg-gray-50'
           }`}
         >
