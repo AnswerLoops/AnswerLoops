@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { updateSLAAction } from '@/app/actions/sla'
 import { addRepoAction, removeRepoAction } from '@/app/actions/github'
-import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackIntegrationAction, deleteSlackIntegrationAction, saveTelegramIntegrationAction, deleteTelegramIntegrationAction } from '@/app/actions/integrations'
+import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackIntegrationAction, deleteSlackIntegrationAction, saveTelegramIntegrationAction, deleteTelegramIntegrationAction, saveEmailIntegrationAction, deleteEmailIntegrationAction } from '@/app/actions/integrations'
 import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwnershipAction } from '@/app/actions/invitations'
 import { getWidgetTokenAction, regenerateWidgetTokenAction } from '@/app/actions/widget'
 import { saveAIConfigAction, clearAIConfigAction } from '@/app/actions/ai-config'
@@ -770,6 +770,211 @@ function TelegramIntegrationCard() {
                 className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
               />
               <p className="text-xs text-gray-400 mt-1">AI answers below this score trigger human escalation.</p>
+            </div>
+            {(saveState as { error?: string } | null)?.error && (
+              <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+            )}
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={savePending}>
+                {savePending ? 'Saving…' : connected ? 'Update' : 'Connect'}
+              </Button>
+              {editing && (
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                  Cancel
+                </Button>
+              )}
+              {connected && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  disabled={deletePending}
+                  onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
+                >
+                  {deletePending ? 'Removing…' : 'Disconnect'}
+                </Button>
+              )}
+            </div>
+          </form>
+        )}
+
+        {(deleteState as { error?: string } | null)?.error && (
+          <p className="text-xs text-red-600">{(deleteState as { error?: string }).error}</p>
+        )}
+      </div>
+    </>
+  )
+}
+
+interface EmailIntegration {
+  id: number
+  platform: string
+  bot_token: string | null
+  channel_ids: string[]
+  escalation_role_id: string | null
+  confidence_threshold: number | null
+  enabled: number
+  bot_secret?: string | null
+}
+
+function EmailIntegrationCard() {
+  const [integration, setIntegration] = useState<EmailIntegration | null | undefined>(undefined)
+  const [editing, setEditing] = useState(false)
+  const [webhookSecret, setWebhookSecret] = useState<string | null>(null)
+  const { toastMessage, showToast } = useToast()
+  const [, startDeleteTransition] = useTransition()
+
+  const [saveState, saveAction, savePending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await saveEmailIntegrationAction(prev, fd)
+      if (result && !('error' in result && result.error)) {
+        const updated = await fetch('/api/integrations').then((r) => r.json())
+        setIntegration(updated.find((i: EmailIntegration) => i.platform === 'email') ?? null)
+        setEditing(false)
+        showToast('Email settings saved')
+        if ('webhookSecret' in result && result.webhookSecret) {
+          setWebhookSecret(result.webhookSecret as string)
+        }
+      }
+      return result
+    },
+    null
+  )
+
+  const [deleteState, deleteAction, deletePending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await deleteEmailIntegrationAction(prev, fd)
+      if (!result?.error) { setIntegration(null); setEditing(false); setWebhookSecret(null) }
+      return result
+    },
+    null
+  )
+
+  useEffect(() => {
+    fetch('/api/integrations')
+      .then((r) => r.json())
+      .then((data: EmailIntegration[]) => {
+        setIntegration(data.find((i) => i.platform === 'email') ?? null)
+      })
+  }, [])
+
+  if (integration === undefined) return <p className="text-sm text-gray-400">Loading…</p>
+
+  const connected = integration !== null && integration.enabled === 1
+  const showForm = !connected || editing
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+
+  return (
+    <>
+      {toastMessage && <Toast message={toastMessage} />}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-sm font-bold">@</div>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Email</p>
+              <p className="text-xs text-gray-500">
+                {connected
+                  ? `Connected · replies from ${integration.bot_token ?? 'RESEND_FROM'}`
+                  : 'Not connected'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {connected ? 'Active' : 'Inactive'}
+            </span>
+            {connected && !editing && (
+              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+                Edit
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {connected && !editing && (
+          <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 divide-y divide-gray-100">
+            <ReadOnlyRow label="Reply-from address" value={integration.bot_token ?? '— (uses RESEND_FROM env var)'} />
+            <ReadOnlyRow label="Allowed senders" value={integration.channel_ids.join(', ') || '— (all senders)'} />
+            {integration.escalation_role_id && (
+              <ReadOnlyRow label="Escalation email" value={integration.escalation_role_id} />
+            )}
+            <ReadOnlyRow label="Confidence threshold" value={String(integration.confidence_threshold ?? 0.8)} />
+          </div>
+        )}
+
+        {/* Webhook endpoint info — shown once after save, or always when connected */}
+        {(connected || webhookSecret) && (
+          <div className="rounded-md bg-amber-50 border border-amber-100 p-3 space-y-2">
+            <p className="text-xs font-medium text-amber-800">Webhook endpoint</p>
+            <p className="text-xs text-amber-700">
+              Configure your email provider (SendGrid, Mailgun, Postmark, Cloudflare Email Routing) to POST inbound emails to:
+            </p>
+            <code className="block text-xs font-mono text-amber-900 break-all">{baseUrl}/api/email/ingest</code>
+            {webhookSecret && (
+              <>
+                <p className="text-xs text-amber-700 mt-1">Set the <code className="font-mono">X-Email-Webhook-Secret</code> header to:</p>
+                <code className="block text-xs font-mono text-amber-900 break-all select-all">{webhookSecret}</code>
+                <p className="text-xs text-gray-400">Save this — it will not be shown again.</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {showForm && (
+          <form key={editing ? 'edit' : 'new'} action={saveAction} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Reply-from address <span className="text-gray-400 font-normal">(optional — defaults to RESEND_FROM env var)</span>
+              </label>
+              <input
+                name="replyFromAddress"
+                type="email"
+                defaultValue={integration?.bot_token ?? ''}
+                placeholder="support@yourcompany.com"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Allowed sender addresses/domains <span className="text-gray-400 font-normal">(optional — leave blank to accept all)</span>
+              </label>
+              <input
+                name="allowedSenders"
+                type="text"
+                defaultValue={integration?.channel_ids.join(', ') ?? ''}
+                placeholder="example.com, partner@other.com"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+              <p className="text-xs text-gray-400 mt-1">Accepts full email addresses or domains. Filters out noise from unknown senders.</p>
+            </div>
+            <hr className="border-gray-100" />
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Escalation email <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                name="escalationEmail"
+                type="email"
+                defaultValue={integration?.escalation_role_id ?? ''}
+                placeholder="team@yourcompany.com"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+              <p className="text-xs text-gray-400 mt-1">Referenced in replies when AI confidence is below threshold.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Confidence threshold <span className="text-gray-400 font-normal">(0–1, default 0.8)</span>
+              </label>
+              <input
+                name="confidenceThreshold"
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                defaultValue={integration?.confidence_threshold ?? 0.8}
+                className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
             </div>
             {(saveState as { error?: string } | null)?.error && (
               <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
@@ -1589,6 +1794,7 @@ export default function SettingsPage() {
           <DiscordIntegrationCard />
           <SlackIntegrationCard />
           <TelegramIntegrationCard />
+          <EmailIntegrationCard />
         </div>
       </section>
 

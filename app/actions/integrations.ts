@@ -241,3 +241,63 @@ export async function deleteTelegramIntegrationAction(
   refresh()
   return null
 }
+
+// ── Email ─────────────────────────────────────────────────────────────────────
+
+const EmailIntegrationSchema = z.object({
+  replyFromAddress: z.string().email('Invalid reply-from email address').optional().or(z.literal('')),
+  allowedSenders: z.string().optional(),
+  escalationEmail: z.string().optional(),
+  confidenceThreshold: z.coerce.number().min(0).max(1).optional(),
+})
+
+export async function saveEmailIntegrationAction(
+  _prevState: unknown,
+  formData: FormData
+): Promise<{ error?: string; webhookSecret?: string } | null> {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
+  const parsed = EmailIntegrationSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { replyFromAddress, allowedSenders, escalationEmail, confidenceThreshold } = parsed.data
+
+  const senderList = (allowedSenders ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const existing = await getIntegration(orgId, 'email')
+  // bot_secret used as the webhook verification secret — stable per org
+  const botSecret = existing?.bot_secret ?? crypto.randomBytes(32).toString('hex')
+
+  await upsertIntegration({
+    orgId,
+    platform: 'email',
+    // bot_token stores the reply-from address
+    botToken: replyFromAddress?.trim() || undefined,
+    botSecret,
+    channelIds: senderList,
+    escalationRoleId: escalationEmail?.trim() || null,
+    confidenceThreshold: confidenceThreshold ?? null,
+  })
+
+  refresh()
+  // Return the secret so the UI can display it for webhook configuration
+  return { webhookSecret: botSecret }
+}
+
+export async function deleteEmailIntegrationAction(
+  _prevState: unknown,
+  _formData: FormData
+): Promise<{ error?: string } | null> {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
+  await deleteIntegration(orgId, 'email')
+  refresh()
+  return null
+}

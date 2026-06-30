@@ -33,6 +33,37 @@ rows were never committed, causing articles to vanish on page reload.
 
 PRs must also have a meaningful description — not "No description provided."
 
+# PR description standard — HARD RULE
+
+Every PR description must be written as if a human engineer who was **not in this conversation** will review it cold.
+
+**Required sections:**
+
+```
+## What changed
+One paragraph. Plain English. What is different after this PR merges?
+No bullet dumps of commit messages. No "implemented the requested changes."
+
+## Why
+One paragraph. Root cause for fixes. User value for features. Business
+reason for refactors. If the why is obvious (typo fix), one sentence is fine.
+
+## How to test
+Numbered steps a reviewer can actually follow. Include any env vars or
+setup needed. At minimum: what to run, what to look for, what failure looks like.
+```
+
+**Banned phrases** — any PR containing these will be rejected:
+
+- "No description provided"
+- "Implemented the requested changes"
+- "Updated the code as discussed"
+- "See commit messages for details"
+- "Various fixes and improvements"
+- "As per the conversation"
+
+**Tone:** write like a colleague, not a changelog. Contractions OK. "I fixed" OK. Bullet points OK inside sections. No corporate fluff.
+
 # Docs + Notion sync
 
 Every time a feature ships or architecture changes, you **must** update all three:
@@ -116,7 +147,7 @@ Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are 
 3. All required Notion pages updated per the mapping tables
 4. `- [x] Notion updated` checkbox ticked in PR body
 5. `pnpm test` + `pnpm build` both pass
-6. PR has a meaningful description
+6. PR description passes the "PR description standard" — has What changed / Why / How to test, no banned phrases
 7. If infra changed: `/project:infra-test` ran and orchestrator signed off
 8. No Notion page IDs, URLs, or internal links in commit messages, PR bodies, or code (AGENTS.md excepted)
 
