@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db/drizzle'
 import { waitlist } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { sendWaitlistConfirmation } from '@/lib/email/send'
 
 export async function POST(req: NextRequest) {
   const { email } = await req.json()
@@ -18,5 +19,7 @@ export async function POST(req: NextRequest) {
   }
 
   await db.insert(waitlist).values({ email })
+  await sendWaitlistConfirmation(email)
+
   return NextResponse.json({ ok: true })
 }
