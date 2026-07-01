@@ -198,3 +198,15 @@ Read `.env.notion` at the start of any PR workflow to resolve these variable nam
 Setup: `cp .env.notion.example .env.notion` then fill in your workspace IDs.
 
 Use `mcp__notion__notion-update-page` with `command: "update_content"` and targeted `old_str`/`new_str` pairs — never replace entire pages.
+
+# Secret violation protocol — HARD RULE
+
+If Trivy's secret scanner (or Semgrep, or any other tool) detects a credential, API key, token, or secret in the codebase at any point:
+
+1. **Stop immediately.** Do not continue the current task.
+2. **Alert the user** with the exact file, line, and secret type found.
+3. **Tell the user to cycle it now** — assume the credential is compromised regardless of whether it was pushed.
+4. **Do not commit or push** until the secret is removed from the file AND git history.
+5. **If already pushed**, tell the user to rotate the credential immediately before doing anything else, then use `git push --force-with-lease` after cleaning history.
+
+This rule applies even if the secret looks like a placeholder or test value. Err on the side of caution — a rotated credential costs minutes; a leaked one can cost everything.
