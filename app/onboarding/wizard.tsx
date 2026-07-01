@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { updateWorkspaceNameAction, completeOnboardingAction } from '@/app/actions/onboarding'
 import { saveDiscordIntegrationAction, saveTelegramIntegrationAction } from '@/app/actions/integrations'
 import { ingestUrlAction } from '@/app/actions/ingest-url'
@@ -245,7 +246,7 @@ function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => voi
 
   const activeGuild = guilds.find((g) => g.id === selectedGuild)
 
-  // 1-click: open invite, then user comes back and enters bot token
+  // 1-click: navigate current tab to Discord OAuth, callback returns to /onboarding?discord_connected=1
   if (subStep === 'choose' && !loadingUrl) {
     return (
       <div className="space-y-5">
@@ -254,44 +255,15 @@ function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => voi
           <>
             <div className="space-y-1.5">
               <p className="text-sm font-semibold text-gray-800">Add AnswerLoops to your Discord server</p>
-              <p className="text-xs text-gray-500">Click below — Discord opens in a new tab. Pick your server, click Authorize, then come back.</p>
+              <p className="text-xs text-gray-500">Click below, pick your server, click Authorize — you'll be brought right back.</p>
             </div>
             <a
               href={inviteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5865F2] hover:bg-[#4752c4] px-4 py-3 text-sm font-semibold text-white transition-all shadow-md shadow-[#5865F2]/25"
             >
               <DiscordIcon className="h-4 w-4" />
               Add to Discord — 1 click →
             </a>
-            <div className="relative flex items-center gap-3 py-0.5">
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-[11px] text-gray-400 font-medium">once you've authorized</span>
-              <div className="flex-1 h-px bg-gray-100" />
-            </div>
-            <div className="space-y-3">
-              <Field label="Bot Token" hint="Bot tab → Reset Token in the Discord Developer Portal">
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  value={botToken}
-                  onChange={(e) => setBotToken(e.target.value)}
-                  placeholder="Paste your bot token"
-                  className={inputCls}
-                />
-              </Field>
-              <button
-                type="button"
-                disabled={!botToken.trim() || fetching}
-                onClick={() => fetchGuilds(botToken)}
-                className="w-full rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-all flex items-center justify-center gap-2"
-              >
-                {fetching && <Spinner className="h-3.5 w-3.5 text-gray-400" />}
-                {fetching ? 'Fetching your servers…' : 'Fetch my channels →'}
-              </button>
-              {fetchError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{fetchError}</p>}
-            </div>
             <button type="button" onClick={() => setSubStep('manual')} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors">
               Already have a bot? Use manual setup instead
             </button>
@@ -802,8 +774,21 @@ const STEPS: { key: Step; label: string }[] = [
 ]
 
 export default function OnboardingWizard({ initialName }: { initialName: string }) {
+  const searchParams = useSearchParams()
   const [step, setStep] = useState<Step>('name')
   const [completed, setCompleted] = useState<Set<string>>(new Set())
+
+  // Auto-advance after Discord OAuth callback
+  useEffect(() => {
+    if (searchParams.get('discord_connected') === '1') {
+      setCompleted((prev) => new Set([...prev, 'name', 'connect']))
+      setStep('seed')
+      // Clean the query param without a full reload
+      const url = new URL(window.location.href)
+      url.searchParams.delete('discord_connected')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [searchParams])
 
   const stepIndex = STEPS.findIndex((s) => s.key === step)
 
