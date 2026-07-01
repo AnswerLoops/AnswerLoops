@@ -199,6 +199,24 @@ Setup: `cp .env.notion.example .env.notion` then fill in your workspace IDs.
 
 Use `mcp__notion__notion-update-page` with `command: "update_content"` and targeted `old_str`/`new_str` pairs — never replace entire pages.
 
+# Placeholder format — HARD RULE
+
+Never use a placeholder that looks like a real secret. This includes:
+- Hex strings (`abcdef1234567890abcdef1234567890`)
+- Random-looking alphanumeric strings (`xK9mP2qR7nL4...`)
+- Repeated patterns (`sk-xxxxxxxxxxxxxxxxxxxxxxxx`)
+- Real-format fakes (`sk-test-...`, `ghp_fakefakefake`)
+
+Always use angle-bracket descriptors instead:
+```
+API_KEY=<your-api-key>
+SLACK_CLIENT_SECRET=<your-client-secret>
+DATABASE_URL=<your-postgres-connection-string>
+STRIPE_SECRET_KEY=<sk_live_... from Stripe dashboard>
+```
+
+This applies to: docs, code comments, example env files, README, test fixtures, and any commit or PR body. If a scanner can't tell it's fake, it's the wrong format.
+
 # Secret violation protocol — HARD RULE
 
 If Trivy's secret scanner (or Semgrep, or any other tool) detects a credential, API key, token, or secret in the codebase at any point:
