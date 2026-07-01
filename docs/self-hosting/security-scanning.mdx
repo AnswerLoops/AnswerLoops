@@ -1,0 +1,161 @@
+---
+title: Security Scanning
+description: How AnswerLoops scans for vulnerabilities, secrets, and code issues — pre-commit hooks, CI pipeline, and the /project:security-fix skill.
+---
+
+AnswerLoops ships with a three-layer security scanning pipeline that runs on every commit and every CI build.
+
+## Layers
+
+| Layer | Tool | What it catches |
+|---|---|---|
+| **SCA** (Software Composition Analysis) | Trivy | Vulnerable dependencies in `pnpm-lock.yaml` |
+| **Secrets** | Trivy | API keys, tokens, credentials committed to source |
+| **Misconfiguration** | Trivy | Dockerfile issues, IaC misconfigurations |
+| **SAST** (Static Application Security Testing) | Semgrep | Code-level issues: insecure crypto, injection sinks, missing auth |
+| **Supply-chain trust** | pnpm trust policy (CI only) | Dependencies that lost provenance attestation relative to an earlier version |
+
+---
+
+## Pre-commit hook
+
+Every `git commit` runs four gates in order:
+
+```
+1. pnpm test              — all unit tests must pass
+2. Trivy secrets          — blocks immediately + loud alert if a credential is found
+3. Trivy vuln + misconfig — blocks on CRITICAL/HIGH with available fix
+4. Semgrep SAST           — blocks on ERROR-severity code findings
+   (Trivy + Semgrep run in parallel)
+```
+
+Install the hook (already present in the repo, runs automatically after `git clone`):
+
+```bash
+chmod +x .git/hooks/pre-commit
+```
+
+To bypass in a genuine emergency only:
+
+```bash
+git commit --no-verify
+```
+
+<Warning>
+  `--no-verify` skips all security checks. Only use it if you are certain the
+  commit contains no secrets or vulnerabilities and you will run a full scan
+  immediately after.
+</Warning>
+
+---
+
+## CI pipeline
+
+The `security.yml` GitHub Actions workflow runs on every push and pull request, and on a weekly schedule (Monday 06:00 UTC).
+
+### Jobs
+
+**`trivy`** — full filesystem scan (SCA + secrets + misconfig), fails on CRITICAL/HIGH.
+
+**`audit`** — `pnpm audit --audit-level=high`, catches advisories not yet in Trivy's DB.
+
+**`trust-policy`** — runs `pnpm install` with `trustPolicy: no-downgrade`. Fails on any
+dependency that has lost provenance attestation relative to an earlier published version
+(possible package takeover). Known exceptions are listed inline in the workflow file and
+reviewed on every dependency bump.
+
+---
+
+## Secret violation protocol
+
+If any scanner finds a secret at any severity level:
+
+1. **Do not push the commit.**
+2. Identify the exact file and line from the scanner output.
+3. **Cycle the credential immediately** — assume it is compromised regardless of whether it was pushed.
+4. Remove the secret from the file:
+   ```bash
+   git reset HEAD~1       # undo the commit
+   # remove the secret from the file
+   git add . && git commit
+   ```
+5. If it was already pushed:
+   ```bash
+   # Rotate the credential first, then clean history
+   git push --force-with-lease
+   ```
+
+<Warning>
+  A credential that appeared in a commit — even briefly, even in a private repo —
+  should be treated as compromised. Rotation takes minutes. A breach can cost far more.
+</Warning>
+
+---
+
+## Placeholder format
+
+All example credentials in docs, comments, and env files must use angle-bracket descriptors:
+
+```bash
+# ✅ Correct
+SLACK_CLIENT_SECRET=<your-client-secret>
+OPENAI_API_KEY=<your-openai-api-key>
+DATABASE_URL=<your-postgres-connection-string>
+
+# ❌ Wrong — scanners can't tell these are fake
+SLACK_CLIENT_SECRET=abcdef1234567890abcdef1234567890
+OPENAI_API_KEY=sk-test-fakefakefakefake
+```
+
+---
+
+## /project:security-fix skill
+
+Invoke `/project:security-fix` to run the full scan → triage → fix → retest cycle:
+
+1. **Full scan** — Trivy (all scanners, all severities) + Semgrep (`--config=auto`) in parallel
+2. **Triage** — every finding classified as fix-now / track / false-positive before touching code
+3. **Fix** — root cause only; one logical fix per commit
+4. **`pnpm test` after each fix** — not just at the end; catches regressions immediately
+5. **Full rescan** — confirms clean before sign-off
+6. **Sign-off block** — documents every finding's disposition, test count, and scan result
+
+The skill enforces that every `# nosemgrep` suppression includes a written justification,
+and that secret findings trigger an immediate stop + user alert before any other work continues.
+
+---
+
+## Suppressing false positives
+
+Use `# nosemgrep: <rule-id>` inline for single-line suppressions:
+
+```typescript
+console.error(`${prefix} ${message}`, error) // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
+```
+
+Use `.semgrepignore` for whole-file or directory exclusions:
+
+```
+# docs/ contains example placeholder values, not real credentials
+docs/
+```
+
+Every suppression — inline or in `.semgrepignore` — must include a comment explaining why the finding is safe to ignore.
+
+---
+
+## Tuning severity thresholds
+
+The pre-commit hook blocks on:
+- **Trivy**: `CRITICAL,HIGH` with `--ignore-unfixed`
+- **Semgrep**: `ERROR` severity only
+
+To see all findings without blocking (useful for a full audit):
+
+```bash
+# All severities, no block
+trivy fs --scanners vuln,secret,misconfig --severity CRITICAL,HIGH,MEDIUM,LOW \
+  --skip-dirs .pnpm-store,node_modules/.cache .
+
+semgrep scan --config=auto --no-rewrite-rule-ids .
+```
