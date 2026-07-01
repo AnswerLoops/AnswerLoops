@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { ORDERED_PLANS } from '@/lib/billing/plans'
 import { LogoMark, Logo } from '@/components/logo'
 import { AnimatedChat } from '@/components/animated-chat'
+import { WaitlistForm } from '@/components/waitlist-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,12 +39,9 @@ function Nav({ loggedIn }: { loggedIn: boolean }) {
               Go to dashboard →
             </Link>
           ) : (
-            <>
-              <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Sign in</Link>
-              <Link href="/login" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors">
-                Start free trial
-              </Link>
-            </>
+            <span className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600">
+              Coming soon
+            </span>
           )}
         </div>
       </div>
@@ -144,24 +142,10 @@ function Hero() {
           <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-300 leading-relaxed">
             Connect Discord or Slack. AnswerLoops triages every question with AI, answers from your own docs and resolved tickets, and auto-posts replies — so your team handles only the hard 10%.
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/login"
-              className="rounded-xl bg-brand-500 px-8 py-3.5 text-base font-semibold text-white shadow-lg hover:bg-brand-400 transition-colors"
-            >
-              Start free — no card needed
-            </Link>
-            <Link
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-8 py-3.5 text-base font-medium text-white hover:bg-white/10 transition-colors"
-            >
-              <GithubIcon />
-              Self-host free
-            </Link>
+          <div className="mt-10 mx-auto max-w-lg">
+            <WaitlistForm dark />
+            <p className="mt-3 text-xs text-slate-500 text-center">Be first to know when we launch. No spam.</p>
           </div>
-          <p className="mt-4 text-xs text-slate-500">14-day trial on hosted plans. Or clone and self-host forever free.</p>
         </div>
         <div className="mt-16 mx-auto max-w-2xl">
           <AnimatedChat />
@@ -440,10 +424,8 @@ function Enterprise() {
             <p className="text-slate-300 leading-relaxed mb-6">
               Fintech, healthcare, and enterprise teams need data isolation, audit trails, and legal agreements. AnswerLoops ships all of it — or you self-host and own everything.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/login" className="rounded-xl bg-brand-500 px-7 py-3 text-sm font-semibold text-white hover:bg-brand-400 transition-colors text-center">
-                Talk to sales
-              </Link>
+            <div className="flex flex-col gap-3">
+              <WaitlistForm dark />
               <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-white/20 px-7 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors">
                 <GithubIcon />
                 Self-host (AGPL-3.0)
@@ -495,12 +477,6 @@ function SelfHostCallout() {
             >
               <GithubIcon />
               View on GitHub
-            </Link>
-            <Link
-              href="/login"
-              className="flex items-center justify-center rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Use hosted instead
             </Link>
           </div>
         </div>
@@ -570,16 +546,13 @@ function Pricing() {
                     : `${plan.deflectionsPerMonth.toLocaleString()} deflections/mo`}
                 </div>
                 <div className="flex-1" />
-                <Link
-                  href="/login"
-                  className={`mt-8 block w-full rounded-xl py-3 text-center text-sm font-semibold transition-colors ${
+                <div className={`mt-8 w-full rounded-xl py-2.5 text-center text-xs font-semibold ${
                     isHighlight
-                      ? 'bg-brand-600 text-white hover:bg-brand-700'
-                      : 'border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  Start free trial
-                </Link>
+                      ? 'bg-brand-100 text-brand-600'
+                      : 'border-2 border-gray-200 text-gray-400'
+                  }`}>
+                  Available at launch
+                </div>
               </div>
             )
           })}
@@ -600,23 +573,10 @@ function CTA() {
     <section className="bg-black">
       <div className="mx-auto max-w-6xl px-6 py-20 text-center">
         <h2 className="text-3xl font-bold text-white">Your community deserves better than copy-paste answers.</h2>
-        <p className="mt-4 text-gray-400 text-lg max-w-xl mx-auto">Cloud or self-hosted — AnswerLoops works either way. Your data stays yours.</p>
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link
-            href="/login"
-            className="rounded-xl bg-brand-600 px-10 py-3.5 text-base font-semibold text-white hover:bg-brand-500 transition-colors shadow-sm"
-          >
-            Start free trial
-          </Link>
-          <Link
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-10 py-3.5 text-base font-semibold text-white hover:bg-white/10 transition-colors"
-          >
-            <GithubIcon />
-            Self-host free
-          </Link>
+        <p className="mt-4 text-gray-400 text-lg max-w-xl mx-auto">Be first in line when we open the doors.</p>
+        <div className="mt-10 mx-auto max-w-lg">
+          <WaitlistForm dark />
+          <p className="mt-3 text-xs text-slate-500">No spam. Unsubscribe any time.</p>
         </div>
       </div>
     </section>
@@ -658,10 +618,9 @@ function Footer() {
               </div>
             </div>
             <div>
-              <div className="text-xs font-semibold text-gray-700 uppercase tracking-widest mb-3">Account</div>
+              <div className="text-xs font-semibold text-gray-700 uppercase tracking-widest mb-3">Product</div>
               <div className="flex flex-col gap-2">
-                <Link href="/login" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Sign in</Link>
-                <Link href="/login" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Sign up</Link>
+                <span className="text-sm text-gray-400">Coming soon</span>
               </div>
             </div>
           </div>

@@ -355,5 +355,11 @@ export const csatRatings = pgTable(
   ]
 )
 
+export const waitlist = pgTable('waitlist', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  createdAt: text('created_at').notNull().default(sql`now()`),
+})
+
 /** The default workspace that owns all data until real auth assigns memberships. */
 export const DEFAULT_ORG_ID = 1
