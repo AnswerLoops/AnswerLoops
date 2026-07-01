@@ -198,3 +198,33 @@ Read `.env.notion` at the start of any PR workflow to resolve these variable nam
 Setup: `cp .env.notion.example .env.notion` then fill in your workspace IDs.
 
 Use `mcp__notion__notion-update-page` with `command: "update_content"` and targeted `old_str`/`new_str` pairs — never replace entire pages.
+
+# Placeholder format — HARD RULE
+
+Never use a placeholder that looks like a real secret. This includes:
+- Hex strings (`abcdef1234567890abcdef1234567890`)
+- Random-looking alphanumeric strings (`xK9mP2qR7nL4...`)
+- Repeated patterns (`sk-xxxxxxxxxxxxxxxxxxxxxxxx`)
+- Real-format fakes (`sk-test-...`, `ghp_fakefakefake`)
+
+Always use angle-bracket descriptors instead:
+```
+API_KEY=<your-api-key>
+SLACK_CLIENT_SECRET=<your-client-secret>
+DATABASE_URL=<your-postgres-connection-string>
+STRIPE_SECRET_KEY=<sk_live_... from Stripe dashboard>
+```
+
+This applies to: docs, code comments, example env files, README, test fixtures, and any commit or PR body. If a scanner can't tell it's fake, it's the wrong format.
+
+# Secret violation protocol — HARD RULE
+
+If Trivy's secret scanner (or Semgrep, or any other tool) detects a credential, API key, token, or secret in the codebase at any point:
+
+1. **Stop immediately.** Do not continue the current task.
+2. **Alert the user** with the exact file, line, and secret type found.
+3. **Tell the user to cycle it now** — assume the credential is compromised regardless of whether it was pushed.
+4. **Do not commit or push** until the secret is removed from the file AND git history.
+5. **If already pushed**, tell the user to rotate the credential immediately before doing anything else, then use `git push --force-with-lease` after cleaning history.
+
+This rule applies even if the secret looks like a placeholder or test value. Err on the side of caution — a rotated credential costs minutes; a leaked one can cost everything.

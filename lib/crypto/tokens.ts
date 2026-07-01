@@ -33,7 +33,7 @@ export function decryptToken(value: string): string | null {
     const iv = Buffer.from(ivB64, 'base64')
     const tag = Buffer.from(tagB64, 'base64')
     const data = Buffer.from(dataB64, 'base64')
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, { authTagLength: 16 })
     decipher.setAuthTag(tag)
     return decipher.update(data).toString('utf8') + decipher.final('utf8')
   } catch {
