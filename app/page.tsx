@@ -21,7 +21,7 @@ function Nav({ loggedIn }: { loggedIn: boolean }) {
     <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
         <div className="flex items-center gap-8">
-          <Logo width={110} />
+          <Link href="/"><Logo width={110} /></Link>
           <nav className="hidden md:flex items-center gap-6">
             <Link href="#features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Features</Link>
             <Link href="#how-it-works" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">How it works</Link>

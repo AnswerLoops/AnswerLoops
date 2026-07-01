@@ -15,6 +15,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "AnswerLoops",
   description: "Discord community support platform with AI triage",
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32', type: 'image/x-icon' },
+      { url: '/icon.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: { url: '/icon.png', sizes: '512x512', type: 'image/png' },
+  },
 };
 
 export default function RootLayout({
