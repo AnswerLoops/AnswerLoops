@@ -19,7 +19,12 @@ export async function POST(req: NextRequest) {
   }
 
   await db.insert(waitlist).values({ email })
-  await sendWaitlistConfirmation(email)
+
+  try {
+    await sendWaitlistConfirmation(email)
+  } catch (err) {
+    console.error('[waitlist] Resend error:', err)
+  }
 
   return NextResponse.json({ ok: true })
 }
