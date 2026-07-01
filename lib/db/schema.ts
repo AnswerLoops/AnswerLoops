@@ -20,6 +20,8 @@ export const orgs = pgTable('orgs', {
   onboardedAt: text('onboarded_at'),
   widgetToken: text('widget_token').unique(),
   widgetTokenExpiresAt: text('widget_token_expires_at'),
+  roiMinutesPerTicket: integer('roi_minutes_per_ticket'),
+  roiStaffHourlyRate: integer('roi_staff_hourly_rate'),
   createdAt: text('created_at').notNull().default(now),
 })
 
