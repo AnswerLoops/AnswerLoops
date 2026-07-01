@@ -1,13 +1,26 @@
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/auth'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 // Permissions: View Channel + Send Messages + Read Message History + Add Reactions + Embed Links
 const PERMISSIONS = '85056'
 
-export function GET() {
+export async function GET(req: NextRequest) {
   const clientId = process.env.DISCORD_CLIENT_ID
   if (!clientId) {
     return NextResponse.json({ error: 'DISCORD_CLIENT_ID not configured' }, { status: 503 })
   }
-  const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot&permissions=${PERMISSIONS}`
+
+  const session = await auth()
+  const orgId = (session as { orgId?: number })?.orgId ?? DEFAULT_ORG_ID
+  const baseUrl = process.env.AUTH_URL ?? req.nextUrl.origin
+  const redirectUri = `${baseUrl}/api/discord/callback`
+
+  const state = Buffer.from(
+    JSON.stringify({ orgId, ts: Date.now(), from: 'onboarding' })
+  ).toString('base64url')
+
+  const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot&permissions=${PERMISSIONS}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
+
   return NextResponse.json({ url })
 }
