@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { LoginForm } from '@/components/login-form'
@@ -34,7 +35,9 @@ export default async function LoginPage({ searchParams }: Props) {
           {/* Logo */}
           <div className="mb-8 text-center">
             <div className="mb-3 flex justify-center">
-              <Logo width={120} />
+              <Link href="/">
+                <Logo width={120} />
+              </Link>
             </div>
             <p className="mt-1 text-sm text-gray-500">Create a free workspace or sign in</p>
           </div>
