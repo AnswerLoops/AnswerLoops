@@ -1,10 +1,5 @@
-/**
- * ROI assumptions for translating deflected questions into time and money
- * saved. Deliberately conservative defaults; overridable via env so a customer
- * can tune them to their own support economics.
- */
-export const AVG_MINUTES_PER_TICKET = Number(process.env.ROI_MINUTES_PER_TICKET ?? 10)
-export const STAFF_HOURLY_RATE = Number(process.env.ROI_STAFF_HOURLY_RATE ?? 50)
+const ENV_MINUTES = Number(process.env.ROI_MINUTES_PER_TICKET ?? 10)
+const ENV_RATE = Number(process.env.ROI_STAFF_HOURLY_RATE ?? 50)
 
 export interface ROISavings {
   deflected: number
@@ -14,19 +9,24 @@ export interface ROISavings {
   hourlyRate: number
 }
 
-/** Time + money saved from auto-deflecting `deflected` questions. */
-export function computeSavings(deflected: number): ROISavings {
-  const hoursSaved = (deflected * AVG_MINUTES_PER_TICKET) / 60
+export interface ROIConfig {
+  minutesPerTicket?: number | null
+  staffHourlyRate?: number | null
+}
+
+export function computeSavings(deflected: number, config?: ROIConfig): ROISavings {
+  const minutesPerTicket = config?.minutesPerTicket ?? ENV_MINUTES
+  const hourlyRate = config?.staffHourlyRate ?? ENV_RATE
+  const hoursSaved = (deflected * minutesPerTicket) / 60
   return {
     deflected,
     hoursSaved,
-    dollarsSaved: hoursSaved * STAFF_HOURLY_RATE,
-    minutesPerTicket: AVG_MINUTES_PER_TICKET,
-    hourlyRate: STAFF_HOURLY_RATE,
+    dollarsSaved: hoursSaved * hourlyRate,
+    minutesPerTicket,
+    hourlyRate,
   }
 }
 
-/** Deflected ÷ total answered, as a 0–1 rate (0 when nothing answered yet). */
 export function deflectionRate(deflected: number, answered: number): number {
   return answered > 0 ? deflected / answered : 0
 }

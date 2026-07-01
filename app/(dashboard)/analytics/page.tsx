@@ -9,6 +9,9 @@ import {
 import { getDeflectionAccuracyByCategory } from '@/lib/db/queries/feedback'
 import { getCsatStats } from '@/lib/db/queries/csat'
 import { computeSavings, deflectionRate } from '@/lib/analytics/roi'
+import { getOrgROIConfig } from '@/lib/db/queries/orgs'
+import { auth } from '@/auth'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,9 +29,12 @@ function Bar({ value, max, className = 'bg-brand-500' }: { value: number; max: n
 }
 
 export default async function AnalyticsPage() {
+  const session = await auth()
+  const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
   const stats = await getDeflectionStats()
   const rate = deflectionRate(stats.deflected, stats.answered)
-  const savings = computeSavings(stats.deflected)
+  const roiConfig = await getOrgROIConfig(orgId)
+  const savings = computeSavings(stats.deflected, roiConfig)
   const trend = await getDeflectionTrend()
   const categories = await getCategoryBreakdown()
   const docGaps = await getDocGaps()

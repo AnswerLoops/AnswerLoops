@@ -46,3 +46,22 @@ export async function isOrgOnboarded(orgId: number): Promise<boolean> {
     .limit(1)
   return !!row?.onboardedAt
 }
+
+export async function getOrgROIConfig(orgId: number): Promise<{ minutesPerTicket: number | null; staffHourlyRate: number | null }> {
+  const [row] = await getDb()
+    .select({ roiMinutesPerTicket: orgs.roiMinutesPerTicket, roiStaffHourlyRate: orgs.roiStaffHourlyRate })
+    .from(orgs)
+    .where(eq(orgs.id, orgId))
+    .limit(1)
+  return {
+    minutesPerTicket: row?.roiMinutesPerTicket ?? null,
+    staffHourlyRate: row?.roiStaffHourlyRate ?? null,
+  }
+}
+
+export async function saveOrgROIConfig(orgId: number, minutesPerTicket: number, staffHourlyRate: number): Promise<void> {
+  await getDb()
+    .update(orgs)
+    .set({ roiMinutesPerTicket: minutesPerTicket, roiStaffHourlyRate: staffHourlyRate })
+    .where(eq(orgs.id, orgId))
+}

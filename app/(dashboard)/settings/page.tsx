@@ -9,6 +9,7 @@ import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlack
 import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwnershipAction } from '@/app/actions/invitations'
 import { getWidgetTokenAction, regenerateWidgetTokenAction } from '@/app/actions/widget'
 import { saveAIConfigAction, clearAIConfigAction } from '@/app/actions/ai-config'
+import { saveROIConfigAction } from '@/app/actions/roi'
 import { Button } from '@/components/ui/button'
 import type { SLAConfig, GitHubRepo } from '@/types'
 
@@ -1954,6 +1955,96 @@ export default function SettingsPage() {
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Website Widget</h2>
         <WidgetSection />
       </section>
+
+      {/* Analytics — ROI */}
+      <section>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">Analytics</h2>
+        <ROISection />
+      </section>
+    </div>
+  )
+}
+
+function ROISection() {
+  const [state, formAction, pending] = useActionState(saveROIConfigAction, null)
+  const [editing, setEditing] = useState(false)
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-5">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <p className="text-sm font-medium text-gray-900">ROI Assumptions</p>
+          <p className="text-xs text-gray-500 mt-0.5">Used to calculate time and money saved on the Analytics page.</p>
+        </div>
+        {!editing && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+          >
+            Edit
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <form action={formAction} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Minutes per ticket
+              </label>
+              <input
+                name="minutesPerTicket"
+                type="number"
+                min={1}
+                max={480}
+                defaultValue={10}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">Average staff time to answer one question manually.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Staff hourly rate ($)
+              </label>
+              <input
+                name="staffHourlyRate"
+                type="number"
+                min={1}
+                max={10000}
+                defaultValue={50}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">Fully-loaded cost per hour for your support staff.</p>
+            </div>
+          </div>
+
+          {state && 'error' in state && (
+            <p className="text-xs text-red-600">{state.error}</p>
+          )}
+          {state && 'success' in state && (
+            <p className="text-xs text-green-600">Saved.</p>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Button type="submit" size="sm" disabled={pending}>
+              {pending ? 'Saving…' : 'Save'}
+            </Button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <p className="text-xs text-gray-500">
+          Using defaults (10 min/ticket · $50/hr) unless you set custom values above.
+        </p>
+      )}
     </div>
   )
 }
