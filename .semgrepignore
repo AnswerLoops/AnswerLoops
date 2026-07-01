@@ -1,0 +1,12 @@
+# Documentation — contains placeholder/example secrets, not real credentials.
+# Trivy handles secret scanning of actual source files separately.
+docs/
+
+# Generated / vendored
+node_modules/
+.pnpm-store/
+.next/
+
+# Test fixtures — may contain intentionally insecure patterns for testing
+tests/
+e2e/
