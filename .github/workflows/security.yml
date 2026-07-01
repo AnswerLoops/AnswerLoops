@@ -49,6 +49,27 @@ jobs:
 
       - run: pnpm audit --audit-level=high
 
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Install Semgrep
+        run: pip install semgrep --quiet
+
+      - name: Run Semgrep SAST
+        run: |
+          semgrep scan \
+            --config=auto \
+            --error \
+            --no-rewrite-rule-ids \
+            --skip-unknown-extensions \
+            . 2>&1
+
   trust-policy:
     name: Supply-chain trust audit
     runs-on: ubuntu-latest
