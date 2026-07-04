@@ -106,13 +106,9 @@ export async function sendTicketResolvedEmail(
 }
 
 export async function sendWaitlistConfirmation(email: string): Promise<void> {
-  if (!process.env.RESEND_API_KEY) {
-    console.error('[waitlist] RESEND_API_KEY not set — skipping email')
-    return
-  }
+  if (!process.env.RESEND_API_KEY) return
 
   const from = process.env.RESEND_WAITLIST_FROM ?? process.env.RESEND_FROM ?? 'hello@answerloops.com'
-  console.log(`[waitlist] sending confirmation to ${email} from ${from}`)
 
   const result = await client().emails.send({
     from,
@@ -142,7 +138,6 @@ export async function sendWaitlistConfirmation(email: string): Promise<void> {
       </div>
     `,
   })
-  console.log('[waitlist] Resend response:', JSON.stringify(result))
 }
 
 export async function sendSlaBreachEmails(ticketIds: number[], orgId: number): Promise<void> {
