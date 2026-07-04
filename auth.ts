@@ -10,8 +10,6 @@ import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 const PUBLIC_PATHS = ['/', '/login', '/api/auth', '/api/ingest', '/api/feedback', '/api/slack', '/api/widget', '/widget', '/api/billing/webhook', '/api/waitlist', '/api/health']
 const ONBOARDING_PATH = '/onboarding'
 const INVITE_PREFIX = '/invite/'
-const ACCESS_CODE_COOKIE = 'al_access'
-
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 }
@@ -91,19 +89,7 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
     },
 
     async authorized({ request, auth: session }) {
-      const { pathname, searchParams } = request.nextUrl
-
-      // If visiting /login with ?code=<ACCESS_CODE>, set access cookie and redirect clean
-      const accessCode = process.env.ACCESS_CODE
-      if (pathname === '/login' && accessCode) {
-        const provided = searchParams.get('code')
-        if (provided === accessCode) {
-          const url = new URL('/login', request.nextUrl)
-          const res = NextResponse.redirect(url)
-          res.cookies.set(ACCESS_CODE_COOKIE, accessCode, { httpOnly: true, sameSite: 'lax', maxAge: 60 * 60 * 24 * 30 })
-          return res
-        }
-      }
+      const { pathname } = request.nextUrl
 
       if (isPublic(pathname)) return true
 
