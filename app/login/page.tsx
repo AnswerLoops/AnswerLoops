@@ -12,6 +12,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   OAuthCreateAccount: 'Could not create account. Try again.',
   OAuthAccountNotLinked: 'This email is already linked to another provider.',
   Callback: 'Sign-in callback failed. Try again.',
+  AccessDenied: 'AnswerLoops is currently invite-only. Join the waitlist at answerloops.com.',
   Default: 'Something went wrong. Try again.',
 }
 
