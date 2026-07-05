@@ -56,8 +56,11 @@ export async function ingestUrlAction(
       return { created: result.created }
     }
   } catch (err) {
-    // Surface cap messages verbatim; keep other errors generic.
     if (err instanceof IngestLimitError) return { error: err.message }
+    const msg = err instanceof Error ? err.message : ''
+    if (msg.includes('API key is missing') || msg.includes('AI_LoadAPIKeyError')) {
+      return { error: 'No AI provider configured. Add OPENAI_API_KEY to your environment variables, or configure a provider in Settings → AI Model.' }
+    }
     logger.error('ingest-url failed', { module: 'actions/ingest-url', error: err })
     return { error: 'Import failed. Check the URL and try again.' }
   }
