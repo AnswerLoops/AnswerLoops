@@ -61,6 +61,9 @@ export async function ingestUrlAction(
     if (msg.includes('API key is missing') || msg.includes('AI_LoadAPIKeyError')) {
       return { error: 'No AI provider configured. Add OPENAI_API_KEY to your environment variables, or configure a provider in Settings → AI Model.' }
     }
+    if (msg.includes('Rate limit exceeded') || msg.includes('FirecrawlSdkError')) {
+      return { error: 'Firecrawl rate limit exceeded. Wait a minute and try again, or use Single page mode instead of Entire site.' }
+    }
     logger.error('ingest-url failed', { module: 'actions/ingest-url', error: err })
     return { error: 'Import failed. Check the URL and try again.' }
   }
