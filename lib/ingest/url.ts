@@ -1,6 +1,7 @@
 import FirecrawlApp from '@mendable/firecrawl-js'
 import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
-import { createArticle, countArticles } from '@/lib/db/queries/kb'
+import { createArticle, createArticleFromSource, countArticles } from '@/lib/db/queries/kb'
+import { createKBSource, getKBSourceByFilename, updateKBSourceChunkCount } from '@/lib/db/queries/kb-sources'
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 
 const MAX_CHUNK_CHARS = 1800
@@ -85,7 +86,8 @@ function applyImportCaps(chunks: Chunk[]): Chunk[] {
 }
 
 // Embed and persist chunks, enforcing the per-org article ceiling.
-async function saveChunks(chunks: Chunk[], orgId: number): Promise<number> {
+// When sourceId is provided, articles are linked to that kb_sources row.
+async function saveChunks(chunks: Chunk[], orgId: number, sourceId?: number): Promise<number> {
   const existing = await countArticles(orgId)
   if (existing >= MAX_ARTICLES_PER_ORG) {
     throw new IngestLimitError(
@@ -100,7 +102,14 @@ async function saveChunks(chunks: Chunk[], orgId: number): Promise<number> {
   for (const chunk of budgeted) {
     try {
       const embedding = await embedText(`${chunk.question}\n\n${chunk.answer}`)
-      await createArticle({ question: chunk.question, answer: chunk.answer, embedding, model: EMBEDDING_MODEL }, orgId)
+      if (sourceId != null) {
+        await createArticleFromSource(
+          { question: chunk.question, answer: chunk.answer, embedding, model: EMBEDDING_MODEL, sourceId },
+          orgId,
+        )
+      } else {
+        await createArticle({ question: chunk.question, answer: chunk.answer, embedding, model: EMBEDDING_MODEL }, orgId)
+      }
       created++
     } catch (err) {
       lastError = err
@@ -111,13 +120,21 @@ async function saveChunks(chunks: Chunk[], orgId: number): Promise<number> {
 }
 
 /** Scrape a single URL and save each heading section as a KB article. */
-export async function ingestUrl(url: string, orgId: number): Promise<{ created: number }> {
+export async function ingestUrl(url: string, orgId: number): Promise<{ created: number; skipped?: boolean }> {
   if (MOCK_EXTERNALS) {
     const mockMd = `## Mock Page\n\nThis is mock content for ${url}. It contains enough text to be chunked into a KB article for testing purposes.`
+    const existing = await getKBSourceByFilename(orgId, url)
+    if (existing) return { created: 0, skipped: true }
+    const source = await createKBSource({ orgId, filename: url, fileType: 'url', sizeBytes: mockMd.length })
     const chunks = chunkMarkdown(mockMd, 'Mock Page')
-    const created = await saveChunks(chunks, orgId)
+    const created = await saveChunks(chunks, orgId, source.id)
+    await updateKBSourceChunkCount(source.id, created)
     return { created }
   }
+
+  // Skip if already ingested
+  const existing = await getKBSourceByFilename(orgId, url)
+  if (existing) return { created: 0, skipped: true }
 
   const app = makeClient()
 
@@ -126,23 +143,36 @@ export async function ingestUrl(url: string, orgId: number): Promise<{ created: 
     throw new Error(`Firecrawl scrape failed for ${url}`)
   }
 
+  const source = await createKBSource({
+    orgId,
+    filename: url,
+    fileType: 'url',
+    sizeBytes: result.markdown.length,
+  })
+
   const title = (result as { metadata?: { title?: string } }).metadata?.title ?? url
   const chunks = chunkMarkdown(result.markdown, title)
-  const created = await saveChunks(chunks, orgId)
+  const created = await saveChunks(chunks, orgId, source.id)
+  await updateKBSourceChunkCount(source.id, created)
   return { created }
 }
 
-/** Crawl an entire site (up to MAX_PAGES) and save all heading sections as KB articles. */
+/** Crawl an entire site (up to MAX_PAGES) and save all heading sections as KB articles.
+ *  Pages already ingested (by URL) are skipped — safe to re-run to pick up new pages. */
 export async function ingestSite(
   url: string,
   orgId: number,
   maxPages = MAX_PAGES,
-): Promise<{ created: number; pages: number }> {
+): Promise<{ created: number; pages: number; skipped: number }> {
   if (MOCK_EXTERNALS) {
     const mockMd = `## Mock Site Page\n\nThis is mock site content for ${url}. It contains enough text to be chunked into a KB article for testing purposes. The site crawl returns multiple pages.`
+    const existing = await getKBSourceByFilename(orgId, url)
+    if (existing) return { created: 0, pages: 1, skipped: 1 }
+    const source = await createKBSource({ orgId, filename: url, fileType: 'url', sizeBytes: mockMd.length })
     const chunks = chunkMarkdown(mockMd, 'Mock Site Page')
-    const created = await saveChunks(chunks, orgId)
-    return { created, pages: 1 }
+    const created = await saveChunks(chunks, orgId, source.id)
+    await updateKBSourceChunkCount(source.id, created)
+    return { created, pages: 1, skipped: 0 }
   }
 
   const app = makeClient()
@@ -154,15 +184,32 @@ export async function ingestSite(
 
   const pages = (crawlResult as { data?: unknown[] }).data ?? []
 
-  // Accumulate across pages, then cap once so a huge site can't blow past
-  // the per-import budget by spreading work over many pages.
-  const allChunks: Chunk[] = []
-  for (const page of pages as Array<{ markdown?: string; metadata?: { title?: string } }>) {
+  let created = 0
+  let skipped = 0
+
+  for (const page of pages as Array<{ markdown?: string; metadata?: { title?: string; sourceURL?: string } }>) {
     if (!page.markdown) continue
-    const title = page.metadata?.title ?? url
-    allChunks.push(...chunkMarkdown(page.markdown, title))
+
+    const pageUrl = page.metadata?.sourceURL ?? url
+    const existing = await getKBSourceByFilename(orgId, pageUrl)
+    if (existing) {
+      skipped++
+      continue
+    }
+
+    const source = await createKBSource({
+      orgId,
+      filename: pageUrl,
+      fileType: 'url',
+      sizeBytes: page.markdown.length,
+    })
+
+    const title = page.metadata?.title ?? pageUrl
+    const chunks = chunkMarkdown(page.markdown, title)
+    const pageCreated = await saveChunks(chunks, orgId, source.id)
+    await updateKBSourceChunkCount(source.id, pageCreated)
+    created += pageCreated
   }
 
-  const created = await saveChunks(allChunks, orgId)
-  return { created, pages: pages.length }
+  return { created, pages: pages.length, skipped }
 }

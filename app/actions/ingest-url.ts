@@ -22,6 +22,7 @@ export interface IngestUrlResult {
   error?: string
   created?: number
   pages?: number
+  skipped?: number
 }
 
 export async function ingestUrlAction(
@@ -50,10 +51,10 @@ export async function ingestUrlAction(
   try {
     if (mode === 'site') {
       const result = await ingestSite(url, orgId)
-      return { created: result.created, pages: result.pages }
+      return { created: result.created, pages: result.pages, skipped: result.skipped }
     } else {
       const result = await ingestUrl(url, orgId)
-      return { created: result.created }
+      return { created: result.created, skipped: result.skipped ? 1 : 0 }
     }
   } catch (err) {
     if (err instanceof IngestLimitError) return { error: err.message }
