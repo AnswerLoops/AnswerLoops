@@ -1,6 +1,11 @@
 # Production stack: built image, no source bind-mount, no dev server.
+# Requires a .env file with DATABASE_URL pointing to Neon (or another Postgres).
+#
 #   docker compose -f docker-compose.prod.yml up -d --build
-# The app and bot share one image and differ only by command.
+#
+# On Railway: push to GitHub — Railway builds from the Dockerfile automatically.
+# BOT_TARGET_URL must be set to the app service's public URL when services are
+# deployed separately (e.g. https://your-app.up.railway.app).
 services:
   app:
     build:
@@ -15,9 +20,7 @@ services:
         required: false
     environment:
       - NODE_ENV=production
-      - DB_PATH=/data/community.db
-    volumes:
-      - community-data:/data
+      - NEXT_TELEMETRY_DISABLED=1
     command: ["pnpm", "start"]
 
   bot:
@@ -28,10 +31,9 @@ services:
         required: false
     environment:
       - NODE_ENV=production
+      # Set BOT_TARGET_URL to the app's public URL when services are separate.
+      # Use http://app:3000 only when both run in the same Docker network (single-host).
       - BOT_TARGET_URL=http://app:3000
     command: ["pnpm", "bot:start"]
     depends_on:
       - app
-
-volumes:
-  community-data:   # SQLite DB — the only stateful volume; back this up
