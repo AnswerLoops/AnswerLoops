@@ -60,7 +60,7 @@ function SourcesList({ onDeleted }: { onDeleted: () => void }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white">
       <div className="px-4 py-3 border-b border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-900">Uploaded files</h2>
+        <h2 className="text-sm font-semibold text-gray-900">Sources</h2>
       </div>
       <ul className="divide-y divide-gray-100">
         {sources.map((s) => (
