@@ -36,36 +36,102 @@ function FileTypeIcon({ type }: { type: string }) {
 
 function SourcesList({ onDeleted }: { onDeleted: () => void }) {
   const [sources, setSources] = useState<KBSource[]>([])
-  const [deleting, setDeleting] = useState<number | null>(null)
-  const [confirming, setConfirming] = useState<number | null>(null)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [confirmBulk, setConfirmBulk] = useState(false)
 
   async function load() {
     const res = await fetch('/api/kb/sources')
-    if (res.ok) setSources((await res.json()) as KBSource[])
+    if (res.ok) {
+      const data = (await res.json()) as KBSource[]
+      setSources(data)
+      setSelected(new Set())
+    }
   }
 
   useEffect(() => { load() }, [])
 
-  async function handleDelete(id: number) {
-    setDeleting(id)
-    await fetch(`/api/kb/sources/${id}`, { method: 'DELETE' })
-    setDeleting(null)
-    setConfirming(null)
+  const allChecked = sources.length > 0 && selected.size === sources.length
+  const someChecked = selected.size > 0
+
+  function toggleAll() {
+    setSelected(allChecked ? new Set() : new Set(sources.map(s => s.id)))
+  }
+
+  function toggleOne(id: number) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  async function handleDeleteSelected() {
+    setBulkDeleting(true)
+    await Promise.all([...selected].map(id => fetch(`/api/kb/sources/${id}`, { method: 'DELETE' })))
+    setBulkDeleting(false)
+    setConfirmBulk(false)
     await load()
     onDeleted()
   }
 
   if (sources.length === 0) return null
 
+  const selectedChunks = sources.filter(s => selected.has(s.id)).reduce((n, s) => n + s.chunk_count, 0)
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white">
-      <div className="px-4 py-3 border-b border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-900">Uploaded files</h2>
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <input
+            type="checkbox"
+            checked={allChecked}
+            ref={el => { if (el) el.indeterminate = someChecked && !allChecked }}
+            onChange={toggleAll}
+            className="h-3.5 w-3.5 rounded border-gray-300 accent-brand-600 cursor-pointer"
+          />
+          <h2 className="text-sm font-semibold text-gray-900">
+            Sources {someChecked && <span className="font-normal text-gray-500">({selected.size} selected)</span>}
+          </h2>
+        </div>
+        {someChecked && (
+          confirmBulk ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-red-600">Delete {selectedChunks} chunks?</span>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={bulkDeleting}
+                className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+              >
+                {bulkDeleting ? 'Deleting…' : 'Confirm'}
+              </button>
+              <button
+                onClick={() => setConfirmBulk(false)}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmBulk(true)}
+              className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+            >
+              Delete selected
+            </button>
+          )
+        )}
       </div>
       <ul className="divide-y divide-gray-100">
         {sources.map((s) => (
-          <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="flex items-center gap-3 min-w-0">
+          <li key={s.id} className="flex items-center gap-3 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={selected.has(s.id)}
+              onChange={() => toggleOne(s.id)}
+              className="h-3.5 w-3.5 rounded border-gray-300 accent-brand-600 cursor-pointer shrink-0"
+            />
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <FileTypeIcon type={s.file_type} />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-800 truncate">{s.filename}</p>
@@ -73,33 +139,6 @@ function SourcesList({ onDeleted }: { onDeleted: () => void }) {
                   {s.chunk_count} chunk{s.chunk_count !== 1 ? 's' : ''} · {formatBytes(s.size_bytes)}
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {confirming === s.id ? (
-                <>
-                  <span className="text-xs text-red-600">Delete {s.chunk_count} chunks?</span>
-                  <button
-                    onClick={() => handleDelete(s.id)}
-                    disabled={deleting === s.id}
-                    className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
-                  >
-                    {deleting === s.id ? 'Deleting…' : 'Confirm'}
-                  </button>
-                  <button
-                    onClick={() => setConfirming(null)}
-                    className="text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setConfirming(s.id)}
-                  className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  Delete
-                </button>
-              )}
             </div>
           </li>
         ))}
@@ -205,6 +244,26 @@ function FileUploadSection({ onImported }: { onImported: () => void }) {
   )
 }
 
+const INGEST_PHASES = [
+  { after: 0,  msg: 'Connecting to Firecrawl…',         sub: 'Starting the crawl.' },
+  { after: 5,  msg: 'Crawling pages…',                  sub: 'Fetching content from each page.' },
+  { after: 20, msg: 'Embedding content…',               sub: 'Running AI embeddings on each chunk.' },
+  { after: 45, msg: 'Saving to knowledge base…',        sub: 'Writing articles to the database.' },
+  { after: 75, msg: 'Almost done, hang tight…',         sub: 'Large sites can take up to 2 minutes.' },
+  { after: 110, msg: 'Still working…',                  sub: 'Nearly there.' },
+]
+
+function useIngestProgress(pending: boolean) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!pending) { setElapsed(0); return }
+    const t = setInterval(() => setElapsed(s => s + 1), 1000)
+    return () => clearInterval(t)
+  }, [pending])
+  const phase = [...INGEST_PHASES].reverse().find(p => elapsed >= p.after) ?? INGEST_PHASES[0]
+  return { elapsed, phase }
+}
+
 function UrlIngestSection({ onImported }: { onImported: () => void }) {
   const [result, action, pending] = useActionState<IngestUrlResult, FormData>(
     async (prev, fd) => {
@@ -215,6 +274,7 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
     {}
   )
   const [mode, setMode] = useState<'page' | 'site'>('page')
+  const { elapsed, phase } = useIngestProgress(pending)
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
@@ -256,14 +316,17 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
         </div>
 
         {pending && (
-          <div className="flex items-center gap-2 rounded-md border border-brand-100 bg-brand-50 px-3 py-2.5">
-            <svg className="h-4 w-4 animate-spin text-brand-500 shrink-0" viewBox="0 0 24 24" fill="none">
+          <div className="flex items-start gap-2.5 rounded-md border border-brand-100 bg-brand-50 px-3 py-2.5">
+            <svg className="h-4 w-4 animate-spin text-brand-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-            <div>
-              <p className="text-xs font-medium text-brand-700">Crawling and embedding content…</p>
-              <p className="text-xs text-brand-500">This can take 15–60 seconds depending on site size.</p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-brand-700">{phase.msg}</p>
+                <span className="text-xs text-brand-400 tabular-nums shrink-0">{elapsed}s</span>
+              </div>
+              <p className="text-xs text-brand-500 mt-0.5">{phase.sub}</p>
             </div>
           </div>
         )}
@@ -274,8 +337,8 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
         {result.created != null && !result.error && (
           <p className="text-xs text-green-600">
             {result.pages != null
-              ? `Imported ${result.created} articles from ${result.pages} pages.`
-              : `Imported ${result.created} articles.`}
+              ? `Imported ${result.created} articles from ${result.pages} pages${result.skipped ? ` (${result.skipped} already in KB, skipped)` : ''}.`
+              : `Imported ${result.created} articles${result.skipped ? ` (${result.skipped} already in KB, skipped)` : ''}.`}
           </p>
         )}
       </form>

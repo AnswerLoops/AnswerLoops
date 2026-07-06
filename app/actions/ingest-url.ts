@@ -22,6 +22,7 @@ export interface IngestUrlResult {
   error?: string
   created?: number
   pages?: number
+  skipped?: number
 }
 
 export async function ingestUrlAction(
@@ -50,16 +51,19 @@ export async function ingestUrlAction(
   try {
     if (mode === 'site') {
       const result = await ingestSite(url, orgId)
-      return { created: result.created, pages: result.pages }
+      return { created: result.created, pages: result.pages, skipped: result.skipped }
     } else {
       const result = await ingestUrl(url, orgId)
-      return { created: result.created }
+      return { created: result.created, skipped: result.skipped ? 1 : 0 }
     }
   } catch (err) {
     if (err instanceof IngestLimitError) return { error: err.message }
     const msg = err instanceof Error ? err.message : ''
     if (msg.includes('API key is missing') || msg.includes('AI_LoadAPIKeyError')) {
       return { error: 'No AI provider configured. Add OPENAI_API_KEY to your environment variables, or configure a provider in Settings → AI Model.' }
+    }
+    if (msg.includes('Rate limit exceeded') || msg.includes('FirecrawlSdkError')) {
+      return { error: 'Firecrawl rate limit exceeded. Wait a minute and try again, or use Single page mode instead of Entire site.' }
     }
     logger.error('ingest-url failed', { module: 'actions/ingest-url', error: err })
     return { error: 'Import failed. Check the URL and try again.' }

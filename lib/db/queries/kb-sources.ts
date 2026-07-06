@@ -42,6 +42,15 @@ export async function updateKBSourceChunkCount(id: number, chunkCount: number): 
     .where(eq(kbSources.id, id))
 }
 
+export async function getKBSourceByFilename(orgId: number, filename: string): Promise<KBSource | null> {
+  const [row] = await getDb()
+    .select()
+    .from(kbSources)
+    .where(and(eq(kbSources.orgId, orgId), eq(kbSources.filename, filename)))
+    .limit(1)
+  return row ? toSource(row) : null
+}
+
 export async function listKBSources(orgId = DEFAULT_ORG_ID): Promise<KBSource[]> {
   const rows = await getDb()
     .select()
