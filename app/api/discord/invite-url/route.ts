@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     JSON.stringify({ orgId, ts: Date.now(), from: 'onboarding' })
   ).toString('base64url')
 
-  const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot&permissions=${PERMISSIONS}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
+  const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot&permissions=${PERMISSIONS}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`
 
   return NextResponse.json({ url })
 }
