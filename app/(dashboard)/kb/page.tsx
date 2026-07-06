@@ -255,9 +255,15 @@ function useIngestProgress(pending: boolean) {
 function UrlIngestSection({ onImported }: { onImported: () => void }) {
   const [result, action, pending] = useActionState<IngestUrlResult, FormData>(
     async (prev, fd) => {
-      const r = await ingestUrlAction(prev, fd)
-      if (!r.error) onImported()
-      return r
+      try {
+        const r = await ingestUrlAction(prev, fd)
+        if (!r.error) onImported()
+        return r
+      } catch {
+        // Network timeout or connection dropped — import may have completed server-side
+        onImported()
+        return { error: 'Connection timed out. Your import may have completed — check the articles list below.' }
+      }
     },
     {}
   )
