@@ -36,36 +36,102 @@ function FileTypeIcon({ type }: { type: string }) {
 
 function SourcesList({ onDeleted }: { onDeleted: () => void }) {
   const [sources, setSources] = useState<KBSource[]>([])
-  const [deleting, setDeleting] = useState<number | null>(null)
-  const [confirming, setConfirming] = useState<number | null>(null)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [confirmBulk, setConfirmBulk] = useState(false)
 
   async function load() {
     const res = await fetch('/api/kb/sources')
-    if (res.ok) setSources((await res.json()) as KBSource[])
+    if (res.ok) {
+      const data = (await res.json()) as KBSource[]
+      setSources(data)
+      setSelected(new Set())
+    }
   }
 
   useEffect(() => { load() }, [])
 
-  async function handleDelete(id: number) {
-    setDeleting(id)
-    await fetch(`/api/kb/sources/${id}`, { method: 'DELETE' })
-    setDeleting(null)
-    setConfirming(null)
+  const allChecked = sources.length > 0 && selected.size === sources.length
+  const someChecked = selected.size > 0
+
+  function toggleAll() {
+    setSelected(allChecked ? new Set() : new Set(sources.map(s => s.id)))
+  }
+
+  function toggleOne(id: number) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  async function handleDeleteSelected() {
+    setBulkDeleting(true)
+    await Promise.all([...selected].map(id => fetch(`/api/kb/sources/${id}`, { method: 'DELETE' })))
+    setBulkDeleting(false)
+    setConfirmBulk(false)
     await load()
     onDeleted()
   }
 
   if (sources.length === 0) return null
 
+  const selectedChunks = sources.filter(s => selected.has(s.id)).reduce((n, s) => n + s.chunk_count, 0)
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white">
-      <div className="px-4 py-3 border-b border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-900">Sources</h2>
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <input
+            type="checkbox"
+            checked={allChecked}
+            ref={el => { if (el) el.indeterminate = someChecked && !allChecked }}
+            onChange={toggleAll}
+            className="h-3.5 w-3.5 rounded border-gray-300 accent-brand-600 cursor-pointer"
+          />
+          <h2 className="text-sm font-semibold text-gray-900">
+            Sources {someChecked && <span className="font-normal text-gray-500">({selected.size} selected)</span>}
+          </h2>
+        </div>
+        {someChecked && (
+          confirmBulk ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-red-600">Delete {selectedChunks} chunks?</span>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={bulkDeleting}
+                className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+              >
+                {bulkDeleting ? 'Deleting…' : 'Confirm'}
+              </button>
+              <button
+                onClick={() => setConfirmBulk(false)}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmBulk(true)}
+              className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+            >
+              Delete selected
+            </button>
+          )
+        )}
       </div>
       <ul className="divide-y divide-gray-100">
         {sources.map((s) => (
-          <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="flex items-center gap-3 min-w-0">
+          <li key={s.id} className="flex items-center gap-3 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={selected.has(s.id)}
+              onChange={() => toggleOne(s.id)}
+              className="h-3.5 w-3.5 rounded border-gray-300 accent-brand-600 cursor-pointer shrink-0"
+            />
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <FileTypeIcon type={s.file_type} />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-800 truncate">{s.filename}</p>
@@ -73,33 +139,6 @@ function SourcesList({ onDeleted }: { onDeleted: () => void }) {
                   {s.chunk_count} chunk{s.chunk_count !== 1 ? 's' : ''} · {formatBytes(s.size_bytes)}
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {confirming === s.id ? (
-                <>
-                  <span className="text-xs text-red-600">Delete {s.chunk_count} chunks?</span>
-                  <button
-                    onClick={() => handleDelete(s.id)}
-                    disabled={deleting === s.id}
-                    className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
-                  >
-                    {deleting === s.id ? 'Deleting…' : 'Confirm'}
-                  </button>
-                  <button
-                    onClick={() => setConfirming(null)}
-                    className="text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setConfirming(s.id)}
-                  className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  Delete
-                </button>
-              )}
             </div>
           </li>
         ))}
