@@ -1253,7 +1253,12 @@ function TeamSection() {
   // Live-update when a team member accepts an invite — no polling needed.
   useEffect(() => {
     const es = new EventSource('/api/events/stream')
-    es.addEventListener('member_joined', () => { reload() })
+    es.addEventListener('connected', () => console.log('[sse] connected'))
+    es.addEventListener('member_joined', () => {
+      console.log('[sse] member_joined received — reloading team')
+      reload()
+    })
+    es.onerror = (e) => console.error('[sse] error', e)
     return () => es.close()
   }, [])
 

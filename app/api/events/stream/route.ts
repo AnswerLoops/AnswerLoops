@@ -40,12 +40,15 @@ export async function GET() {
 
       try {
         await listener.listen('member_joined', (payload) => {
+          console.log(`[sse] member_joined payload=${payload} orgId=${orgId}`)
           if (Number(payload) === orgId) {
             send('member_joined', JSON.stringify({ orgId }))
           }
         })
+        console.log(`[sse] listening for org ${orgId}`)
         send('connected', '{}')
-      } catch {
+      } catch (err) {
+        console.error('[sse] listen failed', err)
         cleanup()
         controller.close()
         return
@@ -59,8 +62,10 @@ export async function GET() {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
+      // Disable nginx/Railway proxy buffering so events reach the client immediately
+      'X-Accel-Buffering': 'no',
     },
   })
 }
