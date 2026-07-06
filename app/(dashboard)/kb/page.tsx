@@ -205,6 +205,26 @@ function FileUploadSection({ onImported }: { onImported: () => void }) {
   )
 }
 
+const INGEST_PHASES = [
+  { after: 0,  msg: 'Connecting to Firecrawl…',         sub: 'Starting the crawl.' },
+  { after: 5,  msg: 'Crawling pages…',                  sub: 'Fetching content from each page.' },
+  { after: 20, msg: 'Embedding content…',               sub: 'Running AI embeddings on each chunk.' },
+  { after: 45, msg: 'Saving to knowledge base…',        sub: 'Writing articles to the database.' },
+  { after: 75, msg: 'Almost done, hang tight…',         sub: 'Large sites can take up to 2 minutes.' },
+  { after: 110, msg: 'Still working…',                  sub: 'Nearly there.' },
+]
+
+function useIngestProgress(pending: boolean) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!pending) { setElapsed(0); return }
+    const t = setInterval(() => setElapsed(s => s + 1), 1000)
+    return () => clearInterval(t)
+  }, [pending])
+  const phase = [...INGEST_PHASES].reverse().find(p => elapsed >= p.after) ?? INGEST_PHASES[0]
+  return { elapsed, phase }
+}
+
 function UrlIngestSection({ onImported }: { onImported: () => void }) {
   const [result, action, pending] = useActionState<IngestUrlResult, FormData>(
     async (prev, fd) => {
@@ -215,6 +235,7 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
     {}
   )
   const [mode, setMode] = useState<'page' | 'site'>('page')
+  const { elapsed, phase } = useIngestProgress(pending)
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
@@ -256,14 +277,17 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
         </div>
 
         {pending && (
-          <div className="flex items-center gap-2 rounded-md border border-brand-100 bg-brand-50 px-3 py-2.5">
-            <svg className="h-4 w-4 animate-spin text-brand-500 shrink-0" viewBox="0 0 24 24" fill="none">
+          <div className="flex items-start gap-2.5 rounded-md border border-brand-100 bg-brand-50 px-3 py-2.5">
+            <svg className="h-4 w-4 animate-spin text-brand-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-            <div>
-              <p className="text-xs font-medium text-brand-700">Crawling and embedding content…</p>
-              <p className="text-xs text-brand-500">This can take 15–60 seconds depending on site size.</p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-brand-700">{phase.msg}</p>
+                <span className="text-xs text-brand-400 tabular-nums shrink-0">{elapsed}s</span>
+              </div>
+              <p className="text-xs text-brand-500 mt-0.5">{phase.sub}</p>
             </div>
           </div>
         )}
@@ -274,8 +298,8 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
         {result.created != null && !result.error && (
           <p className="text-xs text-green-600">
             {result.pages != null
-              ? `Imported ${result.created} articles from ${result.pages} pages.`
-              : `Imported ${result.created} articles.`}
+              ? `Imported ${result.created} articles from ${result.pages} pages${result.skipped ? ` (${result.skipped} already in KB, skipped)` : ''}.`
+              : `Imported ${result.created} articles${result.skipped ? ` (${result.skipped} already in KB, skipped)` : ''}.`}
           </p>
         )}
       </form>
