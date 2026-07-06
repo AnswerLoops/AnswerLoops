@@ -233,12 +233,12 @@ function FileUploadSection({ onImported }: { onImported: () => void }) {
 }
 
 const INGEST_PHASES = [
-  { after: 0,  msg: 'Connecting to Firecrawl…',         sub: 'Starting the crawl.' },
-  { after: 5,  msg: 'Crawling pages…',                  sub: 'Fetching content from each page.' },
-  { after: 20, msg: 'Embedding content…',               sub: 'Running AI embeddings on each chunk.' },
-  { after: 45, msg: 'Saving to knowledge base…',        sub: 'Writing articles to the database.' },
-  { after: 75, msg: 'Almost done, hang tight…',         sub: 'Large sites can take up to 2 minutes.' },
-  { after: 110, msg: 'Still working…',                  sub: 'Nearly there.' },
+  { after: 0,   msg: 'Fetching content…',               sub: 'Reading the page.' },
+  { after: 5,   msg: 'Scanning pages…',                 sub: 'Collecting content from each page.' },
+  { after: 20,  msg: 'Analyzing content…',              sub: 'Breaking content into searchable chunks.' },
+  { after: 45,  msg: 'Adding to knowledge base…',       sub: 'Saving articles so your AI can find them.' },
+  { after: 75,  msg: 'Almost there…',                   sub: 'Large sites can take up to 2 minutes.' },
+  { after: 110, msg: 'Still importing…',                sub: 'Nearly done.' },
 ]
 
 function useIngestProgress(pending: boolean) {
