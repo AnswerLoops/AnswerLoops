@@ -168,6 +168,12 @@ export async function createArticleFromSource(
   return toArticle(row)
 }
 
+export async function deleteArticle(id: number, orgId = DEFAULT_ORG_ID): Promise<void> {
+  await getDb()
+    .delete(kbArticles)
+    .where(and(eq(kbArticles.id, id), eq(kbArticles.orgId, orgId)))
+}
+
 export async function getKBContext(vector: number[], k = 3, orgId = DEFAULT_ORG_ID): Promise<PriorAnswer[]> {
   const results = await searchArticles(vector, k, orgId)
   return results.map((a) => ({ summary: a.question, answer: a.answer }))
