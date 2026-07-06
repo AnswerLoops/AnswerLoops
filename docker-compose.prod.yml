@@ -24,6 +24,9 @@ services:
     command: ["pnpm", "start"]
 
   bot:
+    build:
+      context: .
+      target: runner
     image: community-platform:latest
     restart: unless-stopped
     env_file:
