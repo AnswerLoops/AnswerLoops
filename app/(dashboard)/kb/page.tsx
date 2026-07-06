@@ -346,6 +346,96 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
   )
 }
 
+function ArticlesList({ articles, onDeleted }: { articles: (Article | KBSearchResult)[]; onDeleted: () => void }) {
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [confirmBulk, setConfirmBulk] = useState(false)
+
+  const allChecked = articles.length > 0 && selected.size === articles.length
+  const someChecked = selected.size > 0
+
+  function toggleAll() {
+    setSelected(allChecked ? new Set() : new Set(articles.map(a => a.id)))
+  }
+
+  function toggleOne(id: number) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  async function handleDeleteSelected() {
+    setBulkDeleting(true)
+    await Promise.all([...selected].map(id => fetch(`/api/kb/articles/${id}`, { method: 'DELETE' })))
+    setBulkDeleting(false)
+    setConfirmBulk(false)
+    setSelected(new Set())
+    onDeleted()
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between px-1">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allChecked}
+            ref={el => { if (el) el.indeterminate = someChecked && !allChecked }}
+            onChange={toggleAll}
+            className="h-3.5 w-3.5 rounded border-gray-300 accent-brand-600"
+          />
+          <span className="text-xs text-gray-500">
+            {someChecked ? `${selected.size} of ${articles.length} selected` : `${articles.length} article${articles.length !== 1 ? 's' : ''}`}
+          </span>
+        </label>
+        {someChecked && (
+          confirmBulk ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-red-600">Delete {selected.size} article{selected.size !== 1 ? 's' : ''}?</span>
+              <button onClick={handleDeleteSelected} disabled={bulkDeleting} className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
+                {bulkDeleting ? 'Deleting…' : 'Confirm'}
+              </button>
+              <button onClick={() => setConfirmBulk(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmBulk(true)} className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors">
+              Delete selected
+            </button>
+          )
+        )}
+      </div>
+      <ul className="space-y-2">
+        {articles.map((a) => (
+          <li key={a.id} className="flex items-start gap-3 bg-white rounded-lg border border-gray-200 p-4">
+            <input
+              type="checkbox"
+              checked={selected.has(a.id)}
+              onChange={() => toggleOne(a.id)}
+              className="h-3.5 w-3.5 rounded border-gray-300 accent-brand-600 shrink-0 mt-1 cursor-pointer"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <h2 className="text-sm font-semibold text-gray-900">{a.question}</h2>
+                {hasScore(a) && (
+                  <span className="shrink-0 text-xs text-gray-400">{(a.score * 100).toFixed(0)}% match</span>
+                )}
+              </div>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.answer}</p>
+              {a.source_ticket_id && (
+                <Link href={`/tickets/${a.source_ticket_id}`} className="mt-2 inline-block text-xs text-brand-600 hover:underline">
+                  From ticket #{a.source_ticket_id} →
+                </Link>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export default function KBPage() {
   const [articles, setArticles] = useState<Article[]>([])
   const [query, setQuery] = useState('')
@@ -472,27 +562,7 @@ export default function KBPage() {
           No articles yet. Upload a file, import from a URL, or promote a resolved ticket from its detail page.
         </p>
       ) : (
-        <ul className="space-y-3">
-          {articles.map((a) => (
-            <li key={a.id} className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="flex items-start justify-between gap-3 mb-1">
-                <h2 className="text-sm font-semibold text-gray-900">{a.question}</h2>
-                {hasScore(a) && (
-                  <span className="shrink-0 text-xs text-gray-400">{(a.score * 100).toFixed(0)}% match</span>
-                )}
-              </div>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.answer}</p>
-              {a.source_ticket_id && (
-                <Link
-                  href={`/tickets/${a.source_ticket_id}`}
-                  className="mt-2 inline-block text-xs text-brand-600 hover:underline"
-                >
-                  From ticket #{a.source_ticket_id} →
-                </Link>
-              )}
-            </li>
-          ))}
-        </ul>
+        <ArticlesList articles={articles} onDeleted={loadAll} />
       )}
     </div>
   )
