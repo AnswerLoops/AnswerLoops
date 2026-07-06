@@ -1250,6 +1250,13 @@ function TeamSection() {
 
   useEffect(() => { reload() }, [])
 
+  // Live-update when a team member accepts an invite — no polling needed.
+  useEffect(() => {
+    const es = new EventSource('/api/events/stream')
+    es.addEventListener('member_joined', () => { reload() })
+    return () => es.close()
+  }, [])
+
   const copyLink = (token: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/invite/${token}`)
     setCopiedToken(token)
