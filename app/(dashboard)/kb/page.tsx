@@ -98,27 +98,15 @@ function SourcesList({ onDeleted }: { onDeleted: () => void }) {
           confirmBulk ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-red-600">Delete {selectedChunks} chunks?</span>
-              <button
-                onClick={handleDeleteSelected}
-                disabled={bulkDeleting}
-                className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
-              >
+              <Button size="sm" onClick={handleDeleteSelected} disabled={bulkDeleting} className="bg-red-600 hover:bg-red-700 text-white">
                 {bulkDeleting ? 'Deleting…' : 'Confirm'}
-              </button>
-              <button
-                onClick={() => setConfirmBulk(false)}
-                className="text-xs text-gray-500 hover:text-gray-700"
-              >
-                Cancel
-              </button>
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setConfirmBulk(false)}>Cancel</Button>
             </div>
           ) : (
-            <button
-              onClick={() => setConfirmBulk(true)}
-              className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
-            >
+            <Button size="sm" onClick={() => setConfirmBulk(true)} className="bg-red-600 hover:bg-red-700 text-white">
               Delete selected
-            </button>
+            </Button>
           )
         )}
       </div>
@@ -394,15 +382,15 @@ function ArticlesList({ articles, onDeleted }: { articles: (Article | KBSearchRe
           confirmBulk ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-red-600">Delete {selected.size} article{selected.size !== 1 ? 's' : ''}?</span>
-              <button onClick={handleDeleteSelected} disabled={bulkDeleting} className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
+              <Button size="sm" onClick={handleDeleteSelected} disabled={bulkDeleting} className="bg-red-600 hover:bg-red-700 text-white">
                 {bulkDeleting ? 'Deleting…' : 'Confirm'}
-              </button>
-              <button onClick={() => setConfirmBulk(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setConfirmBulk(false)}>Cancel</Button>
             </div>
           ) : (
-            <button onClick={() => setConfirmBulk(true)} className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors">
+            <Button size="sm" onClick={() => setConfirmBulk(true)} className="bg-red-600 hover:bg-red-700 text-white">
               Delete selected
-            </button>
+            </Button>
           )
         )}
       </div>
