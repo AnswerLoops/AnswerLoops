@@ -32,3 +32,22 @@ export async function getConfiguredRepos(): Promise<string[]> {
   const repos = await getRepos()
   return repos.map((r) => `${r.owner}/${r.repo}`)
 }
+
+export async function getInstallationOctokitById(installationId: number): Promise<Octokit> {
+  const app = await getApp()
+  const octokit = await app.getInstallationOctokit(installationId)
+  return octokit as unknown as Octokit
+}
+
+export async function listInstallationRepos(installationId: number): Promise<Array<{ owner: string; repo: string; isPrivate: boolean }>> {
+  const app = await getApp()
+  const resp = await app.octokit.request('GET /app/installations/{installation_id}/accessible-repositories', {
+    installation_id: installationId,
+    per_page: 100,
+  })
+  return (resp.data.repositories ?? []).map((r: { full_name: string; private: boolean }) => ({
+    owner: r.full_name.split('/')[0],
+    repo: r.full_name.split('/')[1],
+    isPrivate: r.private,
+  }))
+}

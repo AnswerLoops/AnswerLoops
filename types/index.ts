@@ -3,7 +3,7 @@ export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
 export type TicketCategory = 'bug' | 'feature_request' | 'documentation' | 'how_to' | 'general_question'
 export type AIDraftStatus = 'pending' | 'posted' | 'approved' | 'overridden'
 
-export type SourcePlatform = 'discord' | 'slack' | 'telegram' | 'email'
+export type SourcePlatform = 'discord' | 'slack' | 'telegram' | 'email' | 'github'
 
 export interface Ticket {
   id: number
@@ -82,6 +82,10 @@ export interface GitHubRepo {
   owner: string
   repo: string
   is_private: 0 | 1
+  monitored_events: string
+  kb_enabled: 0 | 1
+  kb_last_synced: string | null
+  kb_chunk_count: number
   added_at: string
 }
 

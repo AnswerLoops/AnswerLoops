@@ -10,6 +10,10 @@ function toRepo(row: typeof githubRepos.$inferSelect): GitHubRepo {
     owner: row.owner,
     repo: row.repo,
     is_private: row.isPrivate as 0 | 1,
+    monitored_events: row.monitoredEvents,
+    kb_enabled: row.kbEnabled as 0 | 1,
+    kb_last_synced: row.kbLastSynced ?? null,
+    kb_chunk_count: row.kbChunkCount,
     added_at: row.addedAt,
   }
 }
@@ -43,4 +47,46 @@ export async function addRepo(
 
 export async function removeRepo(id: number): Promise<void> {
   await getDb().delete(githubRepos).where(eq(githubRepos.id, id))
+}
+
+export async function updateRepoSettings(
+  id: number,
+  orgId: number,
+  settings: {
+    monitoredEvents?: string
+    kbEnabled?: number
+    kbLastSynced?: string
+    kbChunkCount?: number
+  }
+): Promise<void> {
+  await getDb()
+    .update(githubRepos)
+    .set({
+      ...(settings.monitoredEvents !== undefined && { monitoredEvents: settings.monitoredEvents }),
+      ...(settings.kbEnabled !== undefined && { kbEnabled: settings.kbEnabled }),
+      ...(settings.kbLastSynced !== undefined && { kbLastSynced: settings.kbLastSynced }),
+      ...(settings.kbChunkCount !== undefined && { kbChunkCount: settings.kbChunkCount }),
+    })
+    .where(and(eq(githubRepos.id, id), eq(githubRepos.orgId, orgId)))
+}
+
+export async function getRepoByOwnerAndName(
+  owner: string,
+  repo: string
+): Promise<GitHubRepo | null> {
+  const [row] = await getDb()
+    .select()
+    .from(githubRepos)
+    .where(and(eq(githubRepos.owner, owner), eq(githubRepos.repo, repo)))
+    .limit(1)
+  return row ? toRepo(row) : null
+}
+
+export async function getRepoById(id: number, orgId: number): Promise<GitHubRepo | null> {
+  const [row] = await getDb()
+    .select()
+    .from(githubRepos)
+    .where(and(eq(githubRepos.id, id), eq(githubRepos.orgId, orgId)))
+    .limit(1)
+  return row ? toRepo(row) : null
 }

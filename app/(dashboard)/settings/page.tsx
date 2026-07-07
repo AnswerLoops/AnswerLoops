@@ -4,7 +4,6 @@ import { useActionState, useRef, useTransition } from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { updateSLAAction } from '@/app/actions/sla'
-import { addRepoAction, removeRepoAction } from '@/app/actions/github'
 import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackChannelsAction, deleteSlackIntegrationAction, saveTelegramIntegrationAction, deleteTelegramIntegrationAction, saveEmailIntegrationAction, deleteEmailIntegrationAction } from '@/app/actions/integrations'
 import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwnershipAction } from '@/app/actions/invitations'
 import { getWidgetTokenAction, regenerateWidgetTokenAction } from '@/app/actions/widget'
@@ -101,24 +100,6 @@ function SLARow({ config }: { config: SLAConfig }) {
         {state?.error && <span className="text-xs text-red-600">{state.error}</span>}
       </div>
     </form>
-  )
-}
-
-function RepoRow({ repo, onRemoved }: { repo: GitHubRepo; onRemoved: () => void }) {
-  const [state, formAction, isPending] = useActionState(removeRepoAction, null)
-
-  return (
-    <tr>
-      <td className="px-4 py-3 text-sm text-gray-800 font-mono">{repo.owner}/{repo.repo}</td>
-      <td className="px-4 py-3 text-sm text-gray-500">{repo.is_private ? 'Private' : 'Public'}</td>
-      <td className="px-4 py-3 text-sm text-gray-400">{new Date(repo.added_at).toLocaleDateString()}</td>
-      <td className="px-4 py-3">
-        <form action={async (fd) => { await formAction(fd); onRemoved() }}>
-          <input type="hidden" name="id" value={repo.id} />
-          <Button type="submit" size="sm" variant="danger" disabled={isPending}>Remove</Button>
-        </form>
-      </td>
-    </tr>
   )
 }
 
@@ -1852,13 +1833,148 @@ function WidgetSection() {
   )
 }
 
-export default function SettingsPage() {
-  const [slaConfigs, setSlaConfigs] = useState<SLAConfig[]>([])
+function GitHubIntegrationCard() {
   const [repos, setRepos] = useState<GitHubRepo[]>([])
-  const [addRepoState, addRepoFormAction, addRepoPending] = useActionState(addRepoAction, null)
+  const [connecting, setConnecting] = useState(false)
+  const [syncingId, setSyncingId] = useState<number | null>(null)
+  const { toastMessage, showToast } = useToast()
+  const searchParams = useSearchParams()
+
+  const reload = useCallback(() => {
+    fetch('/api/github/repos').then((r) => r.json()).then(setRepos)
+  }, [])
+
+  useEffect(() => { reload() }, [reload])
 
   useEffect(() => {
-    fetch('/api/github/repos').then((r) => r.json()).then(setRepos)
+    if (searchParams.get('github_connected') === '1') showToast('GitHub connected')
+    if (searchParams.get('github_error')) showToast('GitHub connection failed. Try again.')
+  }, [searchParams, showToast])
+
+  const connect = async () => {
+    setConnecting(true)
+    try {
+      const { url } = await fetch('/api/github/install-url').then((r) => r.json())
+      window.location.href = url
+    } catch {
+      showToast('Failed to get GitHub install URL')
+      setConnecting(false)
+    }
+  }
+
+  const updateSettings = async (repoId: number, patch: { monitoredEvents?: string; kbEnabled?: number }) => {
+    await fetch('/api/github/repo-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repoId, ...patch }),
+    })
+    reload()
+  }
+
+  const syncKB = async (repoId: number) => {
+    setSyncingId(repoId)
+    try {
+      const { synced } = await fetch(`/api/github/sync-kb?repo_id=${repoId}`).then((r) => r.json())
+      showToast(`Synced ${synced} chunks to KB`)
+      reload()
+    } catch {
+      showToast('KB sync failed')
+    } finally {
+      setSyncingId(null)
+    }
+  }
+
+  const removeRepo = async (repoId: number) => {
+    await fetch(`/api/github/repos/${repoId}`, { method: 'DELETE' })
+    reload()
+  }
+
+  return (
+    <div className="space-y-3">
+      {toastMessage && (
+        <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-700">{toastMessage}</div>
+      )}
+
+      {repos.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 px-6 py-8 text-center">
+          <p className="text-sm text-gray-500 mb-4">Connect your GitHub repositories to create tickets from Issues and Discussions, and import docs as KB articles.</p>
+          <Button onClick={connect} disabled={connecting}>
+            {connecting ? 'Redirecting…' : 'Connect GitHub'}
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {repos.map((repo) => (
+              <div key={repo.id} className="bg-white rounded-lg border border-gray-200 px-4 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800 font-mono">{repo.owner}/{repo.repo}</p>
+                    <p className="text-xs text-gray-400">{repo.is_private ? 'Private' : 'Public'} · Added {new Date(repo.added_at).toLocaleDateString()}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => removeRepo(repo.id)}>Remove</Button>
+                </div>
+
+                <div className="space-y-2 border-t border-gray-100 pt-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-gray-600">Monitor tickets from</label>
+                    <select
+                      value={repo.monitored_events}
+                      onChange={(e) => updateSettings(repo.id, { monitoredEvents: e.target.value })}
+                      className="text-xs border border-gray-200 rounded px-2 py-1 text-gray-700"
+                    >
+                      <option value="both">Issues + Discussions</option>
+                      <option value="issues">Issues only</option>
+                      <option value="discussions">Discussions only</option>
+                      <option value="none">Off</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-gray-600">Use as KB source</label>
+                    <input
+                      type="checkbox"
+                      checked={repo.kb_enabled === 1}
+                      onChange={(e) => updateSettings(repo.id, { kbEnabled: e.target.checked ? 1 : 0 })}
+                      className="rounded"
+                    />
+                  </div>
+
+                  {repo.kb_enabled === 1 && (
+                    <div className="flex items-center justify-between pt-1">
+                      <p className="text-xs text-gray-400">
+                        {repo.kb_chunk_count > 0
+                          ? `${repo.kb_chunk_count} chunks · last synced ${repo.kb_last_synced ? new Date(repo.kb_last_synced).toLocaleDateString() : 'never'}`
+                          : 'Not yet synced'}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => syncKB(repo.id)}
+                        disabled={syncingId === repo.id}
+                      >
+                        {syncingId === repo.id ? 'Syncing…' : 'Sync now'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Button variant="secondary" size="sm" onClick={connect} disabled={connecting}>
+            {connecting ? 'Redirecting…' : '+ Add more repos'}
+          </Button>
+        </>
+      )}
+    </div>
+  )
+}
+
+export default function SettingsPage() {
+  const [slaConfigs, setSlaConfigs] = useState<SLAConfig[]>([])
+
+  useEffect(() => {
     setSlaConfigs([
       { id: 1, priority: 'critical', response_hours: 1, resolve_hours: 4, updated_at: '' },
       { id: 2, priority: 'high', response_hours: 4, resolve_hours: 24, updated_at: '' },
@@ -1887,56 +2003,10 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* GitHub Repositories */}
+      {/* GitHub */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">GitHub Repositories</h2>
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          {repos.length > 0 && (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 font-medium">
-                  <th className="px-4 py-2.5 text-left">Repository</th>
-                  <th className="px-4 py-2.5 text-left">Visibility</th>
-                  <th className="px-4 py-2.5 text-left">Added</th>
-                  <th className="px-4 py-2.5 text-left"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {repos.map((repo) => (
-                  <RepoRow key={repo.id} repo={repo} onRemoved={() => setRepos((r) => r.filter((x) => x.id !== repo.id))} />
-                ))}
-              </tbody>
-            </table>
-          )}
-          <div className="px-4 py-4 border-t border-gray-100">
-            <p className="text-xs font-medium text-gray-600 mb-3">Add Repository</p>
-            <form action={async (fd) => {
-              await addRepoFormAction(fd)
-              const updated = await fetch('/api/github/repos').then((r) => r.json())
-              setRepos(updated)
-            }} className="grid grid-cols-2 gap-2">
-              <input name="installationId" type="number" required placeholder="Installation ID"
-                className="rounded border border-gray-200 px-2 py-1.5 text-sm" />
-              <input name="owner" type="text" required placeholder="owner"
-                className="rounded border border-gray-200 px-2 py-1.5 text-sm" />
-              <input name="repo" type="text" required placeholder="repo-name"
-                className="rounded border border-gray-200 px-2 py-1.5 text-sm" />
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <input name="isPrivate" type="checkbox" value="true" className="rounded" />
-                  Private
-                </label>
-                <Button type="submit" size="sm" disabled={addRepoPending}>
-                  {addRepoPending ? 'Adding…' : 'Add repo'}
-                </Button>
-              </div>
-              {addRepoState?.error && <p className="col-span-2 text-xs text-red-600">{addRepoState.error}</p>}
-            </form>
-          </div>
-        </div>
-        <p className="mt-2 text-xs text-gray-400">
-          Get your Installation ID from: GitHub → Settings → Developer settings → GitHub Apps → your app → Installations
-        </p>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">GitHub</h2>
+        <GitHubIntegrationCard />
       </section>
 
       {/* Team */}
