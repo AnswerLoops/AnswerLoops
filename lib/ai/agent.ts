@@ -22,7 +22,7 @@ import type { PriorAnswer } from '@/types'
 
 const MOD = 'ai/agent'
 
-type Platform = 'discord' | 'slack' | 'telegram' | 'email'
+type Platform = 'discord' | 'slack' | 'telegram' | 'email' | 'github'
 
 async function postReply(channelId: string, content: string, orgId: number, platform: Platform): Promise<string | null> {
   if (platform === 'slack') return sendToSlackChannel(channelId, content, orgId)
@@ -135,8 +135,8 @@ Guidelines:
 
     logger.info('assessment complete', { module: MOD, ticketId, confidence: pct, autoDeflect })
 
-    // Load escalation config for this platform
-    const integration = await getIntegration(orgId, platform).catch(() => null)
+    // Load escalation config for this platform (github has no integrations row — returns null)
+    const integration = platform === 'github' ? null : await getIntegration(orgId, platform as Exclude<Platform, 'github'>).catch(() => null)
     const escalationRoleId = integration?.escalation_role_id ?? null
 
     let postedMessageId: string | null = null

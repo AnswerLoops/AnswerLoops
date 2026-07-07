@@ -118,6 +118,10 @@ export const githubRepos = pgTable('github_repos', {
   owner: text('owner').notNull(),
   repo: text('repo').notNull(),
   isPrivate: integer('is_private').notNull().default(0),
+  monitoredEvents: text('monitored_events').notNull().default('both'),
+  kbEnabled: integer('kb_enabled').notNull().default(0),
+  kbLastSynced: text('kb_last_synced'),
+  kbChunkCount: integer('kb_chunk_count').notNull().default(0),
   addedAt: text('added_at').notNull().default(now),
 })
 
