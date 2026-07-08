@@ -8,10 +8,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'GITHUB_APP_SLUG not configured' }, { status: 503 })
   }
 
-  // Accept full URL or bare slug — extract the slug portion either way
+  // Accept full URL or bare slug — always use the last non-empty path segment
   // e.g. "https://github.com/settings/apps/answerloops" → "answerloops"
-  const slug = rawSlug.replace(/^https?:\/\/[^/]+(?:\/[^/]+)*\//, '').replace(/\/.*$/, '').trim()
-  if (!slug) {
+  const slug = rawSlug.split('/').filter(Boolean).pop() ?? ''
+  if (!slug || slug.startsWith('http')) {
     return NextResponse.json({ error: 'GITHUB_APP_SLUG is not a valid slug or URL' }, { status: 503 })
   }
 

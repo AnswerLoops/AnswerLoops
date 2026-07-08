@@ -1903,17 +1903,19 @@ function GitHubIntegrationCard() {
 
       {repos.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-6 py-8 text-center">
-          <p className="text-sm text-gray-500 mb-4">Connect your GitHub repositories to create tickets from Issues and Discussions, and import docs as KB articles.</p>
+          <p className="text-sm font-medium text-gray-800 mb-1">Connect GitHub</p>
+          <p className="text-xs text-gray-500 mb-5 max-w-sm mx-auto">Use repos as a support channel — turn Issues and Discussions into tickets with AI responses — or as a knowledge base by syncing your markdown docs.</p>
           <Button onClick={connect} disabled={connecting}>
             {connecting ? 'Redirecting…' : 'Connect GitHub'}
           </Button>
         </div>
       ) : (
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {repos.map((repo) => (
-              <div key={repo.id} className="bg-white rounded-lg border border-gray-200 px-4 py-4">
-                <div className="flex items-center justify-between mb-3">
+              <div key={repo.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                {/* Repo header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
                   <div>
                     <p className="text-sm font-medium text-gray-800 font-mono">{repo.owner}/{repo.repo}</p>
                     <p className="text-xs text-gray-400">{repo.is_private ? 'Private' : 'Public'} · Added {new Date(repo.added_at).toLocaleDateString()}</p>
@@ -1921,48 +1923,63 @@ function GitHubIntegrationCard() {
                   <Button size="sm" variant="ghost" onClick={() => removeRepo(repo.id)}>Remove</Button>
                 </div>
 
-                <div className="space-y-2 border-t border-gray-100 pt-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs text-gray-600">Monitor tickets from</label>
-                    <select
-                      value={repo.monitored_events}
-                      onChange={(e) => updateSettings(repo.id, { monitoredEvents: e.target.value })}
-                      className="text-xs border border-gray-200 rounded px-2 py-1 text-gray-700"
-                    >
-                      <option value="both">Issues + Discussions</option>
-                      <option value="issues">Issues only</option>
-                      <option value="discussions">Discussions only</option>
-                      <option value="none">Off</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs text-gray-600">Use as KB source</label>
-                    <input
-                      type="checkbox"
-                      checked={repo.kb_enabled === 1}
-                      onChange={(e) => updateSettings(repo.id, { kbEnabled: e.target.checked ? 1 : 0 })}
-                      className="rounded"
-                    />
-                  </div>
-
-                  {repo.kb_enabled === 1 && (
-                    <div className="flex items-center justify-between pt-1">
-                      <p className="text-xs text-gray-400">
-                        {repo.kb_chunk_count > 0
-                          ? `${repo.kb_chunk_count} chunks · last synced ${repo.kb_last_synced ? new Date(repo.kb_last_synced).toLocaleDateString() : 'never'}`
-                          : 'Not yet synced'}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => syncKB(repo.id)}
-                        disabled={syncingId === repo.id}
+                <div className="divide-y divide-gray-100">
+                  {/* ── Support ──────────────────────────────────────── */}
+                  <div className="px-4 py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 mb-0.5">Support</p>
+                        <p className="text-xs text-gray-500">Turn Issues and Discussions into tickets. AI drafts responses and routes to your team.</p>
+                      </div>
+                      <select
+                        value={repo.monitored_events}
+                        onChange={(e) => updateSettings(repo.id, { monitoredEvents: e.target.value })}
+                        className="text-xs border border-gray-200 rounded px-2 py-1.5 text-gray-700 shrink-0 mt-0.5"
                       >
-                        {syncingId === repo.id ? 'Syncing…' : 'Sync now'}
-                      </Button>
+                        <option value="both">Issues + Discussions</option>
+                        <option value="issues">Issues only</option>
+                        <option value="discussions">Discussions only</option>
+                        <option value="none">Off</option>
+                      </select>
                     </div>
-                  )}
+                  </div>
+
+                  {/* ── Knowledge Base ───────────────────────────────── */}
+                  <div className="px-4 py-4">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 mb-0.5">Knowledge Base</p>
+                        <p className="text-xs text-gray-500">Sync markdown files from this repo as KB articles so the AI can reference your docs when answering questions.</p>
+                      </div>
+                      <label className="flex items-center gap-2 shrink-0 mt-0.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={repo.kb_enabled === 1}
+                          onChange={(e) => updateSettings(repo.id, { kbEnabled: e.target.checked ? 1 : 0 })}
+                          className="rounded"
+                        />
+                        <span className="text-xs text-gray-600">{repo.kb_enabled === 1 ? 'On' : 'Off'}</span>
+                      </label>
+                    </div>
+
+                    {repo.kb_enabled === 1 && (
+                      <div className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2">
+                        <p className="text-xs text-gray-500">
+                          {repo.kb_chunk_count > 0
+                            ? `${repo.kb_chunk_count} chunks · last synced ${repo.kb_last_synced ? new Date(repo.kb_last_synced).toLocaleDateString() : 'never'}`
+                            : 'Not yet synced'}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => syncKB(repo.id)}
+                          disabled={syncingId === repo.id}
+                        >
+                          {syncingId === repo.id ? 'Syncing…' : 'Sync now'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
