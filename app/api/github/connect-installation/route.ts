@@ -26,6 +26,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ connected: repos.length })
   } catch (err) {
     logger.error('manual installation connect failed', { module: MOD, error: err })
-    return NextResponse.json({ error: 'Could not connect installation — check GITHUB_APP_ID and GITHUB_PRIVATE_KEY' }, { status: 500 })
+    return NextResponse.json({ error: 'Could not connect installation — check GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY' }, { status: 500 })
   }
 }
