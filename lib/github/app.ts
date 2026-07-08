@@ -40,9 +40,8 @@ export async function getInstallationOctokitById(installationId: number): Promis
 }
 
 export async function listInstallationRepos(installationId: number): Promise<Array<{ owner: string; repo: string; isPrivate: boolean }>> {
-  const app = await getApp()
-  const resp = await app.octokit.request('GET /app/installations/{installation_id}/accessible-repositories', {
-    installation_id: installationId,
+  const installOctokit = await getInstallationOctokitById(installationId)
+  const resp = await installOctokit.request('GET /installation/repositories', {
     per_page: 100,
   })
   return (resp.data.repositories ?? []).map((r: { full_name: string; private: boolean }) => ({
