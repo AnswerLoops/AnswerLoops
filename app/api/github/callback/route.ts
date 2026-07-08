@@ -23,8 +23,10 @@ export async function GET(req: NextRequest) {
     logger.warn('invalid github callback state', { module: MOD })
   }
 
+  const baseUrl = process.env.AUTH_URL ?? req.nextUrl.origin
+
   if (!installationId) {
-    return NextResponse.redirect(new URL('/settings?tab=github&github_error=missing_installation', req.nextUrl))
+    return NextResponse.redirect(new URL('/settings?tab=github&github_error=missing_installation', baseUrl))
   }
 
   try {
@@ -35,8 +37,8 @@ export async function GET(req: NextRequest) {
     logger.info('github installation connected', { module: MOD, installationId, repoCount: repos.length, orgId })
   } catch (err) {
     logger.error('github installation failed', { module: MOD, error: err })
-    return NextResponse.redirect(new URL('/settings?tab=github&github_error=installation_failed', req.nextUrl))
+    return NextResponse.redirect(new URL('/settings?tab=github&github_error=installation_failed', baseUrl))
   }
 
-  return NextResponse.redirect(new URL('/settings?tab=github&github_connected=1', req.nextUrl))
+  return NextResponse.redirect(new URL('/settings?tab=github&github_connected=1', baseUrl))
 }
