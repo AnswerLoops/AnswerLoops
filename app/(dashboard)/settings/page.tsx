@@ -1837,8 +1837,6 @@ function GitHubIntegrationCard() {
   const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [connecting, setConnecting] = useState(false)
   const [syncingId, setSyncingId] = useState<number | null>(null)
-  const [manualId, setManualId] = useState('')
-  const [manualConnecting, setManualConnecting] = useState(false)
   const { toastMessage, showToast } = useToast()
   const searchParams = useSearchParams()
 
@@ -1892,28 +1890,6 @@ function GitHubIntegrationCard() {
     }
   }
 
-  const connectManual = async () => {
-    const id = parseInt(manualId.trim(), 10)
-    if (!id) { showToast('Enter a valid installation ID'); return }
-    setManualConnecting(true)
-    try {
-      const res = await fetch('/api/github/connect-installation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ installationId: id }),
-      })
-      const data = await res.json() as { connected?: number; error?: string }
-      if (!res.ok || data.error) { showToast(data.error ?? 'Connection failed'); return }
-      showToast(`Connected — ${data.connected} repo${data.connected !== 1 ? 's' : ''} added`)
-      setManualId('')
-      reload()
-    } catch {
-      showToast('Connection failed')
-    } finally {
-      setManualConnecting(false)
-    }
-  }
-
   const removeRepo = async (repoId: number) => {
     await fetch(`/api/github/repos/${repoId}`, { method: 'DELETE' })
     reload()
@@ -1933,21 +1909,6 @@ function GitHubIntegrationCard() {
           <Button onClick={connect} disabled={connecting}>
             {connecting ? 'Redirecting…' : 'Connect GitHub'}
           </Button>
-          <div className="mt-6 pt-5 border-t border-gray-100">
-            <p className="text-xs text-gray-400 mb-2">Already installed? Enter your installation ID to connect manually.</p>
-            <div className="flex gap-2 justify-center">
-              <input
-                type="number"
-                value={manualId}
-                onChange={(e) => setManualId(e.target.value)}
-                placeholder="Installation ID"
-                className="w-40 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              />
-              <Button size="sm" variant="secondary" onClick={connectManual} disabled={manualConnecting || !manualId}>
-                {manualConnecting ? 'Connecting…' : 'Connect'}
-              </Button>
-            </div>
-          </div>
         </div>
       ) : (
         <>
