@@ -1854,8 +1854,14 @@ function GitHubIntegrationCard() {
   const connect = async () => {
     setConnecting(true)
     try {
-      const { url } = await fetch('/api/github/install-url').then((r) => r.json())
-      window.location.href = url
+      const res = await fetch('/api/github/install-url')
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        showToast(data.error ?? 'GitHub App not configured — set GITHUB_APP_SLUG env var')
+        setConnecting(false)
+        return
+      }
+      window.location.href = data.url
     } catch {
       showToast('Failed to get GitHub install URL')
       setConnecting(false)
