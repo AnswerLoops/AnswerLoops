@@ -1977,8 +1977,32 @@ function GitHubIntegrationCard() {
   )
 }
 
+const TABS = [
+  { id: 'general',   label: 'General' },
+  { id: 'team',      label: 'Team' },
+  { id: 'discord',   label: 'Discord' },
+  { id: 'slack',     label: 'Slack' },
+  { id: 'telegram',  label: 'Telegram' },
+  { id: 'email',     label: 'Email' },
+  { id: 'github',    label: 'GitHub' },
+  { id: 'ai',        label: 'AI Model' },
+  { id: 'widget',    label: 'Widget' },
+] as const
+
+type TabId = (typeof TABS)[number]['id']
+
 export default function SettingsPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [slaConfigs, setSlaConfigs] = useState<SLAConfig[]>([])
+
+  const activeTab = (searchParams.get('tab') as TabId) ?? 'general'
+
+  const setTab = (id: TabId) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', id)
+    router.replace(`/settings?${params.toString()}`, { scroll: false })
+  }
 
   useEffect(() => {
     setSlaConfigs([
@@ -1990,65 +2014,98 @@ export default function SettingsPage() {
   }, [])
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
+    <div className="max-w-2xl">
+      <h1 className="text-lg font-semibold text-gray-900 mb-4">Settings</h1>
 
-      {/* SLA Configuration */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">SLA Configuration</h2>
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
-          <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 font-medium">
-            <div className="px-4 py-2.5">Priority</div>
-            <div className="px-4 py-2.5">Response (hours)</div>
-            <div className="px-4 py-2.5">Resolve (hours)</div>
-            <div className="px-4 py-2.5" />
-          </div>
-          {slaConfigs.map((config) => (
-            <SLARow key={config.priority} config={config} />
-          ))}
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b border-gray-200 mb-6 overflow-x-auto">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setTab(tab.id)}
+            className={[
+              'px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
+              activeTab === tab.id
+                ? 'border-[#C9603A] text-[#C9603A]'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300',
+            ].join(' ')}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab panels */}
+      {activeTab === 'general' && (
+        <div className="space-y-8">
+          <section>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">SLA Configuration</h2>
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
+              <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 font-medium">
+                <div className="px-4 py-2.5">Priority</div>
+                <div className="px-4 py-2.5">Response (hours)</div>
+                <div className="px-4 py-2.5">Resolve (hours)</div>
+                <div className="px-4 py-2.5" />
+              </div>
+              {slaConfigs.map((config) => (
+                <SLARow key={config.priority} config={config} />
+              ))}
+            </div>
+          </section>
+          <section>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">Analytics</h2>
+            <ROISection />
+          </section>
         </div>
-      </section>
+      )}
 
-      {/* GitHub */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">GitHub</h2>
-        <GitHubIntegrationCard />
-      </section>
+      {activeTab === 'team' && (
+        <section>
+          <TeamSection />
+        </section>
+      )}
 
-      {/* Team */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Team</h2>
-        <TeamSection />
-      </section>
-
-      {/* Integrations */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Integrations</h2>
-        <div className="space-y-4">
+      {activeTab === 'discord' && (
+        <section>
           <DiscordIntegrationCard />
+        </section>
+      )}
+
+      {activeTab === 'slack' && (
+        <section>
           <SlackIntegrationCard />
+        </section>
+      )}
+
+      {activeTab === 'telegram' && (
+        <section>
           <TelegramIntegrationCard />
+        </section>
+      )}
+
+      {activeTab === 'email' && (
+        <section>
           <EmailIntegrationCard />
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* AI Model */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">AI Model</h2>
-        <AIModelSection />
-      </section>
+      {activeTab === 'github' && (
+        <section>
+          <GitHubIntegrationCard />
+        </section>
+      )}
 
-      {/* Website Widget */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Website Widget</h2>
-        <WidgetSection />
-      </section>
+      {activeTab === 'ai' && (
+        <section>
+          <AIModelSection />
+        </section>
+      )}
 
-      {/* Analytics — ROI */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Analytics</h2>
-        <ROISection />
-      </section>
+      {activeTab === 'widget' && (
+        <section>
+          <WidgetSection />
+        </section>
+      )}
     </div>
   )
 }

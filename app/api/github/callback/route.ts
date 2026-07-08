@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   try {
     const decoded = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf8'))
     if (Date.now() - decoded.ts > STATE_MAX_AGE_MS) {
-      return NextResponse.redirect(new URL('/settings?github_error=expired', req.nextUrl))
+      return NextResponse.redirect(new URL('/settings?tab=github&github_error=expired', req.nextUrl))
     }
     orgId = Number(decoded.orgId) || DEFAULT_ORG_ID
   } catch {
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (!installationId) {
-    return NextResponse.redirect(new URL('/settings?github_error=missing_installation', req.nextUrl))
+    return NextResponse.redirect(new URL('/settings?tab=github&github_error=missing_installation', req.nextUrl))
   }
 
   try {
@@ -35,8 +35,8 @@ export async function GET(req: NextRequest) {
     logger.info('github installation connected', { module: MOD, installationId, repoCount: repos.length, orgId })
   } catch (err) {
     logger.error('github installation failed', { module: MOD, error: err })
-    return NextResponse.redirect(new URL('/settings?github_error=installation_failed', req.nextUrl))
+    return NextResponse.redirect(new URL('/settings?tab=github&github_error=installation_failed', req.nextUrl))
   }
 
-  return NextResponse.redirect(new URL('/settings?github_connected=1', req.nextUrl))
+  return NextResponse.redirect(new URL('/settings?tab=github&github_connected=1', req.nextUrl))
 }

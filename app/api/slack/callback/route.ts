@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
 
   const baseUrl = process.env.AUTH_URL ?? req.nextUrl.origin
   const settingsUrl = new URL('/settings', baseUrl)
+  settingsUrl.searchParams.set('tab', 'slack')
 
   if (error || !code) {
     settingsUrl.searchParams.set('slack_error', error ?? 'cancelled')
