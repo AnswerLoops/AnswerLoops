@@ -1904,7 +1904,8 @@ function GitHubIntegrationCard() {
       {repos.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-6 py-8 text-center">
           <p className="text-sm font-medium text-gray-800 mb-1">Connect GitHub</p>
-          <p className="text-xs text-gray-500 mb-5 max-w-sm mx-auto">Use repos as a support channel — turn Issues and Discussions into tickets with AI responses — or as a knowledge base by syncing your markdown docs.</p>
+          <p className="text-xs text-gray-500 mb-1 max-w-sm mx-auto">Use repos as a support channel — turn Issues and Discussions into tickets with AI responses — or as a knowledge base by syncing your markdown docs.</p>
+          <p className="text-xs text-amber-600 mb-5">You must be an org admin to install the GitHub App on an organization.</p>
           <Button onClick={connect} disabled={connecting}>
             {connecting ? 'Redirecting…' : 'Connect GitHub'}
           </Button>
