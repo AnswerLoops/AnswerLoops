@@ -3,9 +3,16 @@ import { auth } from '@/auth'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 export async function GET(req: NextRequest) {
-  const slug = process.env.GITHUB_APP_SLUG
-  if (!slug) {
+  const rawSlug = process.env.GITHUB_APP_SLUG
+  if (!rawSlug) {
     return NextResponse.json({ error: 'GITHUB_APP_SLUG not configured' }, { status: 503 })
+  }
+
+  // Accept full URL or bare slug — always use the last non-empty path segment
+  // e.g. "https://github.com/settings/apps/answerloops" → "answerloops"
+  const slug = rawSlug.split('/').filter(Boolean).pop() ?? ''
+  if (!slug || slug.startsWith('http')) {
+    return NextResponse.json({ error: 'GITHUB_APP_SLUG is not a valid slug or URL' }, { status: 503 })
   }
 
   const session = await auth()

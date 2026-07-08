@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
   }
 
   const settingsUrl = new URL('/settings', baseUrl)
+  settingsUrl.searchParams.set('tab', 'discord')
   settingsUrl.searchParams.set('discord_connected', '1')
   settingsUrl.searchParams.set('guild_id', guildId)
   return Response.redirect(settingsUrl)

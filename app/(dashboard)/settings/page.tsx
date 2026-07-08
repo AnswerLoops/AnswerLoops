@@ -1854,8 +1854,14 @@ function GitHubIntegrationCard() {
   const connect = async () => {
     setConnecting(true)
     try {
-      const { url } = await fetch('/api/github/install-url').then((r) => r.json())
-      window.location.href = url
+      const res = await fetch('/api/github/install-url')
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        showToast(data.error ?? 'GitHub App not configured — set GITHUB_APP_SLUG env var')
+        setConnecting(false)
+        return
+      }
+      window.location.href = data.url
     } catch {
       showToast('Failed to get GitHub install URL')
       setConnecting(false)
@@ -1897,17 +1903,20 @@ function GitHubIntegrationCard() {
 
       {repos.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-6 py-8 text-center">
-          <p className="text-sm text-gray-500 mb-4">Connect your GitHub repositories to create tickets from Issues and Discussions, and import docs as KB articles.</p>
+          <p className="text-sm font-medium text-gray-800 mb-1">Connect GitHub</p>
+          <p className="text-xs text-gray-500 mb-1 max-w-sm mx-auto">Use repos as a support channel — turn Issues and Discussions into tickets with AI responses — or as a knowledge base by syncing your markdown docs.</p>
+          <p className="text-xs text-amber-600 mb-5">You must be an org admin to install the GitHub App on an organization.</p>
           <Button onClick={connect} disabled={connecting}>
             {connecting ? 'Redirecting…' : 'Connect GitHub'}
           </Button>
         </div>
       ) : (
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {repos.map((repo) => (
-              <div key={repo.id} className="bg-white rounded-lg border border-gray-200 px-4 py-4">
-                <div className="flex items-center justify-between mb-3">
+              <div key={repo.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                {/* Repo header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
                   <div>
                     <p className="text-sm font-medium text-gray-800 font-mono">{repo.owner}/{repo.repo}</p>
                     <p className="text-xs text-gray-400">{repo.is_private ? 'Private' : 'Public'} · Added {new Date(repo.added_at).toLocaleDateString()}</p>
@@ -1915,48 +1924,63 @@ function GitHubIntegrationCard() {
                   <Button size="sm" variant="ghost" onClick={() => removeRepo(repo.id)}>Remove</Button>
                 </div>
 
-                <div className="space-y-2 border-t border-gray-100 pt-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs text-gray-600">Monitor tickets from</label>
-                    <select
-                      value={repo.monitored_events}
-                      onChange={(e) => updateSettings(repo.id, { monitoredEvents: e.target.value })}
-                      className="text-xs border border-gray-200 rounded px-2 py-1 text-gray-700"
-                    >
-                      <option value="both">Issues + Discussions</option>
-                      <option value="issues">Issues only</option>
-                      <option value="discussions">Discussions only</option>
-                      <option value="none">Off</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs text-gray-600">Use as KB source</label>
-                    <input
-                      type="checkbox"
-                      checked={repo.kb_enabled === 1}
-                      onChange={(e) => updateSettings(repo.id, { kbEnabled: e.target.checked ? 1 : 0 })}
-                      className="rounded"
-                    />
-                  </div>
-
-                  {repo.kb_enabled === 1 && (
-                    <div className="flex items-center justify-between pt-1">
-                      <p className="text-xs text-gray-400">
-                        {repo.kb_chunk_count > 0
-                          ? `${repo.kb_chunk_count} chunks · last synced ${repo.kb_last_synced ? new Date(repo.kb_last_synced).toLocaleDateString() : 'never'}`
-                          : 'Not yet synced'}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => syncKB(repo.id)}
-                        disabled={syncingId === repo.id}
+                <div className="divide-y divide-gray-100">
+                  {/* ── Support ──────────────────────────────────────── */}
+                  <div className="px-4 py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 mb-0.5">Support</p>
+                        <p className="text-xs text-gray-500">Turn Issues and Discussions into tickets. AI drafts responses and routes to your team.</p>
+                      </div>
+                      <select
+                        value={repo.monitored_events}
+                        onChange={(e) => updateSettings(repo.id, { monitoredEvents: e.target.value })}
+                        className="text-xs border border-gray-200 rounded px-2 py-1.5 text-gray-700 shrink-0 mt-0.5"
                       >
-                        {syncingId === repo.id ? 'Syncing…' : 'Sync now'}
-                      </Button>
+                        <option value="both">Issues + Discussions</option>
+                        <option value="issues">Issues only</option>
+                        <option value="discussions">Discussions only</option>
+                        <option value="none">Off</option>
+                      </select>
                     </div>
-                  )}
+                  </div>
+
+                  {/* ── Knowledge Base ───────────────────────────────── */}
+                  <div className="px-4 py-4">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 mb-0.5">Knowledge Base</p>
+                        <p className="text-xs text-gray-500">Sync markdown files from this repo as KB articles so the AI can reference your docs when answering questions.</p>
+                      </div>
+                      <label className="flex items-center gap-2 shrink-0 mt-0.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={repo.kb_enabled === 1}
+                          onChange={(e) => updateSettings(repo.id, { kbEnabled: e.target.checked ? 1 : 0 })}
+                          className="rounded"
+                        />
+                        <span className="text-xs text-gray-600">{repo.kb_enabled === 1 ? 'On' : 'Off'}</span>
+                      </label>
+                    </div>
+
+                    {repo.kb_enabled === 1 && (
+                      <div className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2">
+                        <p className="text-xs text-gray-500">
+                          {repo.kb_chunk_count > 0
+                            ? `${repo.kb_chunk_count} chunks · last synced ${repo.kb_last_synced ? new Date(repo.kb_last_synced).toLocaleDateString() : 'never'}`
+                            : 'Not yet synced'}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => syncKB(repo.id)}
+                          disabled={syncingId === repo.id}
+                        >
+                          {syncingId === repo.id ? 'Syncing…' : 'Sync now'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -1971,8 +1995,32 @@ function GitHubIntegrationCard() {
   )
 }
 
+const TABS = [
+  { id: 'general',   label: 'General' },
+  { id: 'team',      label: 'Team' },
+  { id: 'discord',   label: 'Discord' },
+  { id: 'slack',     label: 'Slack' },
+  { id: 'telegram',  label: 'Telegram' },
+  { id: 'email',     label: 'Email' },
+  { id: 'github',    label: 'GitHub' },
+  { id: 'ai',        label: 'AI Model' },
+  { id: 'widget',    label: 'Widget' },
+] as const
+
+type TabId = (typeof TABS)[number]['id']
+
 export default function SettingsPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [slaConfigs, setSlaConfigs] = useState<SLAConfig[]>([])
+
+  const activeTab = (searchParams.get('tab') as TabId) ?? 'general'
+
+  const setTab = (id: TabId) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', id)
+    router.replace(`/settings?${params.toString()}`, { scroll: false })
+  }
 
   useEffect(() => {
     setSlaConfigs([
@@ -1984,65 +2032,98 @@ export default function SettingsPage() {
   }, [])
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
+    <div className="max-w-2xl">
+      <h1 className="text-lg font-semibold text-gray-900 mb-4">Settings</h1>
 
-      {/* SLA Configuration */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">SLA Configuration</h2>
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
-          <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 font-medium">
-            <div className="px-4 py-2.5">Priority</div>
-            <div className="px-4 py-2.5">Response (hours)</div>
-            <div className="px-4 py-2.5">Resolve (hours)</div>
-            <div className="px-4 py-2.5" />
-          </div>
-          {slaConfigs.map((config) => (
-            <SLARow key={config.priority} config={config} />
-          ))}
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b border-gray-200 mb-6 overflow-x-auto">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setTab(tab.id)}
+            className={[
+              'px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
+              activeTab === tab.id
+                ? 'border-[#C9603A] text-[#C9603A]'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300',
+            ].join(' ')}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab panels */}
+      {activeTab === 'general' && (
+        <div className="space-y-8">
+          <section>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">SLA Configuration</h2>
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
+              <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 font-medium">
+                <div className="px-4 py-2.5">Priority</div>
+                <div className="px-4 py-2.5">Response (hours)</div>
+                <div className="px-4 py-2.5">Resolve (hours)</div>
+                <div className="px-4 py-2.5" />
+              </div>
+              {slaConfigs.map((config) => (
+                <SLARow key={config.priority} config={config} />
+              ))}
+            </div>
+          </section>
+          <section>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">Analytics</h2>
+            <ROISection />
+          </section>
         </div>
-      </section>
+      )}
 
-      {/* GitHub */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">GitHub</h2>
-        <GitHubIntegrationCard />
-      </section>
+      {activeTab === 'team' && (
+        <section>
+          <TeamSection />
+        </section>
+      )}
 
-      {/* Team */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Team</h2>
-        <TeamSection />
-      </section>
-
-      {/* Integrations */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Integrations</h2>
-        <div className="space-y-4">
+      {activeTab === 'discord' && (
+        <section>
           <DiscordIntegrationCard />
+        </section>
+      )}
+
+      {activeTab === 'slack' && (
+        <section>
           <SlackIntegrationCard />
+        </section>
+      )}
+
+      {activeTab === 'telegram' && (
+        <section>
           <TelegramIntegrationCard />
+        </section>
+      )}
+
+      {activeTab === 'email' && (
+        <section>
           <EmailIntegrationCard />
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* AI Model */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">AI Model</h2>
-        <AIModelSection />
-      </section>
+      {activeTab === 'github' && (
+        <section>
+          <GitHubIntegrationCard />
+        </section>
+      )}
 
-      {/* Website Widget */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Website Widget</h2>
-        <WidgetSection />
-      </section>
+      {activeTab === 'ai' && (
+        <section>
+          <AIModelSection />
+        </section>
+      )}
 
-      {/* Analytics — ROI */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Analytics</h2>
-        <ROISection />
-      </section>
+      {activeTab === 'widget' && (
+        <section>
+          <WidgetSection />
+        </section>
+      )}
     </div>
   )
 }

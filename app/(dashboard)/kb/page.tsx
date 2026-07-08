@@ -3,7 +3,7 @@
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import type { KBArticle, KBSearchResult, KBSource } from '@/types'
+import type { KBArticle, KBSearchResult, KBSource, GitHubRepo } from '@/types'
 import { ingestUrlAction } from '@/app/actions/ingest-url'
 import type { IngestUrlResult } from '@/app/actions/ingest-url'
 
@@ -128,6 +128,83 @@ function SourcesList({ onDeleted }: { onDeleted: () => void }) {
                 </p>
               </div>
             </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function GitHubKBSection({ onSynced }: { onSynced: () => void }) {
+  const [repos, setRepos] = useState<GitHubRepo[]>([])
+  const [syncingId, setSyncingId] = useState<number | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/github/repos')
+      .then((r) => r.ok ? r.json() : [])
+      .then((all: GitHubRepo[]) => setRepos(all.filter((r) => r.kb_enabled === 1)))
+      .catch(() => setRepos([]))
+  }, [])
+
+  const sync = async (repo: GitHubRepo) => {
+    setSyncingId(repo.id)
+    try {
+      const res = await fetch(`/api/github/sync-kb?repo_id=${repo.id}`)
+      const data = await res.json() as { synced?: number; error?: string }
+      if (data.error) {
+        setToast(data.error)
+      } else {
+        setToast(`Synced ${data.synced ?? 0} chunks from ${repo.owner}/${repo.repo}`)
+        onSynced()
+        // refresh repo list to update chunk count / last synced
+        fetch('/api/github/repos')
+          .then((r) => r.json())
+          .then((all: GitHubRepo[]) => setRepos(all.filter((r) => r.kb_enabled === 1)))
+      }
+    } catch {
+      setToast('Sync failed')
+    } finally {
+      setSyncingId(null)
+      setTimeout(() => setToast(null), 4000)
+    }
+  }
+
+  if (repos.length === 0) return null
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold text-gray-900">GitHub Repositories</h2>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Markdown files from these repos are synced into the knowledge base.{' '}
+          <Link href="/settings?tab=github" className="text-brand-600 hover:underline">Manage in Settings →</Link>
+        </p>
+      </div>
+
+      {toast && (
+        <p className="text-xs text-green-600">{toast}</p>
+      )}
+
+      <ul className="space-y-2">
+        {repos.map((repo) => (
+          <li key={repo.id} className="flex items-center justify-between bg-white rounded-md border border-gray-200 px-3 py-2.5 gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800 font-mono">{repo.owner}/{repo.repo}</p>
+              <p className="text-xs text-gray-400">
+                {repo.kb_chunk_count > 0
+                  ? `${repo.kb_chunk_count} chunks · last synced ${repo.kb_last_synced ? new Date(repo.kb_last_synced).toLocaleDateString() : 'never'}`
+                  : 'Not yet synced'}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => sync(repo)}
+              disabled={syncingId === repo.id}
+            >
+              {syncingId === repo.id ? 'Syncing…' : 'Sync now'}
+            </Button>
           </li>
         ))}
       </ul>
@@ -498,6 +575,7 @@ export default function KBPage() {
         <p className="text-sm text-gray-500">Resolved answers, uploaded docs, and crawled pages — all semantically searchable</p>
       </div>
 
+      <GitHubKBSection onSynced={loadAll} />
       <FileUploadSection onImported={() => { loadAll(); refreshSources() }} />
       <UrlIngestSection onImported={loadAll} />
       <SourcesList key={sourcesKey} onDeleted={() => { loadAll(); refreshSources() }} />
