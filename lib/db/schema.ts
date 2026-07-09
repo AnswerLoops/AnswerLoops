@@ -123,7 +123,9 @@ export const githubRepos = pgTable('github_repos', {
   kbLastSynced: text('kb_last_synced'),
   kbChunkCount: integer('kb_chunk_count').notNull().default(0),
   addedAt: text('added_at').notNull().default(now),
-})
+}, (t) => ({
+  ownerRepoUnique: uniqueIndex('github_repos_owner_repo_unique').on(t.owner, t.repo),
+}))
 
 export const faqSnapshots = pgTable('faq_snapshots', {
   id: serial('id').primaryKey(),
