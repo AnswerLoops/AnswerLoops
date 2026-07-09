@@ -22,7 +22,7 @@ function verifySignature(body: string, sig: string, secret: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.GITHUB_WEBHOOK_SECRET ?? ''
+  const secret = (process.env.GITHUB_WEBHOOK_SECRET ?? '').trim()
   const sig = req.headers.get('x-hub-signature-256') ?? ''
   const event = req.headers.get('x-github-event') ?? ''
   const body = await req.text()
