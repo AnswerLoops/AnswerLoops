@@ -34,13 +34,25 @@ export async function addRepo(
   isPrivate: boolean,
   orgId = DEFAULT_ORG_ID
 ): Promise<GitHubRepo> {
-  const [row] = await getDb()
+  const db = getDb()
+  const existing = await db
+    .select()
+    .from(githubRepos)
+    .where(and(eq(githubRepos.owner, owner), eq(githubRepos.repo, repo)))
+    .limit(1)
+
+  if (existing.length > 0) {
+    const [row] = await db
+      .update(githubRepos)
+      .set({ installationId, isPrivate: isPrivate ? 1 : 0 })
+      .where(and(eq(githubRepos.owner, owner), eq(githubRepos.repo, repo)))
+      .returning()
+    return toRepo(row)
+  }
+
+  const [row] = await db
     .insert(githubRepos)
     .values({ orgId, installationId, owner, repo, isPrivate: isPrivate ? 1 : 0 })
-    .onConflictDoUpdate({
-      target: [githubRepos.owner, githubRepos.repo],
-      set: { installationId, isPrivate: isPrivate ? 1 : 0 },
-    })
     .returning()
   return toRepo(row)
 }

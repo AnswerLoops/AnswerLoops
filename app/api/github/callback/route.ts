@@ -36,7 +36,8 @@ export async function GET(req: NextRequest) {
     }
     logger.info('github installation connected', { module: MOD, installationId, repoCount: repos.length, orgId })
   } catch (err) {
-    logger.error('github installation failed', { module: MOD, error: err })
+    const cause = err instanceof Error ? { message: err.message, cause: (err as NodeJS.ErrnoException).cause } : err
+    logger.error('github installation failed', { module: MOD, error: cause })
     return NextResponse.redirect(new URL('/settings?tab=github&github_error=installation_failed', baseUrl))
   }
 
