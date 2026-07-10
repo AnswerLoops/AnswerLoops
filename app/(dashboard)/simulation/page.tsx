@@ -1,15 +1,34 @@
 'use client'
 
 import { useState } from 'react'
-import type { SimulationResult, SimTicketResult } from '@/app/api/simulation/run/route'
+import type { SimulationResult, SimTicketResult, SimStreamEvent } from '@/app/api/simulation/run/route'
 
 const MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']
+
+const STEP_LABEL: Record<string, string> = {
+  embedding: 'Searching knowledge base',
+  generating: 'Generating answer',
+  assessing: 'Grading confidence',
+}
+
+interface ProgressEntry {
+  key: string
+  index: number
+  total: number
+  preview: string
+  steps: { name: string; done: boolean; confidence?: number }[]
+  done: boolean
+  confidence?: number
+  wouldDeflect?: boolean
+}
 
 export default function SimulationPage() {
   const [count, setCount] = useState(20)
   const [model, setModel] = useState('gpt-4o')
   const [threshold, setThreshold] = useState(0.8)
   const [running, setRunning] = useState(false)
+  const [progress, setProgress] = useState<ProgressEntry[]>([])
+  const [totalTickets, setTotalTickets] = useState(0)
   const [result, setResult] = useState<SimulationResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -17,17 +36,82 @@ export default function SimulationPage() {
     setRunning(true)
     setError(null)
     setResult(null)
+    setProgress([])
+    setTotalTickets(0)
+
     try {
       const res = await fetch('/api/simulation/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ count, model, threshold }),
       })
-      if (!res.ok) {
+
+      if (!res.ok || !res.body) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `HTTP ${res.status}`)
       }
-      setResult(await res.json())
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          let event: SimStreamEvent
+          try { event = JSON.parse(line) } catch { continue }
+
+          if (event.type === 'start') {
+            setTotalTickets(event.total)
+          }
+
+          if (event.type === 'step') {
+            setProgress(prev => {
+              const existing = prev.find(e => e.index === event.index)
+              const stepEntry = { name: STEP_LABEL[event.step] ?? event.step, done: false }
+              if (!existing) {
+                return [...prev, {
+                  key: `ticket-${event.index}`,
+                  index: event.index,
+                  total: event.total,
+                  preview: event.preview,
+                  steps: [stepEntry],
+                  done: false,
+                }]
+              }
+              // Mark previous steps done, add new step
+              return prev.map(e => e.index !== event.index ? e : {
+                ...e,
+                steps: [...e.steps.map(s => ({ ...s, done: true })), stepEntry],
+              })
+            })
+          }
+
+          if (event.type === 'ticket_done') {
+            setProgress(prev => prev.map(e => e.index !== event.index ? e : {
+              ...e,
+              steps: e.steps.map(s => ({ ...s, done: true })),
+              done: true,
+              confidence: event.result.simConfidence,
+              wouldDeflect: event.result.simWouldDeflect,
+            }))
+          }
+
+          if (event.type === 'done') {
+            setResult({ config: event.config, results: event.results, summary: event.summary })
+          }
+
+          if (event.type === 'error') {
+            throw new Error(event.message)
+          }
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
@@ -41,6 +125,8 @@ export default function SimulationPage() {
       {(n * 100).toFixed(0)}%
     </span>
   )
+
+  const doneCount = progress.filter(e => e.done).length
 
   return (
     <div className="p-6 space-y-6">
@@ -64,7 +150,8 @@ export default function SimulationPage() {
               max={100}
               value={count}
               onChange={e => setCount(Number(e.target.value))}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+              disabled={running}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm disabled:opacity-50"
             />
           </div>
           <div>
@@ -72,7 +159,8 @@ export default function SimulationPage() {
             <select
               value={model}
               onChange={e => setModel(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+              disabled={running}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm disabled:opacity-50"
             >
               {MODELS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
@@ -88,7 +176,8 @@ export default function SimulationPage() {
               step={0.05}
               value={threshold}
               onChange={e => setThreshold(Number(e.target.value))}
-              className="w-full mt-2"
+              disabled={running}
+              className="w-full mt-2 disabled:opacity-50"
             />
           </div>
         </div>
@@ -99,16 +188,85 @@ export default function SimulationPage() {
         >
           {running ? 'Running simulation…' : 'Run simulation'}
         </button>
-        {running && (
-          <p className="text-xs text-gray-500">
-            Processing up to {count} tickets — this may take a minute.
-          </p>
-        )}
       </div>
 
       {error && (
         <div className="bg-red-900/30 border border-red-700 rounded-xl p-4 text-red-300 text-sm">
           {error}
+        </div>
+      )}
+
+      {/* Live progress */}
+      {(running || (progress.length > 0 && !result)) && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-300">
+              {running ? 'Running…' : 'Complete'}
+            </h2>
+            {totalTickets > 0 && (
+              <span className="text-xs text-gray-500">
+                {doneCount} / {totalTickets} tickets
+              </span>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          {totalTickets > 0 && (
+            <div className="h-1 bg-gray-800">
+              <div
+                className="h-1 bg-brand-600 transition-all duration-300"
+                style={{ width: `${(doneCount / totalTickets) * 100}%` }}
+              />
+            </div>
+          )}
+
+          <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
+            {progress.map(entry => (
+              <div key={entry.key} className="text-sm">
+                {/* Ticket header */}
+                <div className="flex items-center gap-2 mb-1">
+                  {entry.done ? (
+                    <span className="text-green-400 text-xs">✓</span>
+                  ) : (
+                    <span className="inline-block h-3 w-3 rounded-full border-2 border-brand-400 border-t-transparent animate-spin" />
+                  )}
+                  <span className="text-gray-400 text-xs font-mono">
+                    {entry.index}/{entry.total}
+                  </span>
+                  <span className="text-gray-300 text-xs truncate max-w-md">
+                    {entry.preview}{entry.preview.length >= 80 ? '…' : ''}
+                  </span>
+                  {entry.done && entry.confidence !== undefined && (
+                    <span className={`text-xs ml-auto shrink-0 font-mono ${
+                      entry.confidence >= 0.8 ? 'text-green-400' : entry.confidence >= 0.5 ? 'text-yellow-400' : 'text-red-400'
+                    }`}>
+                      {(entry.confidence * 100).toFixed(0)}% · {entry.wouldDeflect ? 'Auto' : 'Human'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Sub-steps */}
+                <div className="ml-5 space-y-0.5">
+                  {entry.steps.map((step, si) => (
+                    <div key={si} className="flex items-center gap-1.5 text-xs">
+                      {step.done ? (
+                        <span className="text-gray-600">✓</span>
+                      ) : (
+                        <span className="inline-block h-2 w-2 rounded-full border border-gray-500 border-t-transparent animate-spin" />
+                      )}
+                      <span className={step.done ? 'text-gray-600' : 'text-gray-400'}>
+                        {step.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {running && progress.length === 0 && (
+              <p className="text-xs text-gray-500">Fetching tickets…</p>
+            )}
+          </div>
         </div>
       )}
 

@@ -48,6 +48,13 @@ export interface SimulationResult {
   }
 }
 
+export type SimStreamEvent =
+  | { type: 'start'; total: number }
+  | { type: 'step'; index: number; total: number; step: 'embedding' | 'generating' | 'assessing'; ticketId: number; preview: string }
+  | { type: 'ticket_done'; index: number; total: number; result: SimTicketResult }
+  | { type: 'done'; summary: SimulationResult['summary']; results: SimTicketResult[]; config: SimulationResult['config'] }
+  | { type: 'error'; message: string }
+
 export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user) return new Response('Unauthorized', { status: 401 })
@@ -61,97 +68,121 @@ export async function POST(request: Request) {
   const { count, model, threshold } = parsed.data
   const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
 
-  const rows = await getDb()
-    .select()
-    .from(tickets)
-    .where(and(eq(tickets.orgId, orgId)))
-    .orderBy(desc(tickets.createdAt))
-    .limit(count)
+  const encoder = new TextEncoder()
 
-  if (rows.length === 0) {
-    return Response.json({ error: 'No tickets found to simulate' }, { status: 404 })
-  }
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: SimStreamEvent) => {
+        controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
+      }
 
-  const results: SimTicketResult[] = []
+      const rows = await getDb()
+        .select()
+        .from(tickets)
+        .where(and(eq(tickets.orgId, orgId)))
+        .orderBy(desc(tickets.createdAt))
+        .limit(count)
 
-  for (const ticket of rows) {
-    const t0 = Date.now()
-    try {
-      // Best-effort KB context — don't fail if embedding unavailable
-      let kbContext = ''
-      try {
-        const vec = await embedText(ticket.content, orgId)
-        const articles = await searchArticles(vec, 3, orgId)
-        if (articles.length) {
-          kbContext = `\n\nKnowledge base:\n${articles.map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n')}`
+      if (rows.length === 0) {
+        send({ type: 'error', message: 'No tickets found to simulate' })
+        controller.close()
+        return
+      }
+
+      send({ type: 'start', total: rows.length })
+
+      const results: SimTicketResult[] = []
+
+      for (let i = 0; i < rows.length; i++) {
+        const ticket = rows[i]
+        const preview = ticket.content.slice(0, 80).replace(/\n/g, ' ')
+        const t0 = Date.now()
+
+        try {
+          let kbContext = ''
+          send({ type: 'step', index: i + 1, total: rows.length, step: 'embedding', ticketId: ticket.id, preview })
+          try {
+            const vec = await embedText(ticket.content, orgId)
+            const articles = await searchArticles(vec, 3, orgId)
+            if (articles.length) {
+              kbContext = `\n\nKnowledge base:\n${articles.map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n')}`
+            }
+          } catch { /* ignore */ }
+
+          send({ type: 'step', index: i + 1, total: rows.length, step: 'generating', ticketId: ticket.id, preview })
+          const { text: simAnswer } = await generateText({
+            model: await chatModel(model, orgId),
+            system: `You are a technical support agent. Answer the user's question concisely and accurately.${kbContext}`,
+            prompt: ticket.content,
+          })
+
+          send({ type: 'step', index: i + 1, total: rows.length, step: 'assessing', ticketId: ticket.id, preview })
+          const assessment = await assessAnswer(ticket.content, simAnswer, orgId)
+          const simWouldDeflect = assessment.confidence >= threshold && assessment.answered_fully
+          const actualWouldDeflect = ticket.aiDraftStatus === 'posted'
+
+          const result: SimTicketResult = {
+            id: ticket.id,
+            content: ticket.content.slice(0, 300),
+            category: ticket.category,
+            actualStatus: ticket.status,
+            actualAiDraftStatus: ticket.aiDraftStatus,
+            simAnswer: simAnswer.slice(0, 500),
+            simConfidence: assessment.confidence,
+            simAnsweredFully: assessment.answered_fully,
+            simReasoning: assessment.reasoning,
+            simWouldDeflect,
+            actualWouldDeflect,
+            match: simWouldDeflect === actualWouldDeflect,
+            durationMs: Date.now() - t0,
+          }
+          results.push(result)
+          send({ type: 'ticket_done', index: i + 1, total: rows.length, result })
+        } catch (err) {
+          logger.error('simulation ticket failed', { module: MOD, ticketId: ticket.id, error: err })
+          const result: SimTicketResult = {
+            id: ticket.id,
+            content: ticket.content.slice(0, 300),
+            category: ticket.category,
+            actualStatus: ticket.status,
+            actualAiDraftStatus: ticket.aiDraftStatus,
+            simAnswer: '[error]',
+            simConfidence: 0,
+            simAnsweredFully: false,
+            simReasoning: 'Error during simulation',
+            simWouldDeflect: false,
+            actualWouldDeflect: ticket.aiDraftStatus === 'posted',
+            match: false,
+            durationMs: Date.now() - t0,
+          }
+          results.push(result)
+          send({ type: 'ticket_done', index: i + 1, total: rows.length, result })
         }
-      } catch { /* ignore */ }
+      }
 
-      const { text: simAnswer } = await generateText({
-        model: await chatModel(model, orgId),
-        system: `You are a technical support agent. Answer the user's question concisely and accurately.${kbContext}`,
-        prompt: ticket.content,
-      })
+      const wouldDeflect = results.filter(r => r.simWouldDeflect).length
+      const actualDeflected = results.filter(r => r.actualWouldDeflect).length
+      const matched = results.filter(r => r.match).length
+      const avgConfidence = results.reduce((s, r) => s + r.simConfidence, 0) / results.length
+      const avgDurationMs = results.reduce((s, r) => s + r.durationMs, 0) / results.length
 
-      const assessment = await assessAnswer(ticket.content, simAnswer, orgId)
-      const simWouldDeflect = assessment.confidence >= threshold && assessment.answered_fully
-      const actualWouldDeflect = ticket.aiDraftStatus === 'posted'
+      const summary: SimulationResult['summary'] = {
+        total: results.length,
+        wouldDeflect,
+        deflectRate: wouldDeflect / results.length,
+        actualDeflectRate: actualDeflected / results.length,
+        matchRate: matched / results.length,
+        avgConfidence,
+        avgDurationMs,
+      }
 
-      results.push({
-        id: ticket.id,
-        content: ticket.content.slice(0, 300),
-        category: ticket.category,
-        actualStatus: ticket.status,
-        actualAiDraftStatus: ticket.aiDraftStatus,
-        simAnswer: simAnswer.slice(0, 500),
-        simConfidence: assessment.confidence,
-        simAnsweredFully: assessment.answered_fully,
-        simReasoning: assessment.reasoning,
-        simWouldDeflect,
-        actualWouldDeflect,
-        match: simWouldDeflect === actualWouldDeflect,
-        durationMs: Date.now() - t0,
-      })
-    } catch (err) {
-      logger.error('simulation ticket failed', { module: MOD, ticketId: ticket.id, error: err })
-      results.push({
-        id: ticket.id,
-        content: ticket.content.slice(0, 300),
-        category: ticket.category,
-        actualStatus: ticket.status,
-        actualAiDraftStatus: ticket.aiDraftStatus,
-        simAnswer: '[error]',
-        simConfidence: 0,
-        simAnsweredFully: false,
-        simReasoning: 'Error during simulation',
-        simWouldDeflect: false,
-        actualWouldDeflect: ticket.aiDraftStatus === 'posted',
-        match: false,
-        durationMs: Date.now() - t0,
-      })
-    }
-  }
-
-  const wouldDeflect = results.filter(r => r.simWouldDeflect).length
-  const actualDeflected = results.filter(r => r.actualWouldDeflect).length
-  const matched = results.filter(r => r.match).length
-  const avgConfidence = results.reduce((s, r) => s + r.simConfidence, 0) / results.length
-  const avgDurationMs = results.reduce((s, r) => s + r.durationMs, 0) / results.length
-
-  const response: SimulationResult = {
-    config: { count, model, threshold },
-    results,
-    summary: {
-      total: results.length,
-      wouldDeflect,
-      deflectRate: wouldDeflect / results.length,
-      actualDeflectRate: actualDeflected / results.length,
-      matchRate: matched / results.length,
-      avgConfidence,
-      avgDurationMs,
+      logger.info('simulation complete', { module: MOD, orgId, total: results.length, matchRate: summary.matchRate })
+      send({ type: 'done', summary, results, config: { count, model, threshold } })
+      controller.close()
     },
-  }
+  })
 
-  logger.info('simulation complete', { module: MOD, orgId, total: results.length, matchRate: response.summary.matchRate })
-  return Response.json(response)
+  return new Response(stream, {
+    headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8' },
+  })
 }
