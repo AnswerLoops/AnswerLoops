@@ -9,9 +9,15 @@ interface AIDraftPanelProps {
   ticketId: number
   draft: string
   status: AIDraftStatus
+  sourcePlatform?: string
 }
 
-export function AIDraftPanel({ ticketId, draft, status }: AIDraftPanelProps) {
+const PLATFORM_NAME: Record<string, string> = {
+  github: 'GitHub', slack: 'Slack', telegram: 'Telegram', email: 'email', discord: 'Discord',
+}
+
+export function AIDraftPanel({ ticketId, draft, status, sourcePlatform = 'discord' }: AIDraftPanelProps) {
+  const platformName = PLATFORM_NAME[sourcePlatform] ?? 'Discord'
   const [state, formAction, isPending] = useActionState(updateAIDraftAction, null)
   const [editing, setEditing] = useState(false)
   const [editedDraft, setEditedDraft] = useState(draft)
@@ -24,7 +30,7 @@ export function AIDraftPanel({ ticketId, draft, status }: AIDraftPanelProps) {
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-brand-700">AI Draft Answer</span>
           {status === 'posted' && (
-            <span className="text-xs text-brand-500">Posted to Discord — awaiting review</span>
+            <span className="text-xs text-brand-500">Posted to {platformName} — awaiting review</span>
           )}
           {status === 'approved' && (
             <span className="text-xs text-green-600 font-medium">Approved</span>
@@ -66,7 +72,7 @@ export function AIDraftPanel({ ticketId, draft, status }: AIDraftPanelProps) {
             />
             <div className="flex gap-2">
               <Button type="submit" size="sm" disabled={isPending}>
-                {isPending ? 'Saving…' : 'Save & re-post to Discord'}
+                {isPending ? 'Saving…' : `Save & post to ${platformName}`}
               </Button>
               <Button type="button" size="sm" variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
             </div>
