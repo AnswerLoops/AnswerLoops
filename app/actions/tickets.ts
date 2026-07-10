@@ -72,14 +72,32 @@ export async function postReplyAction(
   const ticket = await getTicketById(ticketId)
   if (!ticket) return { error: 'Ticket not found' }
 
-  // Post to Discord
-  const channelId = ticket.discord_thread_id ?? ticket.discord_channel_id
   let discordMsgId: string | undefined
 
-  if (channelId) {
-    const message = `**[Response from ${staffName}]:** ${content}`
-    const msgId = await sendToChannel(channelId, message)
-    discordMsgId = msgId ?? undefined
+  if (ticket.source_platform === 'github' && ticket.discord_channel_id && ticket.discord_message_id) {
+    const [owner, repo] = ticket.discord_channel_id.split('/')
+    const parts = ticket.discord_message_id.split('-')
+    const issueNumber = Number(parts[parts.length - 1])
+    if (owner && repo && issueNumber) {
+      try {
+        const { getRepoByOwnerAndName } = await import('@/lib/db/queries/github')
+        const { getInstallationOctokitById } = await import('@/lib/github/app')
+        const repoRecord = await getRepoByOwnerAndName(owner, repo)
+        if (repoRecord) {
+          const octokit = await getInstallationOctokitById(repoRecord.installation_id)
+          await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body: `**[${staffName}]:** ${content}` })
+        }
+      } catch (err) {
+        logger.warn('failed to post reply to github', { module: 'actions/tickets', error: err })
+      }
+    }
+  } else {
+    const channelId = ticket.discord_thread_id ?? ticket.discord_channel_id
+    if (channelId) {
+      const message = `**[Response from ${staffName}]:** ${content}`
+      const msgId = await sendToChannel(channelId, message)
+      discordMsgId = msgId ?? undefined
+    }
   }
 
   // Save reply
@@ -108,14 +126,51 @@ export async function updateAIDraftAction(
 
   if (action === 'approve') {
     await updateTicketAIDraftStatus(ticketId, 'approved')
+    // Post to GitHub if this ticket came from a GitHub issue
+    if (ticket.source_platform === 'github' && ticket.discord_channel_id && ticket.discord_message_id && ticket.ai_draft) {
+      const [owner, repo] = ticket.discord_channel_id.split('/')
+      const parts = ticket.discord_message_id.split('-')
+      const issueNumber = Number(parts[parts.length - 1])
+      if (owner && repo && issueNumber) {
+        try {
+          const { getRepoByOwnerAndName } = await import('@/lib/db/queries/github')
+          const { getInstallationOctokitById } = await import('@/lib/github/app')
+          const repoRecord = await getRepoByOwnerAndName(owner, repo)
+          if (repoRecord) {
+            const octokit = await getInstallationOctokitById(repoRecord.installation_id)
+            await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body: ticket.ai_draft })
+          }
+        } catch (err) {
+          logger.warn('failed to post approved draft to github', { module: 'actions/tickets', error: err })
+        }
+      }
+    }
   } else if (action === 'override') {
     await updateTicketAIDraftStatus(ticketId, 'overridden')
   } else if (action === 'edit' && newDraft) {
     await updateTicketAIDraftStatus(ticketId, 'approved', newDraft)
-    // Post edited draft to Discord
-    const channelId = ticket.discord_thread_id ?? ticket.discord_channel_id
-    if (channelId) {
-      await sendToChannel(channelId, `**[Updated AI Answer]**\n${newDraft}`)
+    if (ticket.source_platform === 'github' && ticket.discord_channel_id && ticket.discord_message_id) {
+      const [owner, repo] = ticket.discord_channel_id.split('/')
+      const parts = ticket.discord_message_id.split('-')
+      const issueNumber = Number(parts[parts.length - 1])
+      if (owner && repo && issueNumber) {
+        try {
+          const { getRepoByOwnerAndName } = await import('@/lib/db/queries/github')
+          const { getInstallationOctokitById } = await import('@/lib/github/app')
+          const repoRecord = await getRepoByOwnerAndName(owner, repo)
+          if (repoRecord) {
+            const octokit = await getInstallationOctokitById(repoRecord.installation_id)
+            await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body: newDraft })
+          }
+        } catch (err) {
+          logger.warn('failed to post edited draft to github', { module: 'actions/tickets', error: err })
+        }
+      }
+    } else {
+      const channelId = ticket.discord_thread_id ?? ticket.discord_channel_id
+      if (channelId) {
+        await sendToChannel(channelId, `**[Updated AI Answer]**\n${newDraft}`)
+      }
     }
   }
 
