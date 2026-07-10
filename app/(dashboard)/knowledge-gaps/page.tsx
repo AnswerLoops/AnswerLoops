@@ -94,32 +94,31 @@ export default async function KnowledgeGapsPage() {
                 const reason = REASON_LABEL[gap.gap_reason] ?? REASON_LABEL.no_kb_article
                 const confPct = gap.confidence != null ? Math.round(gap.confidence * 100) : null
                 return (
-                  <li key={gap.id}>
-                    <Link href={`/tickets/${gap.id}`} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50/70 transition-colors group">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800 truncate group-hover:text-gray-900">{gap.summary}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {gap.category && (
-                            <span className="text-[10px] text-gray-400">{CATEGORY_LABEL[gap.category] ?? gap.category}</span>
-                          )}
-                          {confPct != null && (
-                            <span className="text-[10px] text-gray-400">{confPct}% confidence</span>
-                          )}
-                        </div>
+                  <li key={gap.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50/70 transition-colors group">
+                    <div className="flex-1 min-w-0">
+                      <Link href={`/tickets/${gap.id}`} className="text-sm text-gray-800 truncate group-hover:text-gray-900 hover:underline block">
+                        {gap.summary}
+                      </Link>
+                      <div className="flex items-center gap-2 mt-1">
+                        {gap.category && (
+                          <span className="text-[10px] text-gray-400">{CATEGORY_LABEL[gap.category] ?? gap.category}</span>
+                        )}
+                        {confPct != null && (
+                          <span className="text-[10px] text-gray-400">{confPct}% confidence</span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${reason.color}`}>
-                          {reason.label}
-                        </span>
-                        <Link
-                          href={`/kb?sourceTicket=${gap.id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-[10px] font-medium text-brand-600 hover:text-brand-700 border border-brand-200 rounded-full px-2 py-0.5 hover:bg-brand-50 transition-colors"
-                        >
-                          + KB
-                        </Link>
-                      </div>
-                    </Link>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${reason.color}`}>
+                        {reason.label}
+                      </span>
+                      <Link
+                        href={`/kb?sourceTicket=${gap.id}`}
+                        className="text-[10px] font-medium text-brand-600 hover:text-brand-700 border border-brand-200 rounded-full px-2 py-0.5 hover:bg-brand-50 transition-colors"
+                      >
+                        + KB
+                      </Link>
+                    </div>
                   </li>
                 )
               })}
