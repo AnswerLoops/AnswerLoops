@@ -11,6 +11,7 @@ import {
   User,
   PartialUser,
   ChatInputCommandInteraction,
+  AnyThreadChannel,
 } from 'discord.js'
 import {
   forwardMessage,
@@ -268,6 +269,47 @@ async function main() {
         module: MOD,
         ticketId: result.data.ticket_id,
         messageId: message.id,
+        orgId: orgCfg?.orgId,
+      })
+    }
+  })
+
+  // Forum posts fire ThreadCreate (not MessageCreate) — the starter message
+  // is the thread's initial post content. Replies inside the thread fire
+  // MessageCreate with channel.isThread() === true, which isMonitored() already handles.
+  client.on(Events.ThreadCreate, async (thread: AnyThreadChannel, newlyCreated: boolean) => {
+    if (!newlyCreated) return
+    if (!thread.parentId) return
+    const guildId = thread.guildId
+    const orgCfg = guildId ? await loadOrgConfigForGuild(guildId).catch(() => null) : null
+    const cfg = orgCfg?.config ?? live.config
+    if (!cfg.channelIds.includes(thread.parentId)) return
+
+    let starterMessage: Message | null = null
+    try {
+      starterMessage = await thread.fetchStarterMessage()
+    } catch (err) {
+      logger.warn('failed to fetch forum starter message', { module: MOD, threadId: thread.id, error: err })
+      return
+    }
+    if (!starterMessage) return
+
+    const incomingMsg: IncomingMessage = {
+      id: starterMessage.id,
+      content: starterMessage.content,
+      channelId: thread.id,
+      guildId: guildId ?? null,
+      author: { bot: starterMessage.author.bot, id: starterMessage.author.id, username: starterMessage.author.username },
+      channel: { isThread: () => true, parentId: thread.parentId },
+    }
+    const result = await forwardMessage(incomingMsg, cfg)
+    if (result.data?.duplicate) {
+      logger.debug('duplicate forum post skipped', { module: MOD, threadId: thread.id })
+    } else if (result.data?.ticket_id) {
+      logger.info('ticket created from forum post', {
+        module: MOD,
+        ticketId: result.data.ticket_id,
+        threadId: thread.id,
         orgId: orgCfg?.orgId,
       })
     }

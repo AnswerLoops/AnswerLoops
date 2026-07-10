@@ -4,6 +4,24 @@ import { StatusBadge, PriorityBadge, CategoryBadge, AIDraftBadge } from '@/compo
 import { getSLAStatus } from '@/lib/sla/engine'
 import { LocalDate } from '@/components/ui/local-date'
 
+const PLATFORM_BADGE: Record<string, { label: string; className: string }> = {
+  discord:  { label: 'Discord',  className: 'bg-indigo-100 text-indigo-700' },
+  github:   { label: 'GitHub',   className: 'bg-gray-100 text-gray-700' },
+  slack:    { label: 'Slack',    className: 'bg-green-100 text-green-700' },
+  telegram: { label: 'Telegram', className: 'bg-sky-100 text-sky-700' },
+  email:    { label: 'Email',    className: 'bg-yellow-100 text-yellow-700' },
+}
+
+function PlatformBadge({ platform }: { platform: string | null | undefined }) {
+  const p = platform ?? 'discord'
+  const badge = PLATFORM_BADGE[p] ?? { label: p, className: 'bg-gray-100 text-gray-600' }
+  return (
+    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${badge.className}`}>
+      {badge.label}
+    </span>
+  )
+}
+
 function SLAIndicator({ ticket }: { ticket: Ticket }) {
   const sla = getSLAStatus(ticket)
   if (!sla.anyBreached) return null
@@ -26,6 +44,7 @@ export function TicketList({ tickets }: { tickets: Ticket[] }) {
           <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs text-gray-500 font-medium">
             <th className="px-4 py-2.5">#</th>
             <th className="px-4 py-2.5">Summary</th>
+            <th className="px-4 py-2.5">Source</th>
             <th className="px-4 py-2.5">Category</th>
             <th className="px-4 py-2.5">Priority</th>
             <th className="px-4 py-2.5">Status</th>
@@ -43,6 +62,9 @@ export function TicketList({ tickets }: { tickets: Ticket[] }) {
                 <Link href={`/tickets/${ticket.id}`} className="text-gray-900 hover:text-brand-600 line-clamp-2">
                   {ticket.ai_summary ?? ticket.content.slice(0, 100)}
                 </Link>
+              </td>
+              <td className="px-4 py-3">
+                <PlatformBadge platform={ticket.source_platform} />
               </td>
               <td className="px-4 py-3">
                 {ticket.category && <CategoryBadge category={ticket.category} />}
