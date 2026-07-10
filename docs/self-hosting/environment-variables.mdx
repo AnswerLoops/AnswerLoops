@@ -3,104 +3,145 @@ title: Environment Variables
 description: Every environment variable AnswerLoops uses, with defaults and requirements.
 ---
 
-Copy `.env.example` to `.env` and fill in the values below.
+Copy `.env.local.example` to `.env.local` and fill in the values below.
+
+<Note>
+  AnswerLoops uses **Auth.js v5**. The required env vars are `AUTH_URL` and `AUTH_SECRET`. If you see `NEXTAUTH_URL` or `NEXTAUTH_SECRET` in older docs or guides, those are the v4 names — they will not work here.
+</Note>
 
 ## Core (required)
 
 | Variable | Description | Example |
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://community:community@postgres:5432/community` |
-| `NEXTAUTH_URL` | Full URL of your deployment | `http://localhost:3000` |
-| `NEXTAUTH_SECRET` | Random 32-byte hex — signs JWT sessions | `openssl rand -hex 32` |
-| `ENCRYPTION_KEY` | Random 32-byte hex — encrypts stored API keys | `openssl rand -hex 32` |
+| `AUTH_URL` | Full public URL of your deployment | `http://localhost:3000` or `https://app.example.com` |
+| `AUTH_SECRET` | Random 32-byte hex — signs JWT sessions | `openssl rand -hex 32` |
+| `ENCRYPTION_KEY` | Random 32-byte hex — encrypts stored API keys and bot tokens at rest | `openssl rand -hex 32` |
 
 ## OAuth (at least one required)
+
+Login uses GitHub, Discord, or Google OAuth. Configure at least one.
 
 | Variable | Description |
 |---|---|
 | `AUTH_GITHUB_ID` | GitHub OAuth App client ID |
 | `AUTH_GITHUB_SECRET` | GitHub OAuth App client secret |
+| `AUTH_DISCORD_ID` | Discord OAuth2 client ID |
+| `AUTH_DISCORD_SECRET` | Discord OAuth2 client secret |
 | `AUTH_GOOGLE_ID` | Google OAuth client ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth client secret |
 
 Callback URLs to register:
-- GitHub: `{NEXTAUTH_URL}/api/auth/callback/github`
-- Google: `{NEXTAUTH_URL}/api/auth/callback/google`
+- GitHub: `{AUTH_URL}/api/auth/callback/github`
+- Discord: `{AUTH_URL}/api/auth/callback/discord`
+- Google: `{AUTH_URL}/api/auth/callback/google`
 
-## AI (required for deflection and search)
+## AI providers (optional — at least one recommended)
 
-| Variable | Description |
+Per-org AI keys set in **Settings → AI Model** override these env vars for that org. The platform key is the fallback when no org key is set.
+
+| Variable | Provider |
 |---|---|
-| `OPENAI_API_KEY` | Platform-default OpenAI key. Per-org keys can be set in Settings → AI Model. |
-
-<Info>
-  Per-org AI keys set in the dashboard override `OPENAI_API_KEY` for that org. The platform key is used when no org key is configured.
-</Info>
+| `OPENAI_API_KEY` | OpenAI (covers all features including embeddings) |
+| `ANTHROPIC_API_KEY` | Anthropic platform default |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google Gemini platform default |
+| `GROQ_API_KEY` | Groq platform default |
+| `MISTRAL_API_KEY` | Mistral platform default |
 
 ## Discord (optional)
 
 | Variable | Description |
 |---|---|
-| `DISCORD_TOKEN` | Bot token from Discord Developer Portal → Bot tab |
-| `DISCORD_CLIENT_ID` | Application ID from Discord Developer Portal → General Information. Required for 1-click OAuth install. Same value as `DISCORD_APPLICATION_ID`. |
-| `DISCORD_APPLICATION_ID` | Application ID — used for slash command registration |
-| `DISCORD_CHANNEL_IDS` | Comma-separated channel IDs (env-var fallback if no DB integration set) |
-| `DISCORD_GUILD_ID` | Server (guild) ID — limits slash command registration to one server during dev |
-| `AUTH_URL` | Public URL of your deployment (e.g. `https://app.example.com`). Required for OAuth redirect URIs. |
+| `DISCORD_TOKEN` | Platform shared bot token. Required for 1-click OAuth mode and for the channel picker in Settings. |
+| `DISCORD_CLIENT_ID` | Application ID — enables the "Add to Discord" OAuth flow. Register callback: `{AUTH_URL}/api/discord/callback` |
+| `DISCORD_CLIENT_SECRET` | OAuth2 client secret from Discord Developer Portal → OAuth2 tab |
+| `DISCORD_APPLICATION_ID` | Application ID for slash command registration (same value as `DISCORD_CLIENT_ID`) |
+| `DISCORD_GUILD_ID` | Guild ID for guild-scoped slash command registration during dev (instant vs. global's 1-hour delay) |
+| `BOT_SECRET` | Shared secret between the bot service and `/api/ingest`. Auto-generated per-org via Settings; this is the env fallback. |
+| `BOT_TARGET_URL` | URL of the app service as seen from the bot container. **No trailing slash or period.** Default: `http://localhost:3000` |
 
-<Info>
-  Add `{AUTH_URL}/api/discord/callback` to your Discord app's OAuth2 Redirect URIs in the Developer Portal.
-</Info>
+<Warning>
+  `DISCORD_TOKEN` must be set on **both** the app service and the bot service. The app service uses it to power the channel picker in Settings → Discord. The bot service uses it to connect to Discord's gateway. If they reference different Discord applications, the bot joins a different server than users authorized.
+</Warning>
 
 ## Slack (optional)
 
-Slack supports two install paths:
-
-| Path | When to use |
-|---|---|
-| **1-click OAuth** | Set `SLACK_CLIENT_ID` + `SLACK_CLIENT_SECRET`. Users click "Add to Slack" — no credentials to copy. |
-| **Polling (manual)** | Omit OAuth vars. Users paste a bot token directly. No webhook or admin access required. |
-
 | Variable | Description |
 |---|---|
-| `SLACK_CLIENT_ID` | OAuth app Client ID from `api.slack.com/apps` → Basic Information. Enables 1-click install. |
+| `SLACK_CLIENT_ID` | OAuth app Client ID. Enables 1-click "Add to Slack" install. |
 | `SLACK_CLIENT_SECRET` | OAuth app Client Secret. Required with `SLACK_CLIENT_ID`. |
-| `SLACK_SIGNING_SECRET` | App signing secret from Basic Information. Required only if using the Slack Events API webhook (not needed for polling mode). |
-| `SLACK_POLL_INTERVAL_SECONDS` | How often the bot polls Slack for new messages. Default: `60`. Minimum recommended: `30`. |
+| `SLACK_SIGNING_SECRET` | Signing secret — verifies Events API webhook payloads. |
+| `SLACK_POLL_INTERVAL_SECONDS` | Poll interval in polling mode. Default: `60`. Minimum: `30`. |
 
-<Info>
-  In polling mode the bot calls `conversations.history` on an interval — no public webhook URL required. Ideal for enterprises that cannot grant inbound webhook access.
-  
-  Add `{AUTH_URL}/api/slack/callback` to your Slack app's OAuth Redirect URLs when using 1-click install.
-</Info>
-
-## Stripe (optional)
-
-| Variable | Description |
-|---|---|
-| `STRIPE_SECRET_KEY` | Live or test secret key (`sk_...`) |
-| `STRIPE_WEBHOOK_SECRET` | Webhook endpoint signing secret (`whsec_...`) |
-| `STRIPE_PRICE_PRO` | Stripe price ID for Pro plan |
-| `STRIPE_PRICE_SCALE` | Stripe price ID for Scale plan |
-| `STRIPE_PRICE_ENTERPRISE` | Stripe price ID for Enterprise plan |
+Add `{AUTH_URL}/api/slack/callback` to your Slack app's OAuth Redirect URLs.
 
 ## GitHub App (optional)
 
 | Variable | Description |
 |---|---|
-| `GITHUB_APP_ID` | GitHub App ID |
-| `GITHUB_APP_PRIVATE_KEY` | PEM private key (base64 or raw) |
-| `GITHUB_WEBHOOK_SECRET` | Webhook secret for signature verification |
+| `GITHUB_APP_ID` | App ID from GitHub App settings page |
+| `GITHUB_APP_PRIVATE_KEY` | Base64-encoded PEM: `base64 -i your-app.pem \| tr -d '\n'` |
+| `GITHUB_WEBHOOK_SECRET` | Webhook secret. **Generate with `openssl rand -hex 32` and paste without the trailing newline.** |
+| `GITHUB_APP_SLUG` | URL-safe app name (slug) — shown in your GitHub App's URL |
 
-## Push notifications (optional)
+Register these URLs in your GitHub App:
+- Callback URL: `{AUTH_URL}/api/github/callback`
+- Webhook URL: `{AUTH_URL}/api/github/webhook`
+
+Subscribe to events: Issues, Issue comments, Discussions, Discussion comments, Push.
+
+## Telegram (optional)
 
 | Variable | Description |
 |---|---|
-| `VAPID_PUBLIC_KEY` | VAPID public key for Web Push |
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather. Fallback when no org token is saved. |
+
+After deploying, register the webhook: `POST {AUTH_URL}/api/telegram/register` (or click **Register webhook** in Settings → Telegram).
+
+## Email notifications — Resend (optional)
+
+| Variable | Description |
+|---|---|
+| `RESEND_API_KEY` | API key from resend.com. Enables email alerts (new ticket, SLA breach, resolved). |
+| `RESEND_FROM` | Verified sender address e.g. `hello@yourdomain.com` |
+| `RESEND_WAITLIST_FROM` | From address for waitlist confirmation emails. Falls back to `RESEND_FROM`. |
+
+If absent, email notifications skip silently — nothing breaks.
+
+## URL ingest — Firecrawl (optional)
+
+| Variable | Description |
+|---|---|
+| `FIRECRAWL_API_KEY` | API key from firecrawl.dev. Enables Settings → Import from URL to crawl docs sites into the KB. |
+
+## Stripe billing (optional)
+
+| Variable | Description |
+|---|---|
+| `STRIPE_SECRET_KEY` | Live or test secret key (`sk_live_...` or `sk_test_...`) |
+| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (`whsec_...`) — add endpoint: `{AUTH_URL}/api/billing/webhook` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Publishable key (`pk_live_...` or `pk_test_...`) |
+| `STRIPE_PRICE_PRO` | Stripe price ID for Pro plan |
+| `STRIPE_PRICE_SCALE` | Stripe price ID for Scale plan |
+| `STRIPE_PRICE_ENTERPRISE` | Stripe price ID for Enterprise plan |
+
+Subscribe your webhook to: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`.
+
+## Web push notifications (optional)
+
+| Variable | Description |
+|---|---|
+| `VAPID_PUBLIC_KEY` | VAPID public key |
 | `VAPID_PRIVATE_KEY` | VAPID private key |
 | `VAPID_EMAIL` | `mailto:you@example.com` — identifies your push endpoint |
 
-Generate VAPID keys:
+Generate keys:
 ```bash
-npx web-push generate-vapid-keys
+pnpm dlx web-push generate-vapid-keys
 ```
+
+## Access control (optional)
+
+| Variable | Description |
+|---|---|
+| `ALLOWED_EMAILS` | Comma-separated email addresses allowed to log in. Leave empty for open access. Blocked users see an invite-only error at `/login?error=AccessDenied`. |

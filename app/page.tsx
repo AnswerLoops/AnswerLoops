@@ -27,6 +27,7 @@ function Nav({ loggedIn }: { loggedIn: boolean }) {
             <Link href="#features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Features</Link>
             <Link href="#how-it-works" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">How it works</Link>
             <Link href="#pricing" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Pricing</Link>
+            <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Docs</a>
           </nav>
         </div>
         <div className="flex items-center gap-3">

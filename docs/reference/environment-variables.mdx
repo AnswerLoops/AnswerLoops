@@ -1,38 +1,134 @@
 ---
-title: Environment Variables Reference
-description: Complete reference for all AnswerLoops environment variables.
+title: Environment Variables
+description: Complete reference for every environment variable recognised by AnswerLoops.
 ---
 
-See [Self-Hosting → Environment Variables](/self-hosting/environment-variables) for the full annotated reference with setup instructions.
+All variables are set in your `.env` file (local) or in your hosting provider's environment configuration (production). Variables marked **Required** must be present or the app will refuse to start.
 
-## Quick reference table
+<Note>
+  AnswerLoops uses **Auth.js v5**. The correct variable names are `AUTH_SECRET` and `AUTH_URL` — **not** `NEXTAUTH_SECRET` / `NEXTAUTH_URL`. If you are migrating from an older deployment, rename them.
+</Note>
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DATABASE_URL` | ✅ | — | PostgreSQL connection string |
-| `NEXTAUTH_URL` | ✅ | — | Full URL of your deployment |
-| `NEXTAUTH_SECRET` | ✅ | — | 32-byte hex — signs JWT sessions |
-| `ENCRYPTION_KEY` | ✅ | — | 32-byte hex — encrypts stored API keys |
-| `AUTH_GITHUB_ID` | ⚠️ one required | — | GitHub OAuth client ID |
-| `AUTH_GITHUB_SECRET` | ⚠️ one required | — | GitHub OAuth client secret |
-| `AUTH_GOOGLE_ID` | ⚠️ one required | — | Google OAuth client ID |
-| `AUTH_GOOGLE_SECRET` | ⚠️ one required | — | Google OAuth client secret |
-| `OPENAI_API_KEY` | ✅ | — | Platform-default AI key |
-| `DISCORD_TOKEN` | Optional | — | Discord bot token |
-| `DISCORD_CHANNEL_IDS` | Optional | — | Comma-separated channel IDs |
-| `DISCORD_APPLICATION_ID` | Optional | — | Discord app ID |
-| `DISCORD_GUILD_ID` | Optional | — | Discord server ID |
-| `SLACK_BOT_TOKEN` | Optional | — | Slack bot token (`xoxb-...`) |
-| `SLACK_SIGNING_SECRET` | Optional | — | Slack signing secret |
-| `SLACK_TEAM_ID` | Optional | — | Slack workspace team ID |
-| `STRIPE_SECRET_KEY` | Optional | — | Stripe secret key |
-| `STRIPE_WEBHOOK_SECRET` | Optional | — | Stripe webhook signing secret |
-| `STRIPE_PRICE_PRO` | Optional | — | Stripe price ID for Pro ($29/mo) |
-| `STRIPE_PRICE_SCALE` | Optional | — | Stripe price ID for Scale ($79/mo) |
-| `STRIPE_PRICE_ENTERPRISE` | Optional | — | Stripe price ID for Enterprise ($299/mo) |
-| `GITHUB_APP_ID` | Optional | — | GitHub App ID |
-| `GITHUB_APP_PRIVATE_KEY` | Optional | — | GitHub App private key (PEM) |
-| `GITHUB_WEBHOOK_SECRET` | Optional | — | GitHub webhook secret |
-| `VAPID_PUBLIC_KEY` | Optional | — | Web Push VAPID public key |
-| `VAPID_PRIVATE_KEY` | Optional | — | Web Push VAPID private key |
-| `VAPID_EMAIL` | Optional | — | `mailto:you@example.com` |
+## Core (required)
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://user:pass@host:5432/dbname` |
+| `AUTH_SECRET` | Random 32-byte secret used to sign Auth.js v5 session tokens. Generate with `openssl rand -hex 32` |
+| `AUTH_URL` | Full public URL of your deployment, e.g. `https://answerloops.com`. Used by Auth.js for OAuth callbacks |
+| `ENCRYPTION_KEY` | 32-byte hex key used to encrypt stored API keys at rest. Generate with `openssl rand -hex 32` |
+
+## OAuth providers
+
+At least one OAuth provider must be configured so users can sign in.
+
+| Variable | Description |
+|---|---|
+| `AUTH_GITHUB_ID` | GitHub OAuth App client ID |
+| `AUTH_GITHUB_SECRET` | GitHub OAuth App client secret |
+| `AUTH_DISCORD_ID` | Discord OAuth2 client ID |
+| `AUTH_DISCORD_SECRET` | Discord OAuth2 client secret |
+| `AUTH_GOOGLE_ID` | Google OAuth client ID |
+| `AUTH_GOOGLE_SECRET` | Google OAuth client secret |
+
+Callback URLs to register with each provider:
+
+- GitHub: `https://<your-domain>/api/auth/callback/github`
+- Discord: `https://<your-domain>/api/auth/callback/discord`
+- Google: `https://<your-domain>/api/auth/callback/google`
+
+## AI providers
+
+These are platform-wide defaults. Individual orgs can override the AI model in **Settings → AI Model**.
+
+| Variable | Description |
+|---|---|
+| `OPENAI_API_KEY` | OpenAI API key — enables GPT models and OpenAI embeddings |
+| `ANTHROPIC_API_KEY` | Anthropic API key — enables Claude models |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI API key — enables Gemini models |
+| `GROQ_API_KEY` | Groq API key — enables fast open-weight model inference |
+| `MISTRAL_API_KEY` | Mistral API key — enables Mistral models |
+
+<Note>
+  At least one AI provider key is strongly recommended. Without one, AI draft replies are disabled and KB search falls back to keyword matching.
+</Note>
+
+## Discord
+
+| Variable | Description |
+|---|---|
+| `DISCORD_TOKEN` | Bot token from the Discord Developer Portal. Required on both the app service (for the channel picker UI) and the bot service |
+| `DISCORD_CLIENT_ID` | Discord application client ID. Must be from the same application as `DISCORD_TOKEN` |
+| `DISCORD_CLIENT_SECRET` | Discord application client secret (used for OAuth) |
+| `DISCORD_APPLICATION_ID` | Discord application ID (same value as `DISCORD_CLIENT_ID` in most setups) |
+| `DISCORD_GUILD_ID` | ID of the Discord server to monitor |
+| `BOT_SECRET` | Shared secret between the bot and the app for authenticating ingest requests |
+| `BOT_TARGET_URL` | Base URL the bot posts ingested messages to, e.g. `https://answerloops.com` — no trailing slash |
+
+## Slack
+
+| Variable | Description |
+|---|---|
+| `SLACK_CLIENT_ID` | Slack app client ID |
+| `SLACK_CLIENT_SECRET` | Slack app client secret |
+| `SLACK_SIGNING_SECRET` | Used to verify that incoming Slack events are genuine |
+| `SLACK_POLL_INTERVAL_SECONDS` | How often (in seconds) the app polls Slack for new messages. Defaults to `60` |
+
+## GitHub
+
+| Variable | Description |
+|---|---|
+| `GITHUB_APP_ID` | Numeric ID of your GitHub App |
+| `GITHUB_APP_PRIVATE_KEY` | PEM-encoded private key generated in the GitHub App settings |
+| `GITHUB_WEBHOOK_SECRET` | Secret used to verify GitHub webhook payloads. Generate with `openssl rand -hex 32` — paste without trailing newline |
+| `GITHUB_APP_SLUG` | URL slug for your GitHub App, e.g. `answerloops` |
+
+## Telegram
+
+| Variable | Description |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather on Telegram |
+
+## Resend (email)
+
+| Variable | Description |
+|---|---|
+| `RESEND_API_KEY` | Resend API key — used for both outbound transactional email and the email ingest channel |
+| `RESEND_FROM` | Default sender address for transactional emails, e.g. `support@answerloops.com` |
+| `RESEND_WAITLIST_FROM` | Sender address for waitlist emails (can be the same as `RESEND_FROM`) |
+
+## Firecrawl
+
+| Variable | Description |
+|---|---|
+| `FIRECRAWL_API_KEY` | Firecrawl API key — required for KB URL crawl imports |
+
+## Stripe
+
+| Variable | Description |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_...` or `sk_test_...`) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key — exposed to the browser for Checkout |
+| `STRIPE_PRICE_PRO` | Stripe Price ID for the Pro plan |
+| `STRIPE_PRICE_SCALE` | Stripe Price ID for the Scale plan |
+| `STRIPE_PRICE_ENTERPRISE` | Stripe Price ID for the Enterprise plan |
+
+## Web Push (VAPID)
+
+| Variable | Description |
+|---|---|
+| `VAPID_PUBLIC_KEY` | VAPID public key for browser push notifications |
+| `VAPID_PRIVATE_KEY` | VAPID private key |
+| `VAPID_EMAIL` | Contact email included in VAPID headers, e.g. `mailto:admin@answerloops.com` |
+
+Generate a VAPID key pair with:
+```bash
+npx web-push generate-vapid-keys
+```
+
+## Access control
+
+| Variable | Description |
+|---|---|
+| `ALLOWED_EMAILS` | Comma-separated list of email addresses permitted to sign in. When set, only these addresses can log in — all others are rejected. Used during waitlist / private-beta mode. Leave unset to allow any authenticated user |

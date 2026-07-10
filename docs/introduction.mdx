@@ -1,43 +1,56 @@
 ---
 title: What is AnswerLoops?
-description: AI-powered community support that deflects repetitive questions automatically.
+description: AI-powered community support that automatically deflects repetitive questions across Discord, Slack, GitHub, Telegram, Email, and your website.
 ---
 
-AnswerLoops connects to your Discord or Slack community and uses AI to automatically answer support questions — pulling answers from your knowledge base so your team spends less time on repeat questions.
+AnswerLoops is an AI-powered community support platform. It watches the channels where your users ask questions, searches your knowledge base for a matching answer, and replies automatically — so your team handles edge cases and complex issues instead of answering the same question for the fiftieth time.
 
 ## How it works
 
-1. **Ingest** — A user posts a question in Discord or Slack
-2. **Search** — AnswerLoops searches your knowledge base for a matching answer using semantic vector search
-3. **Deflect** — If confidence is above your threshold (default 0.8), the AI posts an answer directly in the thread
-4. **Escalate** — If confidence is low, it pings your support role so a human can step in
-5. **Learn** — Resolved answers can be promoted back to the knowledge base
+1. **Ingest** — A user posts a question in Discord, Slack, GitHub Discussions, Telegram, or via Email or your website widget
+2. **Search** — AnswerLoops runs a semantic vector search against your knowledge base to find the best-matching content
+3. **Deflect** — If the AI's confidence exceeds your threshold (default 0.8), it posts an answer directly in the thread or channel
+4. **Escalate** — If confidence is too low, it pings your support role so a human can respond
+5. **Learn** — Resolved tickets can be promoted back to the knowledge base to close the loop
 
 ## Key features
 
 | Feature | Description |
 |---|---|
-| AI deflection | Answers questions automatically with configurable confidence threshold |
-| Knowledge base | Import docs via URL crawl or promote resolved tickets |
-| Human escalation | Role ping on low-confidence answers |
-| CSAT scoring | Post-resolution rating prompts |
-| Simulation mode | Dry-run AI against past tickets — zero writes |
-| Knowledge gaps | Surfaces questions the AI couldn't answer |
-| Widget | Embeddable chat widget with lead capture |
-| Multi-provider AI | OpenAI, Anthropic, Google, Groq, Mistral, Ollama |
-| Enterprise-friendly install | Polling mode for Slack/Discord — no inbound webhook, no admin approval, outbound-only |
+| AI deflection | Automatically answers questions using your docs, with a configurable confidence threshold |
+| Multi-channel ingest | Discord (text + forum channels), Slack, GitHub Issues & Discussions, Telegram, Email, Website widget |
+| Knowledge base | URL crawl (Firecrawl), file upload (PDF/DOCX/MD/TXT/CSV), GitHub repo sync, or promote resolved tickets |
+| Knowledge gaps | Surfaces questions the AI couldn't answer so you can fill content holes |
+| Human escalation | Pings a support role when AI confidence is too low |
+| CSAT scoring | Post-resolution rating prompts sent back through the same channel |
+| Simulation mode | Dry-run AI against past tickets — no replies sent, zero writes |
+| Ticket list | Unified inbox with source badges (Discord, GitHub, Slack, Telegram, Email) |
+| Multi-provider AI | OpenAI, Anthropic, Google Gemini, Groq, Mistral, Ollama |
+| Website widget | Embeddable script tag with lead capture |
 | Billing | Pro $29/mo · Scale $79/mo · Enterprise $299/mo |
+
+## Ingest channels
+
+| Channel | How it connects | What ingests |
+|---|---|---|
+| Discord | 1-click OAuth (cloud) or bot token (self-host) | Text channel messages + forum thread posts + replies |
+| Slack | 1-click OAuth or polling mode | Channel messages |
+| GitHub | GitHub App webhook | Issues, issue comments, Discussions, discussion comments |
+| Telegram | Webhook via bot token | Messages in configured chats |
+| Email | Provider-agnostic inbound webhook | Any inbound email forwarded to the webhook URL |
+| Website widget | Embeddable `<script>` tag | Widget chat sessions |
 
 ## Deployment options
 
-- **Cloud** — Sign up at [app.answerloops.com](https://app.answerloops.com), no setup required
-- **Self-host** — Run on your own infrastructure with Docker; full data ownership
+**Cloud** — Sign up at [app.answerloops.com](https://app.answerloops.com), no infrastructure or bot setup required. Discord connects in one click via OAuth.
+
+**Self-host** — Run on your own servers using Docker Compose. Full data ownership, bring your own AI provider keys, all features available.
 
 <CardGroup cols={2}>
   <Card title="Cloud Quickstart" icon="rocket" href="/quickstart-cloud">
-    Up in 5 minutes, no infrastructure needed
+    Up in 5 minutes — no infrastructure needed, no Developer Portal
   </Card>
   <Card title="Self-Host Quickstart" icon="server" href="/quickstart-self-host">
-    Run on your own infrastructure with Docker
+    Docker Compose setup with full data ownership
   </Card>
 </CardGroup>

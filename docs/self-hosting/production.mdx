@@ -14,8 +14,8 @@ description: Deploy AnswerLoops to a production server.
 
 Before going live, verify these are set in your production `.env`:
 
-- [ ] `NEXTAUTH_URL` set to your production domain (e.g. `https://app.yourdomain.com`)
-- [ ] `NEXTAUTH_SECRET` — unique 32-byte hex, not the same as dev
+- [ ] `AUTH_URL` set to your production domain (e.g. `https://app.yourdomain.com`)
+- [ ] `AUTH_SECRET` — unique 32-byte hex, not the same as dev
 - [ ] `ENCRYPTION_KEY` — unique 32-byte hex, not the same as dev
 - [ ] `DATABASE_URL` pointing to production database
 - [ ] OAuth callback URLs updated in GitHub/Google dashboards
@@ -58,6 +58,6 @@ docker compose -f docker-compose.yml up -d --build
 ## Health check
 
 ```bash
-curl https://app.yourdomain.com/api/feedback
-# Should return 200
+curl https://app.yourdomain.com/api/health
+# → {"ok":true}
 ```
