@@ -7,7 +7,7 @@ export async function POST() {
   const session = await auth()
   const orgId = session?.orgId ?? DEFAULT_ORG_ID
 
-  const tickets = await getResolvedTicketsThisWeek()
+  const tickets = await getResolvedTicketsThisWeek(orgId)
 
   const now = new Date()
   const weekStart = new Date(now)
