@@ -1,3 +1,5 @@
+name: answerloops
+
 # Production stack: built image, no source bind-mount, no dev server.
 # Requires a .env file with DATABASE_URL pointing to Neon (or another Postgres).
 #
@@ -11,7 +13,7 @@ services:
     build:
       context: .
       target: runner
-    image: community-platform:latest
+    image: answerloops:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -27,7 +29,7 @@ services:
     build:
       context: .
       target: runner
-    image: community-platform:latest
+    image: answerloops:latest
     restart: unless-stopped
     env_file:
       - path: .env

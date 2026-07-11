@@ -25,16 +25,15 @@ RUN pnpm build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Create non-root user before COPY so --chown can reference it.
 RUN npm install -g pnpm@11.6.0 \
-  && addgroup -S app && adduser -S app -G app
+  && addgroup -S app && adduser -S app -G app \
+  && mkdir -p /data && chown app:app /data
 
-# Copy the whole built tree: compiled node_modules, .next, and source.
-# Source is needed at runtime — schema.sql is read via fs, and the bot
-# runs through tsx. .dockerignore keeps data/ and secrets out.
-COPY --from=build /app ./
-
-# Persistent SQLite lives here; mount a named volume at /data.
-RUN mkdir -p /data && chown -R app:app /app /data
+# --chown sets ownership during the layer transfer — no separate chown -R pass
+# needed, which avoids recursing through hundreds of thousands of node_modules
+# inodes and causing multi-hour builds on Docker Desktop.
+COPY --chown=app:app --from=build /app ./
 USER app
 
 EXPOSE 3000

@@ -17,10 +17,6 @@ async function getCallbackUrl(): Promise<string> {
   return '/dashboard'
 }
 
-export async function loginWithGitHub(): Promise<void> {
-  await signIn('github', { redirectTo: await getCallbackUrl() })
-}
-
 export async function loginWithGoogle(): Promise<void> {
   await signIn('google', { redirectTo: await getCallbackUrl() })
 }
