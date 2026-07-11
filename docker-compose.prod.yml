@@ -11,7 +11,7 @@ services:
     build:
       context: .
       target: runner
-    image: community-platform:latest
+    image: answerloops:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -27,7 +27,7 @@ services:
     build:
       context: .
       target: runner
-    image: community-platform:latest
+    image: answerloops:latest
     restart: unless-stopped
     env_file:
       - path: .env
