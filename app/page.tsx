@@ -4,6 +4,7 @@ import { ORDERED_PLANS } from '@/lib/billing/plans'
 import { LogoMark, Logo } from '@/components/logo'
 import { AnimatedChat } from '@/components/animated-chat'
 import { WaitlistForm } from '@/components/waitlist-form'
+import { MobileDrawer } from '@/components/ui/mobile-drawer'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +45,18 @@ function Nav({ loggedIn }: { loggedIn: boolean }) {
               Coming soon
             </span>
           )}
+          <MobileDrawer triggerLabel="Open navigation" triggerClassName="md:hidden">
+            <nav className="flex flex-col p-4 gap-1">
+              <Link href="#features" className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">Features</Link>
+              <Link href="#how-it-works" className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">How it works</Link>
+              <Link href="#pricing" className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">Pricing</Link>
+              <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">Docs</a>
+              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                <GithubIcon />
+                GitHub
+              </a>
+            </nav>
+          </MobileDrawer>
         </div>
       </div>
     </header>

@@ -20,14 +20,14 @@ export default async function TicketsPage(props: { searchParams: Promise<SearchP
 
   return (
     <div className="space-y-4 max-w-6xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-lg font-semibold text-gray-900">Tickets</h1>
           <p className="text-sm text-gray-500">{tickets.length} ticket{tickets.length !== 1 ? 's' : ''}</p>
         </div>
 
         {/* Filter bar */}
-        <form className="flex items-center gap-2 text-sm">
+        <form className="flex flex-wrap items-center gap-2 text-sm">
           <select name="status" defaultValue={searchParams.status ?? ''} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 bg-white">
             <option value="">All statuses</option>
             <option value="open">Open</option>
