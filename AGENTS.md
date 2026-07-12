@@ -133,6 +133,24 @@ The orchestrator (main Claude) then:
 
 If the diff touches no UI files, skip the skill entirely.
 
+# Component-test skill — automated test coverage on every component logic change
+
+On any PR that adds or meaningfully changes a component with real logic (`useState`, `useEffect`, `useActionState`, event handlers, conditional rendering — not markup-only edits), run `/project:component-test` **before** opening the PR. This is separate from `/project:mobile-check`, which audits and fixes responsiveness but never writes tests, and from `/project:infra-test`, which is scoped to DB/bot/API/Docker changes only — none of the three overlap.
+
+The skill deploys a subagent to:
+1. Identify every changed component file that qualifies (has logic, not just styling)
+2. Write `@testing-library/react` + `happy-dom` component tests covering that behavior, placed in `tests/unit/*.test.tsx`
+3. Add a "Component tests added" section to the PR body
+4. Commit the test files to the branch
+
+The orchestrator (main Claude) then:
+- Runs `pnpm test` and verifies all new tests pass
+- Reviews that tests cover real behavior (state transitions, conditional rendering, event handling), not just static markup
+- Sends weak tests back to the subagent with specific instructions
+- Signs off with a `COMPONENT-TEST SIGN-OFF` block before the PR is created
+
+If the diff touches no component files with real logic, skip the skill entirely.
+
 # Notion leak prohibition — HARD RULE
 
 **Never include Notion page IDs, workspace URLs, or any `notion.so` / `app.notion.com` links in:**
@@ -166,7 +184,8 @@ Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are 
 6. PR description passes the "PR description standard" — has What changed / Why / How to test, no banned phrases
 7. If infra changed: `/project:infra-test` ran and orchestrator signed off
 8. If UI changed: `/project:mobile-check` ran and orchestrator signed off
-9. No Notion page IDs, URLs, or internal links in commit messages, PR bodies, or code (AGENTS.md excepted)
+9. If a component with real logic changed: `/project:component-test` ran and orchestrator signed off
+10. No Notion page IDs, URLs, or internal links in commit messages, PR bodies, or code (AGENTS.md excepted)
 
 # PR creation rule — HARD REQUIREMENT
 
