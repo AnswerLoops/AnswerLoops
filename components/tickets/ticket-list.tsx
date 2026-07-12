@@ -38,8 +38,8 @@ export function TicketList({ tickets }: { tickets: Ticket[] }) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+      <table className="w-full text-sm min-w-[720px]">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs text-gray-500 font-medium">
             <th className="px-4 py-2.5">#</th>

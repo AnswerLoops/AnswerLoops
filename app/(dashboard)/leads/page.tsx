@@ -39,6 +39,7 @@ export default async function LeadsPage() {
             <p className="text-xs text-gray-400 mt-1">Emails collected from your chat widget appear here.</p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
@@ -57,6 +58,7 @@ export default async function LeadsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
