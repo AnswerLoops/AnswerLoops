@@ -117,6 +117,22 @@ The orchestrator (main Claude) then:
 
 **Infrastructure changes** include: DB migrations/triggers, bot changes, new API routes, Docker/compose changes, new env vars, new external service integrations.
 
+# Mobile-check skill — automated responsive audit on every UI change
+
+On any PR that adds or changes UI (`app/**/*.tsx`, `components/**/*.tsx`, `app/globals.css`, or shared layout shells), run `/project:mobile-check` **before** opening the PR.
+
+The skill deploys a subagent to:
+1. Audit the diff's changed UI files for mobile-responsive breakage at a 375px viewport (fixed widths, non-wrapping flex rows, un-scrollable tables, nav items hidden with no drawer fallback)
+2. If issues are found, deploy a second subagent that fixes them using Tailwind responsive prefixes only — no new dependencies
+
+The orchestrator (main Claude) then:
+- Reviews that each flagged issue was actually fixed
+- Verifies the changed page in-browser at a 375px viewport (per the UI testing rule above)
+- Runs `pnpm build` to confirm no regressions
+- Signs off with a `MOBILE-CHECK SIGN-OFF` block before the PR is created
+
+If the diff touches no UI files, skip the skill entirely.
+
 # Notion leak prohibition — HARD RULE
 
 **Never include Notion page IDs, workspace URLs, or any `notion.so` / `app.notion.com` links in:**
@@ -149,7 +165,8 @@ Before opening any PR, re-read this file (`AGENTS.md`) and verify all rules are 
 5. `pnpm test` + `pnpm build` both pass
 6. PR description passes the "PR description standard" — has What changed / Why / How to test, no banned phrases
 7. If infra changed: `/project:infra-test` ran and orchestrator signed off
-8. No Notion page IDs, URLs, or internal links in commit messages, PR bodies, or code (AGENTS.md excepted)
+8. If UI changed: `/project:mobile-check` ran and orchestrator signed off
+9. No Notion page IDs, URLs, or internal links in commit messages, PR bodies, or code (AGENTS.md excepted)
 
 # PR creation rule — HARD REQUIREMENT
 
