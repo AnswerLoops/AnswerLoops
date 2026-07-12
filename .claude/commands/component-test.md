@@ -1,6 +1,6 @@
 # Component-Test — automated test generation for UI component changes
 
-Invoke with `/project:component-test` on any branch that adds or meaningfully changes a component with real logic (state, effects, event handlers, conditional rendering) — not on pure Tailwind/markup-only edits.
+Invoke with `/project:component-test` on any branch that adds or meaningfully changes a component with real logic (state, effects, event handlers, conditional rendering) — not on pure Tailwind/markup-only edits. This is the **diff mode** (default) — see "Full audit mode" below for scanning the whole repo instead of just the current diff.
 
 The orchestrator (main Claude) deploys a subagent to write component tests, then reviews and signs off. This mirrors `/project:infra-test` (infrastructure changes) and complements `/project:mobile-check` (responsive audits, which never writes tests).
 
@@ -93,3 +93,31 @@ Orchestrator verdict: APPROVED ✅ / NEEDS REVISION ❌
 ```
 
 If verdict is NEEDS REVISION, loop back to Step 3 with the specific gaps listed.
+
+---
+
+## Full audit mode — `/project:component-test --full`
+
+Diff mode only ever sees files touched by the current branch, so it can never surface *pre-existing* gaps — a logic-bearing component that shipped before this skill existed, or in a PR where the skill wasn't triggered, stays invisible forever under diff mode alone. Full mode scans the whole repo instead of `git diff`.
+
+Run this periodically (e.g. once per sprint, or on request — "check test coverage", "any gaps?") rather than on every PR; it's a repo-health check, not a merge gate.
+
+### Step 1 — enumerate logic-bearing components with no test file
+
+```bash
+for f in $(find components -name '*.tsx'); do
+  grep -lE "useState|useEffect|useActionState|onClick|onChange|onSubmit" "$f" >/dev/null 2>&1 || continue
+  name=$(basename "$f" .tsx)
+  test -f "tests/unit/${name}.test.tsx" || echo "GAP: $f (no tests/unit/${name}.test.tsx)"
+done
+```
+
+This is a heuristic, not ground truth — a component test file with a different naming convention still counts as covered. Before trusting a "GAP" line, `grep -rl "from '@/components/.../ComponentName'" tests/unit/` to check whether it's tested indirectly (e.g. as a subcomponent rendered by a page-level test) before treating it as uncovered.
+
+### Step 2 — report before writing anything
+
+List every confirmed gap with file path and a one-line description of what logic is untested (state transitions, conditional branches, event handlers). Present this to the user before spawning any writer subagent — full-repo backfill can be a lot of new test files, and the user may want to triage which gaps matter (a component slated for deletion isn't worth testing) rather than blanket-generate tests for all of them.
+
+### Step 3 — write tests for approved gaps only
+
+Same subagent prompt as Step 3 of diff mode, scoped to the user-approved subset of gaps. Same review, commit, and sign-off steps (4–7) apply, with the sign-off block's "Components changed" line replaced by "Components audited: <total scanned>, gaps found: <N>, backfilled: <N approved>".

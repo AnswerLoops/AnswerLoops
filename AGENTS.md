@@ -151,6 +151,8 @@ The orchestrator (main Claude) then:
 
 If the diff touches no component files with real logic, skip the skill entirely.
 
+Diff mode only ever sees the current PR's changed files, so it can't surface pre-existing gaps (components shipped before this skill existed). Run `/project:component-test --full` periodically — not on every PR — to scan all of `components/**/*.tsx` for logic-bearing files with no matching test and report gaps for triage before backfilling.
+
 # Notion leak prohibition — HARD RULE
 
 **Never include Notion page IDs, workspace URLs, or any `notion.so` / `app.notion.com` links in:**
