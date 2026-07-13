@@ -5,7 +5,8 @@ import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 export async function POST() {
   const session = await auth()
-  const orgId = session?.orgId ?? DEFAULT_ORG_ID
+  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
 
   const tickets = await getResolvedTicketsThisWeek(orgId)
 
