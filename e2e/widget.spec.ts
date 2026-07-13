@@ -48,6 +48,51 @@ test.describe('widget: /api/widget/chat', () => {
     // Streamed responses return 200 with text/event-stream or text/plain
     expect([200, 201]).toContain(res.status())
   })
+
+  test('returns 400 for a message exceeding the per-message character cap', async ({ request }) => {
+    const token = getToken()
+    const tooLong = 'a'.repeat(4_001)
+    const res = await request.post('/api/widget/chat', {
+      data: {
+        widgetToken: token,
+        messages: [{ role: 'user', content: tooLong, id: '1', parts: [{ type: 'text', text: tooLong }] }],
+      },
+    })
+    expect(res.status()).toBe(400)
+  })
+
+  test('returns 400 for more than the max allowed messages in one request', async ({ request }) => {
+    const token = getToken()
+    const messages = Array.from({ length: 51 }, (_, i) => ({
+      role: 'user',
+      content: 'hi',
+      id: String(i),
+      parts: [{ type: 'text', text: 'hi' }],
+    }))
+    const res = await request.post('/api/widget/chat', {
+      data: { widgetToken: token, messages },
+      headers: { 'x-forwarded-for': 'test-ip-message-cap' },
+    })
+    expect(res.status()).toBe(400)
+  })
+
+  test('returns 429 once the per-IP+token rate limit is exceeded', async ({ request }) => {
+    const token = getToken()
+    const ip = 'test-ip-rate-limit-unique'
+    const payload = {
+      widgetToken: token,
+      messages: [{ role: 'user', content: 'hi', id: '1', parts: [{ type: 'text', text: 'hi' }] }],
+    }
+    let last429 = false
+    for (let i = 0; i < 21; i++) {
+      const res = await request.post('/api/widget/chat', {
+        data: payload,
+        headers: { 'x-forwarded-for': ip },
+      })
+      last429 = res.status() === 429
+    }
+    expect(last429).toBe(true)
+  })
 })
 
 test.describe('widget: /api/widget/lead', () => {

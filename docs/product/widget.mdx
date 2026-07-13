@@ -3,6 +3,19 @@ title: Widget
 description: Coming soon.
 ---
 
+## Rate limits & input caps
+
+The widget chat endpoint is public (no login required), so it enforces limits
+to protect your AI provider bill from abuse:
+
+- Up to **100 requests/minute per widget token** (caps total cost exposure for
+  one site even if traffic comes from many IPs)
+- Up to **20 requests/minute per visitor** (token + IP combination)
+- Each message capped at **4,000 characters**; at most **50 messages** per request
+
+Requests over these limits return `429 Too Many Requests`. Limits are not
+currently configurable.
+
 <Info>
-  This page is being written. Check back soon or open an issue on [GitHub](https://github.com/NathanTarbert/community-platform).
+  The rest of this page is being written. Check back soon or open an issue on [GitHub](https://github.com/NathanTarbert/community-platform).
 </Info>
