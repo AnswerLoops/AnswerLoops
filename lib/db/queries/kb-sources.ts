@@ -1,6 +1,6 @@
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
-import { kbSources, kbArticles, DEFAULT_ORG_ID } from '../schema'
+import { kbSources, kbArticles } from '../schema'
 import type { KBSource } from '@/types'
 
 function toSource(row: typeof kbSources.$inferSelect): KBSource {
@@ -51,7 +51,7 @@ export async function getKBSourceByFilename(orgId: number, filename: string): Pr
   return row ? toSource(row) : null
 }
 
-export async function listKBSources(orgId = DEFAULT_ORG_ID): Promise<KBSource[]> {
+export async function listKBSources(orgId: number): Promise<KBSource[]> {
   const rows = await getDb()
     .select()
     .from(kbSources)
@@ -60,7 +60,7 @@ export async function listKBSources(orgId = DEFAULT_ORG_ID): Promise<KBSource[]>
   return rows.map(toSource)
 }
 
-export async function deleteKBSource(id: number, orgId = DEFAULT_ORG_ID): Promise<void> {
+export async function deleteKBSource(id: number, orgId: number): Promise<void> {
   // Articles with source_id FK ON DELETE CASCADE are removed automatically
   await getDb()
     .delete(kbSources)

@@ -1,6 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
-import { ticketFeedback, answerMessages, tickets, aiAssessments, DEFAULT_ORG_ID } from '../schema'
+import { ticketFeedback, answerMessages, tickets, aiAssessments } from '../schema'
 import type { FeedbackSource, FeedbackSummary, FeedbackVote } from '@/types'
 
 export async function saveFeedback(input: {
@@ -60,7 +60,7 @@ export async function mapAnswerMessage(discordMessageId: string, ticketId: numbe
     })
 }
 
-export async function getDeflectionAccuracyByCategory(orgId = DEFAULT_ORG_ID): Promise<{
+export async function getDeflectionAccuracyByCategory(orgId: number): Promise<{
   category: string
   deflected: number
   positive: number

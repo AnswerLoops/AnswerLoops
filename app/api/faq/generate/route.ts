@@ -22,7 +22,8 @@ export async function POST() {
     weekStart.toISOString().split('T')[0],
     weekEnd.toISOString().split('T')[0],
     content,
-    tickets.length
+    tickets.length,
+    orgId
   )
 
   return Response.json({ ok: true, snapshot_id: snapshot.id, ticket_count: tickets.length })

@@ -1,7 +1,7 @@
 import { eq, and, desc, sql, or, like } from 'drizzle-orm'
 import { cosineSimilarity } from 'ai'
 import { getDb } from '../drizzle'
-import { kbArticles, DEFAULT_ORG_ID } from '../schema'
+import { kbArticles } from '../schema'
 import type { KBArticle, KBSearchResult, PriorAnswer } from '@/types'
 
 export const KB_MATCH_THRESHOLD = 0.45
@@ -28,7 +28,7 @@ export async function createArticle(
     model: string
     sourceTicketId?: number
   },
-  orgId = DEFAULT_ORG_ID
+  orgId: number
 ): Promise<KBArticle> {
   const db = getDb()
 
@@ -79,7 +79,7 @@ export async function getArticle(id: number): Promise<KBArticle | null> {
   return row ? toArticle(row) : null
 }
 
-export async function countArticles(orgId = DEFAULT_ORG_ID): Promise<number> {
+export async function countArticles(orgId: number): Promise<number> {
   const [row] = await getDb()
     .select({ n: sql<number>`COUNT(*)::int` })
     .from(kbArticles)
@@ -87,7 +87,7 @@ export async function countArticles(orgId = DEFAULT_ORG_ID): Promise<number> {
   return row?.n ?? 0
 }
 
-export async function getArticleBySourceTicket(ticketId: number, orgId = DEFAULT_ORG_ID): Promise<KBArticle | null> {
+export async function getArticleBySourceTicket(ticketId: number, orgId: number): Promise<KBArticle | null> {
   const [row] = await getDb()
     .select()
     .from(kbArticles)
@@ -96,7 +96,7 @@ export async function getArticleBySourceTicket(ticketId: number, orgId = DEFAULT
   return row ? toArticle(row) : null
 }
 
-export async function listArticles(publishedOnly = true, orgId = DEFAULT_ORG_ID): Promise<KBArticle[]> {
+export async function listArticles(publishedOnly = true, orgId: number): Promise<KBArticle[]> {
   const conditions = publishedOnly
     ? and(eq(kbArticles.published, 1), eq(kbArticles.orgId, orgId))
     : eq(kbArticles.orgId, orgId)
@@ -109,7 +109,7 @@ export async function listArticles(publishedOnly = true, orgId = DEFAULT_ORG_ID)
   return rows.map(toArticle)
 }
 
-export async function searchArticles(vector: number[], limit = 10, orgId = DEFAULT_ORG_ID): Promise<KBSearchResult[]> {
+export async function searchArticles(vector: number[], limit = 10, orgId: number): Promise<KBSearchResult[]> {
   const rows = await getDb()
     .select()
     .from(kbArticles)
@@ -125,7 +125,7 @@ export async function searchArticles(vector: number[], limit = 10, orgId = DEFAU
     .slice(0, limit)
 }
 
-export async function textSearchArticles(query: string, limit = 10, orgId = DEFAULT_ORG_ID): Promise<KBArticle[]> {
+export async function textSearchArticles(query: string, limit = 10, orgId: number): Promise<KBArticle[]> {
   const pattern = `%${query}%`
   const rows = await getDb()
     .select()
@@ -151,7 +151,7 @@ export async function createArticleFromSource(
     sourceId: number
     sourcePage?: number
   },
-  orgId = DEFAULT_ORG_ID
+  orgId: number
 ): Promise<KBArticle> {
   const [row] = await getDb()
     .insert(kbArticles)
@@ -168,13 +168,13 @@ export async function createArticleFromSource(
   return toArticle(row)
 }
 
-export async function deleteArticle(id: number, orgId = DEFAULT_ORG_ID): Promise<void> {
+export async function deleteArticle(id: number, orgId: number): Promise<void> {
   await getDb()
     .delete(kbArticles)
     .where(and(eq(kbArticles.id, id), eq(kbArticles.orgId, orgId)))
 }
 
-export async function getKBContext(vector: number[], k = 3, orgId = DEFAULT_ORG_ID): Promise<PriorAnswer[]> {
+export async function getKBContext(vector: number[], k = 3, orgId: number): Promise<PriorAnswer[]> {
   const results = await searchArticles(vector, k, orgId)
   return results.map((a) => ({ summary: a.question, answer: a.answer }))
 }

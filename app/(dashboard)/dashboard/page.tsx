@@ -4,15 +4,17 @@ import { SLABreachList } from '@/components/dashboard/sla-breach-list'
 import Link from 'next/link'
 import { StatusBadge, CategoryBadge } from '@/components/ui/badge'
 import { auth } from '@/auth'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  const [stats, breachedTickets, recentTickets, session] = await Promise.all([
-    getTicketStats(),
-    getSLABreachedTickets(),
-    getTickets({ status: 'open' }).then((t) => t.slice(0, 6)),
-    auth(),
+  const session = await auth()
+  const orgId = session?.orgId ?? DEFAULT_ORG_ID
+  const [stats, breachedTickets, recentTickets] = await Promise.all([
+    getTicketStats(orgId),
+    getSLABreachedTickets(orgId),
+    getTickets({ status: 'open' }, orgId).then((t) => t.slice(0, 6)),
   ])
 
   const firstName = session?.user?.name?.split(' ')[0] ?? 'there'

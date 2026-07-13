@@ -1,7 +1,7 @@
 import { eq, and, desc } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
-import { notifications, DEFAULT_ORG_ID } from '../schema'
+import { notifications } from '../schema'
 import type { Notification } from '@/types'
 
 function toNotification(row: typeof notifications.$inferSelect): Notification {
@@ -18,8 +18,8 @@ function toNotification(row: typeof notifications.$inferSelect): Notification {
 export async function createNotification(
   type: Notification['type'],
   message: string,
-  ticketId?: number,
-  orgId = DEFAULT_ORG_ID
+  ticketId: number | null,
+  orgId: number
 ): Promise<Notification> {
   const [row] = await getDb()
     .insert(notifications)
@@ -28,7 +28,7 @@ export async function createNotification(
   return toNotification(row)
 }
 
-export async function getUnreadNotifications(orgId = DEFAULT_ORG_ID): Promise<Notification[]> {
+export async function getUnreadNotifications(orgId: number): Promise<Notification[]> {
   const rows = await getDb()
     .select()
     .from(notifications)
@@ -37,7 +37,7 @@ export async function getUnreadNotifications(orgId = DEFAULT_ORG_ID): Promise<No
   return rows.map(toNotification)
 }
 
-export async function getAllNotifications(limit = 50, orgId = DEFAULT_ORG_ID): Promise<Notification[]> {
+export async function getAllNotifications(limit = 50, orgId: number): Promise<Notification[]> {
   const rows = await getDb()
     .select()
     .from(notifications)
@@ -47,18 +47,21 @@ export async function getAllNotifications(limit = 50, orgId = DEFAULT_ORG_ID): P
   return rows.map(toNotification)
 }
 
-export async function markNotificationRead(id: number): Promise<void> {
-  await getDb().update(notifications).set({ read: 1 }).where(eq(notifications.id, id))
+export async function markNotificationRead(id: number, orgId: number): Promise<void> {
+  await getDb()
+    .update(notifications)
+    .set({ read: 1 })
+    .where(and(eq(notifications.id, id), eq(notifications.orgId, orgId)))
 }
 
-export async function markAllNotificationsRead(orgId = DEFAULT_ORG_ID): Promise<void> {
+export async function markAllNotificationsRead(orgId: number): Promise<void> {
   await getDb()
     .update(notifications)
     .set({ read: 1 })
     .where(and(eq(notifications.orgId, orgId), eq(notifications.read, 0)))
 }
 
-export async function getUnreadCount(orgId = DEFAULT_ORG_ID): Promise<number> {
+export async function getUnreadCount(orgId: number): Promise<number> {
   const [row] = await getDb()
     .select({ n: sql<number>`COUNT(*)::int` })
     .from(notifications)

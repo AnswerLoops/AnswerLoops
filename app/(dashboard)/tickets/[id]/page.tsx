@@ -36,7 +36,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
     getRelatedTickets(ticket.id, orgId),
     getAssessment(ticket.id),
     getFeedbackSummary(ticket.id),
-    getArticleBySourceTicket(ticket.id),
+    getArticleBySourceTicket(ticket.id, orgId),
     getOrgMembers(orgId),
     getIntegration(orgId, 'discord'),
   ])

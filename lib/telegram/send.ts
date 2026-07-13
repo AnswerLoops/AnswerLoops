@@ -1,6 +1,5 @@
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import { getIntegration } from '@/lib/db/queries/integrations'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 
 const MOD = 'telegram/send'
@@ -25,7 +24,7 @@ function splitMessage(text: string): string[] {
 export async function sendToTelegramChat(
   chatId: string,
   content: string,
-  orgId = DEFAULT_ORG_ID,
+  orgId: number,
   replyToMessageId?: string
 ): Promise<string | null> {
   if (MOCK_EXTERNALS) return `mock-tg-${chatId}`

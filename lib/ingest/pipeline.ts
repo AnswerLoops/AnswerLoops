@@ -10,7 +10,6 @@ import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
 import { findRelated, isDuplicate } from '@/lib/ai/related'
 import { saveEmbedding, getCandidateVectors, replaceLinks, getPriorAnswers } from '@/lib/db/queries/embeddings'
 import { getKBContext } from '@/lib/db/queries/kb'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/retry'
 import type { Priority } from '@/types'
@@ -44,7 +43,7 @@ function severityToPriority(score: number): Priority {
 
 export async function processCommunityMessage(
   payload: MessagePayload,
-  orgId = DEFAULT_ORG_ID
+  orgId: number
 ): Promise<PipelineResult> {
   const { messageId, content, authorId, authorName, guildId, channelId, threadId, platform = 'discord' } = payload
 

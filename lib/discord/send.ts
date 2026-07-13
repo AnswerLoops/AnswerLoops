@@ -1,6 +1,5 @@
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import { getIntegration } from '@/lib/db/queries/integrations'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 
 const MOD = 'discord/send'
@@ -12,7 +11,7 @@ async function resolveToken(orgId: number): Promise<string | null> {
   return integration?.bot_token ?? process.env.DISCORD_TOKEN ?? null
 }
 
-export async function sendToChannel(channelId: string, content: string, orgId = DEFAULT_ORG_ID): Promise<string | null> {
+export async function sendToChannel(channelId: string, content: string, orgId: number): Promise<string | null> {
   if (MOCK_EXTERNALS) {
     return `mock-msg-${channelId}`
   }
@@ -49,7 +48,7 @@ export async function sendToChannel(channelId: string, content: string, orgId = 
   return lastMessageId
 }
 
-export async function sendToThread(threadId: string, content: string, orgId = DEFAULT_ORG_ID): Promise<string | null> {
+export async function sendToThread(threadId: string, content: string, orgId: number): Promise<string | null> {
   return sendToChannel(threadId, content, orgId)
 }
 

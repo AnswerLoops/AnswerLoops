@@ -6,11 +6,14 @@ import { AutoRefresh } from '@/components/auto-refresh'
 import { SidebarNav } from '@/components/sidebar-nav'
 import { MobileDrawer } from '@/components/ui/mobile-drawer'
 import { logout } from '@/app/actions/auth'
+import { auth } from '@/auth'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const unreadCount = await getUnreadCount()
+  const session = await auth()
+  const unreadCount = await getUnreadCount(session?.orgId ?? DEFAULT_ORG_ID)
 
   const sidebarContent = (
     <>

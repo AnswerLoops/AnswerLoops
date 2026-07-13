@@ -1,6 +1,6 @@
 import { eq, desc, gt, sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
-import { faqSnapshots, tickets, DEFAULT_ORG_ID } from '../schema'
+import { faqSnapshots, tickets } from '../schema'
 import type { FAQSnapshot } from '@/types'
 
 function toFAQ(row: typeof faqSnapshots.$inferSelect): FAQSnapshot {
@@ -14,7 +14,7 @@ function toFAQ(row: typeof faqSnapshots.$inferSelect): FAQSnapshot {
   }
 }
 
-export async function getLatestFAQ(orgId = DEFAULT_ORG_ID): Promise<FAQSnapshot | null> {
+export async function getLatestFAQ(orgId: number): Promise<FAQSnapshot | null> {
   const [row] = await getDb()
     .select()
     .from(faqSnapshots)
@@ -24,7 +24,7 @@ export async function getLatestFAQ(orgId = DEFAULT_ORG_ID): Promise<FAQSnapshot 
   return row ? toFAQ(row) : null
 }
 
-export async function getFAQHistory(limit = 10, orgId = DEFAULT_ORG_ID): Promise<FAQSnapshot[]> {
+export async function getFAQHistory(limit = 10, orgId: number): Promise<FAQSnapshot[]> {
   const rows = await getDb()
     .select()
     .from(faqSnapshots)
@@ -39,7 +39,7 @@ export async function insertFAQSnapshot(
   weekEnd: string,
   content: string,
   ticketCount: number,
-  orgId = DEFAULT_ORG_ID
+  orgId: number
 ): Promise<FAQSnapshot> {
   const [row] = await getDb()
     .insert(faqSnapshots)
@@ -48,7 +48,7 @@ export async function insertFAQSnapshot(
   return toFAQ(row)
 }
 
-export async function getResolvedTicketsThisWeek(orgId = DEFAULT_ORG_ID): Promise<Array<{
+export async function getResolvedTicketsThisWeek(orgId: number): Promise<Array<{
   id: number
   content: string
   category: string | null
