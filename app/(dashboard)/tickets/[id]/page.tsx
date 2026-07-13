@@ -25,19 +25,20 @@ export const dynamic = 'force-dynamic'
 
 export default async function TicketDetailPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
-  const ticket = await getTicketById(Number(id))
+  const session = await auth()
+  const orgId = session?.orgId ?? DEFAULT_ORG_ID
+  const ticket = await getTicketById(Number(id), orgId)
   if (!ticket) notFound()
 
-  const [replies, events, related, assessment, feedback, kbArticle, session, members, discordIntegration] = await Promise.all([
+  const [replies, events, related, assessment, feedback, kbArticle, members, discordIntegration] = await Promise.all([
     getTicketReplies(ticket.id),
     getTicketEvents(ticket.id),
-    getRelatedTickets(ticket.id),
+    getRelatedTickets(ticket.id, orgId),
     getAssessment(ticket.id),
     getFeedbackSummary(ticket.id),
     getArticleBySourceTicket(ticket.id),
-    auth(),
-    getOrgMembers(DEFAULT_ORG_ID),
-    getIntegration(DEFAULT_ORG_ID, 'discord'),
+    getOrgMembers(orgId),
+    getIntegration(orgId, 'discord'),
   ])
 
   const sla = getSLAStatus(ticket)

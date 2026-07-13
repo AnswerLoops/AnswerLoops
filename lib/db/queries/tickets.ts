@@ -108,7 +108,18 @@ export async function getTickets(filters: TicketFilters = {}, orgId = DEFAULT_OR
   return rows.map(toTicket)
 }
 
-export async function getTicketById(id: number): Promise<Ticket | null> {
+export async function getTicketById(id: number, orgId: number): Promise<Ticket | null> {
+  const [row] = await getDb()
+    .select()
+    .from(tickets)
+    .where(and(eq(tickets.id, id), eq(tickets.orgId, orgId)))
+    .limit(1)
+  return row ? toTicket(row) : null
+}
+
+// Internal helper for mutations that run after the caller has already verified
+// org ownership (or that run in trusted system paths like the ingest pipeline).
+async function getTicketByIdUnscoped(id: number): Promise<Ticket | null> {
   const [row] = await getDb()
     .select()
     .from(tickets)
@@ -117,11 +128,11 @@ export async function getTicketById(id: number): Promise<Ticket | null> {
   return row ? toTicket(row) : null
 }
 
-export async function getTicketByDiscordMessageId(messageId: string): Promise<Ticket | null> {
+export async function getTicketByDiscordMessageId(messageId: string, orgId: number): Promise<Ticket | null> {
   const [row] = await getDb()
     .select()
     .from(tickets)
-    .where(eq(tickets.discordMessageId, messageId))
+    .where(and(eq(tickets.discordMessageId, messageId), eq(tickets.orgId, orgId)))
     .limit(1)
   return row ? toTicket(row) : null
 }
@@ -159,7 +170,7 @@ export async function updateTicketStatus(
   actor: string,
   resolutionNotes?: string
 ): Promise<void> {
-  const ticket = await getTicketById(id)
+  const ticket = await getTicketByIdUnscoped(id)
   if (!ticket) throw new Error('Ticket not found')
 
   const now = new Date().toISOString()
@@ -205,7 +216,7 @@ export async function addTicketReply(
     .values({ ticketId, staffName, content, discordMsgId: discordMsgId ?? null })
     .returning()
 
-  const ticket = await getTicketById(ticketId)
+  const ticket = await getTicketByIdUnscoped(ticketId)
   if (ticket && ticket.status === 'open') {
     await updateTicketStatus(ticketId, 'in_progress', staffName)
   }

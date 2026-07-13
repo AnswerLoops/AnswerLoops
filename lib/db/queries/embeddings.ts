@@ -1,4 +1,4 @@
-import { eq, ne, sql } from 'drizzle-orm'
+import { and, eq, ne, sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
 import { ticketEmbeddings, ticketLinks, tickets, ticketFeedback, DEFAULT_ORG_ID } from '../schema'
 import type { Candidate, Match } from '@/lib/ai/related'
@@ -14,11 +14,12 @@ export async function saveEmbedding(ticketId: number, vector: number[], model: s
     })
 }
 
-export async function getCandidateVectors(excludeTicketId: number): Promise<Candidate[]> {
+export async function getCandidateVectors(excludeTicketId: number, orgId: number): Promise<Candidate[]> {
   const rows = await getDb()
     .select({ ticket_id: ticketEmbeddings.ticketId, vector: ticketEmbeddings.vector })
     .from(ticketEmbeddings)
-    .where(ne(ticketEmbeddings.ticketId, excludeTicketId))
+    .innerJoin(tickets, eq(tickets.id, ticketEmbeddings.ticketId))
+    .where(and(ne(ticketEmbeddings.ticketId, excludeTicketId), eq(tickets.orgId, orgId)))
   return rows.map((r) => ({ ticket_id: r.ticket_id, vector: JSON.parse(r.vector) as number[] }))
 }
 
@@ -35,7 +36,7 @@ export async function replaceLinks(ticketId: number, matches: Match[]): Promise<
   })
 }
 
-export async function getRelatedTickets(ticketId: number): Promise<RelatedTicket[]> {
+export async function getRelatedTickets(ticketId: number, orgId: number): Promise<RelatedTicket[]> {
   const rows = await getDb().execute(sql`
     SELECT t.id,
            COALESCE(t.ai_summary, LEFT(t.content, 120)) AS summary,
@@ -43,6 +44,7 @@ export async function getRelatedTickets(ticketId: number): Promise<RelatedTicket
     FROM ticket_links l
     JOIN tickets t ON t.id = l.related_id
     WHERE l.ticket_id = ${ticketId}
+      AND t.org_id = ${orgId}
     ORDER BY l.score DESC
   `)
   return rows as unknown as RelatedTicket[]

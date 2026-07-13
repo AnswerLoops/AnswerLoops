@@ -32,6 +32,11 @@ export async function updateTicketStatusAction(
 
   const { ticketId, status, staffName, resolutionNotes } = parsed.data
 
+  const session = await auth()
+  const orgId = session?.orgId ?? DEFAULT_ORG_ID
+  const owned = await getTicketById(ticketId, orgId)
+  if (!owned) return { error: 'Ticket not found' }
+
   try {
     await updateTicketStatus(ticketId, status, staffName, resolutionNotes)
   } catch (err) {
@@ -39,9 +44,7 @@ export async function updateTicketStatusAction(
   }
 
   if (status === 'resolved' || status === 'closed') {
-    const session = await auth()
-    const orgId = session?.orgId ?? DEFAULT_ORG_ID
-    const ticket = await getTicketById(ticketId)
+    const ticket = await getTicketById(ticketId, orgId)
     if (ticket) {
       sendTicketResolvedEmail(ticket, staffName, orgId).catch((err) =>
         logger.error('sendTicketResolvedEmail failed', { module: 'actions/tickets', error: err })
@@ -69,7 +72,9 @@ export async function postReplyAction(
   }
 
   const { ticketId, staffName, content } = parsed.data
-  const ticket = await getTicketById(ticketId)
+  const session = await auth()
+  const orgId = session?.orgId ?? DEFAULT_ORG_ID
+  const ticket = await getTicketById(ticketId, orgId)
   if (!ticket) return { error: 'Ticket not found' }
 
   let discordMsgId: string | undefined
@@ -83,7 +88,7 @@ export async function postReplyAction(
         const { getRepoByOwnerAndName } = await import('@/lib/db/queries/github')
         const { getInstallationOctokitById } = await import('@/lib/github/app')
         const repoRecord = await getRepoByOwnerAndName(owner, repo)
-        if (repoRecord) {
+        if (repoRecord && repoRecord.org_id === orgId) {
           const octokit = await getInstallationOctokitById(repoRecord.installation_id)
           await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body: `**[${staffName}]:** ${content}` })
         }
@@ -95,7 +100,7 @@ export async function postReplyAction(
     const channelId = ticket.discord_thread_id ?? ticket.discord_channel_id
     if (channelId) {
       const message = `**[Response from ${staffName}]:** ${content}`
-      const msgId = await sendToChannel(channelId, message)
+      const msgId = await sendToChannel(channelId, message, orgId)
       discordMsgId = msgId ?? undefined
     }
   }
@@ -121,7 +126,9 @@ export async function updateAIDraftAction(
   if (!parsed.success) return { error: 'Invalid input' }
 
   const { ticketId, action, newDraft } = parsed.data
-  const ticket = await getTicketById(ticketId)
+  const session = await auth()
+  const orgId = session?.orgId ?? DEFAULT_ORG_ID
+  const ticket = await getTicketById(ticketId, orgId)
   if (!ticket) return { error: 'Ticket not found' }
 
   if (action === 'approve') {
@@ -136,7 +143,7 @@ export async function updateAIDraftAction(
           const { getRepoByOwnerAndName } = await import('@/lib/db/queries/github')
           const { getInstallationOctokitById } = await import('@/lib/github/app')
           const repoRecord = await getRepoByOwnerAndName(owner, repo)
-          if (repoRecord) {
+          if (repoRecord && repoRecord.org_id === orgId) {
             const octokit = await getInstallationOctokitById(repoRecord.installation_id)
             await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body: ticket.ai_draft })
           }
@@ -158,7 +165,7 @@ export async function updateAIDraftAction(
           const { getRepoByOwnerAndName } = await import('@/lib/db/queries/github')
           const { getInstallationOctokitById } = await import('@/lib/github/app')
           const repoRecord = await getRepoByOwnerAndName(owner, repo)
-          if (repoRecord) {
+          if (repoRecord && repoRecord.org_id === orgId) {
             const octokit = await getInstallationOctokitById(repoRecord.installation_id)
             await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body: newDraft })
           }
@@ -169,7 +176,7 @@ export async function updateAIDraftAction(
     } else {
       const channelId = ticket.discord_thread_id ?? ticket.discord_channel_id
       if (channelId) {
-        await sendToChannel(channelId, `**[Updated AI Answer]**\n${newDraft}`)
+        await sendToChannel(channelId, `**[Updated AI Answer]**\n${newDraft}`, orgId)
       }
     }
   }

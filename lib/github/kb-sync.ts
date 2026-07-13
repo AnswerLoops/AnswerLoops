@@ -31,7 +31,7 @@ export async function syncRepoToKB(
   installationId: number,
   orgId: number
 ): Promise<number> {
-  const octokit = await getInstallationOctokit(owner, repo)
+  const octokit = await getInstallationOctokit(owner, repo, orgId)
 
   // Get full file tree
   const { data: tree } = await octokit.rest.git.getTree({

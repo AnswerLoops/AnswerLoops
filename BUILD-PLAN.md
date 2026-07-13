@@ -121,6 +121,7 @@ Run alongside feature phases; none block the others.
 22. ~~**T2-5 Simulation / dry-run mode**~~ ✅ Done — replay last N tickets through AI pipeline, no writes. `/simulation` page with model/threshold picker and per-ticket confidence + deflect comparison.
 23. ~~**Mintlify docs scaffold**~~ ✅ Done (PR #51) — 44 pages in `/docs`; live at `answerloops.mintlify.app`; covers self-hosting, product guide, integrations, reference.
 24. **Tier 3 gaps** — Telegram, auto-retrain, outbound campaigns, email channel, custom automations.
+25. ~~**Multi-tenant isolation hardening.**~~ ✅ Done — `fix/tenant-isolation`. Org scoping enforced across GitHub repo queries/tools, push notifications, related-ticket links, SLA breach checks, and ticket lookups; IDOR fixes on repo delete and ticket routes/actions; `tests/unit/tenant-isolation.test.ts` + `tests/unit/tenant-isolation-regressions.test.ts` pin every fix.
 
 ---
 

@@ -15,8 +15,8 @@ async function getApp() {
   return appInstance
 }
 
-export async function getInstallationOctokit(owner: string, repo: string): Promise<Octokit> {
-  const repos = await getRepos()
+export async function getInstallationOctokit(owner: string, repo: string, orgId: number): Promise<Octokit> {
+  const repos = await getRepos(orgId)
   const repoRecord = repos.find((r) => r.owner === owner && r.repo === repo)
 
   if (!repoRecord) {
@@ -28,8 +28,8 @@ export async function getInstallationOctokit(owner: string, repo: string): Promi
   return octokit as unknown as Octokit
 }
 
-export async function getConfiguredRepos(): Promise<string[]> {
-  const repos = await getRepos()
+export async function getConfiguredRepos(orgId: number): Promise<string[]> {
+  const repos = await getRepos(orgId)
   return repos.map((r) => `${r.owner}/${r.repo}`)
 }
 

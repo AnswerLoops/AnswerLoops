@@ -2,7 +2,9 @@
 
 import { z } from 'zod'
 import { refresh } from 'next/cache'
+import { auth } from '@/auth'
 import { addRepo, removeRepo } from '@/lib/db/queries/github'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 const AddRepoSchema = z.object({
   installationId: z.coerce.number(),
@@ -18,8 +20,12 @@ export async function addRepoAction(
   const parsed = AddRepoSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: 'Invalid input' }
 
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
   try {
-    addRepo(parsed.data.installationId, parsed.data.owner, parsed.data.repo, parsed.data.isPrivate ?? false)
+    await addRepo(parsed.data.installationId, parsed.data.owner, parsed.data.repo, parsed.data.isPrivate ?? false, orgId)
   } catch (err) {
     return { error: String(err) }
   }
@@ -34,7 +40,12 @@ export async function removeRepoAction(
 ): Promise<{ error?: string } | null> {
   const id = Number(formData.get('id'))
   if (!id) return { error: 'Invalid id' }
-  removeRepo(id)
+
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
+  await removeRepo(id, orgId)
   refresh()
   return null
 }

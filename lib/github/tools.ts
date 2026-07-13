@@ -1,9 +1,9 @@
 import { getInstallationOctokit } from './app'
 
-export async function searchCode(query: string, repo: string) {
+export async function searchCode(query: string, repo: string, orgId: number) {
   const [owner, name] = repo.split('/')
   try {
-    const octokit = await getInstallationOctokit(owner, name)
+    const octokit = await getInstallationOctokit(owner, name, orgId)
     const { data } = await octokit.rest.search.code({
       q: `${query} repo:${repo}`,
       per_page: 5,
@@ -19,10 +19,10 @@ export async function searchCode(query: string, repo: string) {
   }
 }
 
-export async function readFile(path: string, repo: string, ref = 'main') {
+export async function readFile(path: string, repo: string, orgId: number, ref = 'main') {
   const [owner, name] = repo.split('/')
   try {
-    const octokit = await getInstallationOctokit(owner, name)
+    const octokit = await getInstallationOctokit(owner, name, orgId)
     const { data } = await octokit.rest.repos.getContent({ owner, repo: name, path, ref })
     if ('content' in data && typeof data.content === 'string') {
       const content = Buffer.from(data.content, 'base64').toString('utf8')
@@ -35,10 +35,10 @@ export async function readFile(path: string, repo: string, ref = 'main') {
   }
 }
 
-export async function listFiles(path: string, repo: string) {
+export async function listFiles(path: string, repo: string, orgId: number) {
   const [owner, name] = repo.split('/')
   try {
-    const octokit = await getInstallationOctokit(owner, name)
+    const octokit = await getInstallationOctokit(owner, name, orgId)
     const { data } = await octokit.rest.repos.getContent({ owner, repo: name, path })
     if (Array.isArray(data)) {
       return data.map((f) => ({ name: f.name, type: f.type, path: f.path, size: f.size }))

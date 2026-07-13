@@ -48,7 +48,7 @@ export async function processCommunityMessage(
 ): Promise<PipelineResult> {
   const { messageId, content, authorId, authorName, guildId, channelId, threadId, platform = 'discord' } = payload
 
-  const existing = await getTicketByDiscordMessageId(messageId)
+  const existing = await getTicketByDiscordMessageId(messageId, orgId)
   if (existing) {
     logger.debug('duplicate message — skipping', { module: MOD, ticketId: existing.id, messageId })
     return { ticket_id: existing.id, duplicate: true }
@@ -103,7 +103,7 @@ export async function processCommunityMessage(
           title: 'New Community Question',
           body: `${authorName}: ${triage.summary}`,
           url: `/tickets/${ticket.id}`,
-        })
+        }, orgId)
       } catch (err) {
         logger.warn('push notification failed', { module: MOD, ticketId: ticket.id, error: err })
       }
@@ -115,7 +115,7 @@ export async function processCommunityMessage(
       }
 
       try {
-        const breached = await checkSlaBreaches()
+        const breached = await checkSlaBreaches(orgId)
         await sendSlaBreachEmails(breached, orgId)
       } catch (err) {
         logger.warn('SLA breach check/email failed', { module: MOD, ticketId: ticket.id, error: err })
@@ -133,7 +133,7 @@ export async function processCommunityMessage(
         await saveEmbedding(ticket.id, vector, EMBEDDING_MODEL)
         logger.info('embedding saved', { module: MOD, ticketId: ticket.id, durationMs: Date.now() - t1 })
 
-        const candidates = await getCandidateVectors(ticket.id)
+        const candidates = await getCandidateVectors(ticket.id, orgId)
         const related = findRelated(vector, candidates)
         await replaceLinks(ticket.id, related)
         logger.debug('related links updated', { module: MOD, ticketId: ticket.id, relatedCount: related.length })
