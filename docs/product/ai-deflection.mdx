@@ -11,6 +11,13 @@ description: How AnswerLoops automatically answers questions using your knowledg
 4. If the best match exceeds the **confidence threshold**, it generates an answer and posts it in the thread
 5. If confidence is below the threshold, it triggers [human escalation](/product/escalation)
 
+<Info>
+  Connecting a GitHub repository is optional. With repos connected, the AI can
+  also search your source code while drafting answers. Without repos, it
+  answers from the knowledge base and prior resolved tickets alone — and is
+  instructed never to invent project-specific details it can't find there.
+</Info>
+
 ## Confidence threshold
 
 Default: **0.8** (range 0–1)
