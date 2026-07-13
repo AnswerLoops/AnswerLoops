@@ -40,27 +40,22 @@ export async function runAIAgent(
   platform: Platform = 'discord'
 ): Promise<void> {
   const repos = await getConfiguredRepos(orgId)
-
-  if (repos.length === 0) {
-    logger.info('no GitHub repos configured — skipping agent', { module: MOD, ticketId })
-    return
-  }
-
+  const hasCodeSearch = repos.length > 0
   const repoList = repos.join(', ')
+
+  if (!hasCodeSearch) {
+    logger.info('no GitHub repos configured — running agent in KB-only mode', { module: MOD, ticketId, orgId })
+  }
 
   // Prior resolved answers for similar questions — prefer reusing these.
   const priorContext = priorAnswers.length
-    ? `\n\nThe team has already answered similar questions before. Prefer reusing and adapting these resolved answers when they fit; only search the source code if they don't fully cover the question:\n${priorAnswers
+    ? `\n\nThe team has already answered similar questions before. Prefer reusing and adapting these resolved answers when they fit${hasCodeSearch ? '; only search the source code if they don’t fully cover the question' : ''}:\n${priorAnswers
         .map((p, i) => `${i + 1}. Q: ${p.summary}\n   A: ${p.answer}`)
         .join('\n')}`
     : ''
 
-  try {
-    const t0 = Date.now()
-    const { text } = await generateText({
-      model: await chatModel('gpt-4o', orgId),
-      stopWhen: stepCountIs(5),
-      system: `You are a technical support agent for an open source software project.
+  const system = hasCodeSearch
+    ? `You are a technical support agent for an open source software project.
 You have tools to search and read the project source code on GitHub.
 Configured repositories: ${repoList}
 
@@ -71,35 +66,52 @@ Guidelines:
 - Be concise, accurate, and helpful
 - If you cannot find relevant code, say so honestly
 - Format your answer in markdown for Discord
-- Respond in the same language as the question — if the user wrote in Spanish, reply in Spanish; French, reply in French; etc.${priorContext}`,
+- Respond in the same language as the question — if the user wrote in Spanish, reply in Spanish; French, reply in French; etc.${priorContext}`
+    : `You are a technical support agent for a software project.
+
+Guidelines:
+- Answer using the team's prior resolved answers below when they cover the question
+- Do not invent project-specific details (APIs, file names, config options) that are not in the prior answers — if the prior answers don't cover the question, say honestly that a team member will follow up
+- Be concise, accurate, and helpful
+- Format your answer in markdown for Discord
+- Respond in the same language as the question — if the user wrote in Spanish, reply in Spanish; French, reply in French; etc.${priorContext}`
+
+  try {
+    const t0 = Date.now()
+    const { text } = await generateText({
+      model: await chatModel('gpt-4o', orgId),
+      stopWhen: stepCountIs(5),
+      system,
       prompt: question,
-      tools: {
-        searchCode: tool({
-          description: 'Search for code, functions, or patterns in the configured repositories',
-          inputSchema: z.object({
-            query: z.string().describe('Search query — use function names, error messages, or keywords'),
-            repo: z.string().describe(`Repository in owner/repo format. Available: ${repoList}`),
-          }),
-          execute: async (args) => searchCode(args.query, args.repo, orgId),
-        }),
-        readFile: tool({
-          description: 'Read the full contents of a specific file from a repository',
-          inputSchema: z.object({
-            path: z.string().describe('File path relative to repo root, e.g. src/auth/index.ts'),
-            repo: z.string().describe(`Repository in owner/repo format. Available: ${repoList}`),
-            ref: z.string().optional().describe('Branch name or commit SHA (default: main)'),
-          }),
-          execute: async (args) => readFile(args.path, args.repo, orgId, args.ref),
-        }),
-        listFiles: tool({
-          description: 'List files and directories at a path in a repository',
-          inputSchema: z.object({
-            path: z.string().describe('Directory path, e.g. src/components or empty string for root'),
-            repo: z.string().describe(`Repository in owner/repo format. Available: ${repoList}`),
-          }),
-          execute: async (args) => listFiles(args.path, args.repo, orgId),
-        }),
-      },
+      tools: hasCodeSearch
+        ? {
+            searchCode: tool({
+              description: 'Search for code, functions, or patterns in the configured repositories',
+              inputSchema: z.object({
+                query: z.string().describe('Search query — use function names, error messages, or keywords'),
+                repo: z.string().describe(`Repository in owner/repo format. Available: ${repoList}`),
+              }),
+              execute: async (args) => searchCode(args.query, args.repo, orgId),
+            }),
+            readFile: tool({
+              description: 'Read the full contents of a specific file from a repository',
+              inputSchema: z.object({
+                path: z.string().describe('File path relative to repo root, e.g. src/auth/index.ts'),
+                repo: z.string().describe(`Repository in owner/repo format. Available: ${repoList}`),
+                ref: z.string().optional().describe('Branch name or commit SHA (default: main)'),
+              }),
+              execute: async (args) => readFile(args.path, args.repo, orgId, args.ref),
+            }),
+            listFiles: tool({
+              description: 'List files and directories at a path in a repository',
+              inputSchema: z.object({
+                path: z.string().describe('Directory path, e.g. src/components or empty string for root'),
+                repo: z.string().describe(`Repository in owner/repo format. Available: ${repoList}`),
+              }),
+              execute: async (args) => listFiles(args.path, args.repo, orgId),
+            }),
+          }
+        : undefined,
     })
 
     logger.info('agent answer generated', { module: MOD, ticketId, durationMs: Date.now() - t0 })
