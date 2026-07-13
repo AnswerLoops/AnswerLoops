@@ -18,14 +18,15 @@ export async function calculateDeadlines(priority: Priority, createdAt: Date = n
   }
 }
 
-export async function checkSlaBreaches(): Promise<number[]> {
+export async function checkSlaBreaches(orgId: number): Promise<number[]> {
   const db = getDb()
   const now = new Date().toISOString()
 
   await db.execute(sql`
     UPDATE tickets
     SET sla_response_met = 0, updated_at = ${now}
-    WHERE status = 'open'
+    WHERE org_id = ${orgId}
+      AND status = 'open'
       AND sla_response_deadline IS NOT NULL
       AND sla_response_deadline < ${now}
       AND sla_response_met IS NULL
@@ -34,7 +35,8 @@ export async function checkSlaBreaches(): Promise<number[]> {
   await db.execute(sql`
     UPDATE tickets
     SET sla_resolve_met = 0, updated_at = ${now}
-    WHERE status NOT IN ('resolved', 'closed')
+    WHERE org_id = ${orgId}
+      AND status NOT IN ('resolved', 'closed')
       AND sla_resolve_deadline IS NOT NULL
       AND sla_resolve_deadline < ${now}
       AND sla_resolve_met IS NULL
@@ -43,7 +45,8 @@ export async function checkSlaBreaches(): Promise<number[]> {
   const cutoff = new Date(Date.now() - 60_000).toISOString()
   const rows = await db.execute(sql`
     SELECT id FROM tickets
-    WHERE (sla_response_met = 0 OR sla_resolve_met = 0)
+    WHERE org_id = ${orgId}
+      AND (sla_response_met = 0 OR sla_resolve_met = 0)
       AND updated_at > ${cutoff}
   `)
   return (rows as unknown as { id: number }[]).map((r) => r.id)

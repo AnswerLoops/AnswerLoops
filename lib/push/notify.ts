@@ -20,14 +20,14 @@ interface PushPayload {
   url?: string
 }
 
-export async function sendPushToAll(payload: PushPayload): Promise<void> {
+export async function sendPushToAll(payload: PushPayload, orgId: number): Promise<void> {
   if (MOCK_EXTERNALS) return
   if (!process.env.VAPID_PUBLIC_KEY) return
 
   initWebPush()
 
   const db = getDb()
-  const subs = await db.select().from(pushSubscriptions)
+  const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.orgId, orgId))
 
   const results = await Promise.allSettled(
     subs.map((sub) =>

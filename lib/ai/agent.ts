@@ -39,7 +39,7 @@ export async function runAIAgent(
   orgId = DEFAULT_ORG_ID,
   platform: Platform = 'discord'
 ): Promise<void> {
-  const repos = await getConfiguredRepos()
+  const repos = await getConfiguredRepos(orgId)
 
   if (repos.length === 0) {
     logger.info('no GitHub repos configured — skipping agent', { module: MOD, ticketId })
@@ -80,7 +80,7 @@ Guidelines:
             query: z.string().describe('Search query — use function names, error messages, or keywords'),
             repo: z.string().describe(`Repository in owner/repo format. Available: ${repoList}`),
           }),
-          execute: async (args) => searchCode(args.query, args.repo),
+          execute: async (args) => searchCode(args.query, args.repo, orgId),
         }),
         readFile: tool({
           description: 'Read the full contents of a specific file from a repository',
@@ -89,7 +89,7 @@ Guidelines:
             repo: z.string().describe(`Repository in owner/repo format. Available: ${repoList}`),
             ref: z.string().optional().describe('Branch name or commit SHA (default: main)'),
           }),
-          execute: async (args) => readFile(args.path, args.repo, args.ref),
+          execute: async (args) => readFile(args.path, args.repo, orgId, args.ref),
         }),
         listFiles: tool({
           description: 'List files and directories at a path in a repository',
@@ -97,7 +97,7 @@ Guidelines:
             path: z.string().describe('Directory path, e.g. src/components or empty string for root'),
             repo: z.string().describe(`Repository in owner/repo format. Available: ${repoList}`),
           }),
-          execute: async (args) => listFiles(args.path, args.repo),
+          execute: async (args) => listFiles(args.path, args.repo, orgId),
         }),
       },
     })

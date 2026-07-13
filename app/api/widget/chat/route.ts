@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     try {
       const vector = await embedText(query, org.id)
       kbContext = await getKBContext(vector, 4, org.id)
-      const related = findRelated(vector, await getCandidateVectors(0))
+      const related = findRelated(vector, await getCandidateVectors(0, org.id))
       priorContext = await getPriorAnswers(related.map((r) => r.related_id), org.id)
     } catch {
       // Proceed without context if embedding fails

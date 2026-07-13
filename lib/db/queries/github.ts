@@ -1,11 +1,12 @@
 import { eq, and, desc } from 'drizzle-orm'
 import { getDb } from '../drizzle'
-import { githubRepos, DEFAULT_ORG_ID } from '../schema'
+import { githubRepos } from '../schema'
 import type { GitHubRepo } from '@/types'
 
 function toRepo(row: typeof githubRepos.$inferSelect): GitHubRepo {
   return {
     id: row.id,
+    org_id: row.orgId,
     installation_id: row.installationId,
     owner: row.owner,
     repo: row.repo,
@@ -18,7 +19,7 @@ function toRepo(row: typeof githubRepos.$inferSelect): GitHubRepo {
   }
 }
 
-export async function getRepos(orgId = DEFAULT_ORG_ID): Promise<GitHubRepo[]> {
+export async function getRepos(orgId: number): Promise<GitHubRepo[]> {
   const rows = await getDb()
     .select()
     .from(githubRepos)
@@ -32,20 +33,20 @@ export async function addRepo(
   owner: string,
   repo: string,
   isPrivate: boolean,
-  orgId = DEFAULT_ORG_ID
+  orgId: number
 ): Promise<GitHubRepo> {
   const db = getDb()
   const existing = await db
     .select()
     .from(githubRepos)
-    .where(and(eq(githubRepos.owner, owner), eq(githubRepos.repo, repo)))
+    .where(and(eq(githubRepos.owner, owner), eq(githubRepos.repo, repo), eq(githubRepos.orgId, orgId)))
     .limit(1)
 
   if (existing.length > 0) {
     const [row] = await db
       .update(githubRepos)
       .set({ installationId, isPrivate: isPrivate ? 1 : 0 })
-      .where(and(eq(githubRepos.owner, owner), eq(githubRepos.repo, repo)))
+      .where(and(eq(githubRepos.owner, owner), eq(githubRepos.repo, repo), eq(githubRepos.orgId, orgId)))
       .returning()
     return toRepo(row)
   }
@@ -57,8 +58,10 @@ export async function addRepo(
   return toRepo(row)
 }
 
-export async function removeRepo(id: number): Promise<void> {
-  await getDb().delete(githubRepos).where(eq(githubRepos.id, id))
+export async function removeRepo(id: number, orgId: number): Promise<void> {
+  await getDb()
+    .delete(githubRepos)
+    .where(and(eq(githubRepos.id, id), eq(githubRepos.orgId, orgId)))
 }
 
 export async function updateRepoSettings(

@@ -51,13 +51,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  const orgId = dbRepo.installation_id // orgId stored separately — look up via repo
-  // Note: getRepoByOwnerAndName returns the first match; orgId comes from github_repos.org_id
-  // We need the actual orgId from the DB row, re-fetch with orgId
-  const { getRepos } = await import('@/lib/db/queries/github')
-  const allRepos = await getRepos()
-  const fullRepo = allRepos.find((r) => r.owner === owner && r.repo === repoName)
-  const actualOrgId = fullRepo ? (fullRepo as unknown as { org_id?: number }).org_id ?? 1 : 1
+  const actualOrgId = dbRepo.org_id
 
   // ── Push event → KB sync ──────────────────────────────────────────────────
   if (event === 'push' && dbRepo.kb_enabled === 1) {

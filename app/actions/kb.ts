@@ -20,7 +20,7 @@ export async function promoteToKBAction(
   const session = await auth()
   const orgId = session?.orgId ?? DEFAULT_ORG_ID
 
-  const ticket = await getTicketById(parsed.data.ticketId)
+  const ticket = await getTicketById(parsed.data.ticketId, orgId)
   if (!ticket) return { error: 'Ticket not found' }
   if (ticket.status !== 'resolved' && ticket.status !== 'closed') {
     return { error: 'Only resolved tickets can be promoted' }

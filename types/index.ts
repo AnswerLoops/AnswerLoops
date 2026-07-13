@@ -78,6 +78,7 @@ export interface FAQSnapshot {
 
 export interface GitHubRepo {
   id: number
+  org_id: number
   installation_id: number
   owner: string
   repo: string
