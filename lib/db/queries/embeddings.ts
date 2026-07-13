@@ -1,6 +1,6 @@
 import { and, eq, ne, sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
-import { ticketEmbeddings, ticketLinks, tickets, ticketFeedback, DEFAULT_ORG_ID } from '../schema'
+import { ticketEmbeddings, ticketLinks, tickets, ticketFeedback } from '../schema'
 import type { Candidate, Match } from '@/lib/ai/related'
 import type { PriorAnswer, RelatedTicket } from '@/types'
 
@@ -50,7 +50,7 @@ export async function getRelatedTickets(ticketId: number, orgId: number): Promis
   return rows as unknown as RelatedTicket[]
 }
 
-export async function getPriorAnswers(ticketIds: number[], orgId = DEFAULT_ORG_ID): Promise<PriorAnswer[]> {
+export async function getPriorAnswers(ticketIds: number[], orgId: number): Promise<PriorAnswer[]> {
   if (ticketIds.length === 0) return []
   const rows = await getDb().execute(sql`
     SELECT COALESCE(t.ai_summary, LEFT(t.content, 120)) AS summary,

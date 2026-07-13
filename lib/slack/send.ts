@@ -1,6 +1,5 @@
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import { getIntegration } from '@/lib/db/queries/integrations'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 
 const MOD = 'slack/send'
@@ -14,7 +13,7 @@ async function resolveToken(orgId: number): Promise<string | null> {
 export async function sendToSlackChannel(
   channelId: string,
   content: string,
-  orgId = DEFAULT_ORG_ID
+  orgId: number
 ): Promise<string | null> {
   if (MOCK_EXTERNALS) {
     return `mock-slack-${channelId}`

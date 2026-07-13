@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
-import { DEFAULT_ORG_ID } from '../schema'
 
 export interface DeflectionStats {
   totalTickets: number
@@ -8,7 +7,7 @@ export interface DeflectionStats {
   deflected: number
 }
 
-export async function getDeflectionStats(orgId = DEFAULT_ORG_ID): Promise<DeflectionStats> {
+export async function getDeflectionStats(orgId: number): Promise<DeflectionStats> {
   const db = getDb()
 
   const [totRow] = await db.execute(sql`
@@ -37,7 +36,7 @@ export interface TrendPoint {
   deflected: number
 }
 
-export async function getDeflectionTrend(days = 14, orgId = DEFAULT_ORG_ID): Promise<TrendPoint[]> {
+export async function getDeflectionTrend(days = 14, orgId: number): Promise<TrendPoint[]> {
   const rows = await getDb().execute(sql`
     SELECT LEFT(a.created_at, 10) AS day,
            COUNT(*)::int AS answered,
@@ -57,7 +56,7 @@ export interface CategoryCount {
   count: number
 }
 
-export async function getCategoryBreakdown(orgId = DEFAULT_ORG_ID): Promise<CategoryCount[]> {
+export async function getCategoryBreakdown(orgId: number): Promise<CategoryCount[]> {
   const rows = await getDb().execute(sql`
     SELECT COALESCE(category, 'uncategorized') AS category, COUNT(*)::int AS count
     FROM tickets
@@ -74,7 +73,7 @@ export interface DocGap {
   category: string | null
 }
 
-export async function getDocGaps(limit = 20, orgId = DEFAULT_ORG_ID): Promise<DocGap[]> {
+export async function getDocGaps(limit = 20, orgId: number): Promise<DocGap[]> {
   const rows = await getDb().execute(sql`
     SELECT t.id,
            COALESCE(t.ai_summary, LEFT(t.content, 120)) AS summary,
@@ -99,7 +98,7 @@ export interface SLAStats {
   avgFirstResponseMinutes: number | null
 }
 
-export async function getSLAStats(orgId = DEFAULT_ORG_ID): Promise<SLAStats> {
+export async function getSLAStats(orgId: number): Promise<SLAStats> {
   const [row] = await getDb().execute(sql`
     SELECT
       SUM(CASE WHEN sla_response_met = 1 THEN 1 ELSE 0 END)::int AS "responseMet",
@@ -135,7 +134,7 @@ export interface KnowledgeGap {
   gap_reason: 'low_confidence' | 'needs_human' | 'no_kb_article'
 }
 
-export async function getKnowledgeGaps(limit = 50, orgId = DEFAULT_ORG_ID): Promise<KnowledgeGap[]> {
+export async function getKnowledgeGaps(limit = 50, orgId: number): Promise<KnowledgeGap[]> {
   const rows = await getDb().execute(sql`
     SELECT
       t.id,
@@ -176,7 +175,7 @@ export interface GapCategorySummary {
   avg_confidence: number | null
 }
 
-export async function getGapCategorySummary(orgId = DEFAULT_ORG_ID): Promise<GapCategorySummary[]> {
+export async function getGapCategorySummary(orgId: number): Promise<GapCategorySummary[]> {
   const rows = await getDb().execute(sql`
     SELECT
       COALESCE(t.category, 'uncategorized') AS category,

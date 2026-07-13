@@ -1,6 +1,5 @@
 import { Resend } from 'resend'
 import { getIntegration } from '@/lib/db/queries/integrations'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 
 const MOD = 'email/reply'
@@ -9,7 +8,7 @@ const MOD = 'email/reply'
 export async function sendEmailReply(
   channelId: string,
   content: string,
-  orgId = DEFAULT_ORG_ID
+  orgId: number
 ): Promise<string | null> {
   const [toAddress, inReplyTo] = channelId.split('|')
   if (!toAddress) return null

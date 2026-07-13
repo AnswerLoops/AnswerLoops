@@ -5,7 +5,8 @@ import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 export async function POST() {
   const session = await auth()
-  const orgId = session?.orgId ?? DEFAULT_ORG_ID
+  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
 
   const tickets = await getResolvedTicketsThisWeek(orgId)
 
@@ -22,7 +23,8 @@ export async function POST() {
     weekStart.toISOString().split('T')[0],
     weekEnd.toISOString().split('T')[0],
     content,
-    tickets.length
+    tickets.length,
+    orgId
   )
 
   return Response.json({ ok: true, snapshot_id: snapshot.id, ticket_count: tickets.length })

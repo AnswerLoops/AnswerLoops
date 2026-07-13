@@ -1,5 +1,7 @@
 import { getTickets } from '@/lib/db/queries/tickets'
 import { TicketList } from '@/components/tickets/ticket-list'
+import { auth } from '@/auth'
+import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import type { TicketStatus, Priority, TicketCategory } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -12,11 +14,13 @@ interface SearchParams {
 
 export default async function TicketsPage(props: { searchParams: Promise<SearchParams> }) {
   const searchParams = await props.searchParams
+  const session = await auth()
+  const orgId = session?.orgId ?? DEFAULT_ORG_ID
   const tickets = await getTickets({
     status: searchParams.status as TicketStatus | undefined,
     priority: searchParams.priority as Priority | undefined,
     category: searchParams.category as TicketCategory | undefined,
-  })
+  }, orgId)
 
   return (
     <div className="space-y-4 max-w-6xl">

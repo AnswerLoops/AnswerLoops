@@ -13,7 +13,6 @@ import { sendToChannel } from '@/lib/discord/send'
 import { sendToSlackChannel } from '@/lib/slack/send'
 import { sendToTelegramChat } from '@/lib/telegram/send'
 import { sendEmailReply } from '@/lib/email/reply'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { checkDeflectionLimit } from '@/lib/billing/usage'
 import { getIntegration } from '@/lib/db/queries/integrations'
 import { updateTicketAIDraftStatus } from '@/lib/db/queries/tickets'
@@ -36,7 +35,7 @@ export async function runAIAgent(
   question: string,
   channelId: string,
   priorAnswers: PriorAnswer[] = [],
-  orgId = DEFAULT_ORG_ID,
+  orgId: number,
   platform: Platform = 'discord'
 ): Promise<void> {
   const repos = await getConfiguredRepos(orgId)
@@ -153,7 +152,7 @@ Guidelines:
 
     let postedMessageId: string | null = null
     if (autoDeflect) {
-      await createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId)
+      await createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId, orgId)
       const message = `${text}\n\n*React 👍 / 👎 if this helped. A team member will follow up if not.*`
       postedMessageId = await postReply(channelId, message, orgId, platform)
 
@@ -164,7 +163,7 @@ Guidelines:
 
       logger.info('auto-deflected', { module: MOD, ticketId, confidence: pct, platform })
     } else {
-      await createNotification('ai_draft_ready', `Needs human review (${pct}%) — ticket #${ticketId}`, ticketId)
+      await createNotification('ai_draft_ready', `Needs human review (${pct}%) — ticket #${ticketId}`, ticketId, orgId)
       await updateTicketAIDraftStatus(ticketId, 'needs_human')
 
       // Build escalation mention if a role/group is configured

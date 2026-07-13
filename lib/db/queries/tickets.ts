@@ -5,7 +5,6 @@ import {
   ticketReplies,
   ticketEvents,
   aiAssessments,
-  DEFAULT_ORG_ID,
 } from '../schema'
 import type { Ticket, CreateTicketInput, TicketFilters, TicketReply, TicketEvent } from '@/types'
 
@@ -65,7 +64,7 @@ function toEvent(row: typeof ticketEvents.$inferSelect): TicketEvent {
   }
 }
 
-export async function createTicket(input: CreateTicketInput, orgId = DEFAULT_ORG_ID): Promise<Ticket> {
+export async function createTicket(input: CreateTicketInput, orgId: number): Promise<Ticket> {
   const db = getDb()
   const [row] = await db
     .insert(tickets)
@@ -94,7 +93,7 @@ export async function createTicket(input: CreateTicketInput, orgId = DEFAULT_ORG
   return toTicket(row)
 }
 
-export async function getTickets(filters: TicketFilters = {}, orgId = DEFAULT_ORG_ID): Promise<Ticket[]> {
+export async function getTickets(filters: TicketFilters = {}, orgId: number): Promise<Ticket[]> {
   const conditions = [eq(tickets.orgId, orgId)]
   if (filters.status) conditions.push(eq(tickets.status, filters.status))
   if (filters.priority) conditions.push(eq(tickets.priority, filters.priority))
@@ -249,7 +248,7 @@ export async function getTicketEvents(ticketId: number): Promise<TicketEvent[]> 
   return rows.map(toEvent)
 }
 
-export async function getTicketStats(orgId = DEFAULT_ORG_ID) {
+export async function getTicketStats(orgId: number) {
   const db = getDb()
 
   const [totRow] = await db
@@ -302,7 +301,7 @@ export async function getTicketStats(orgId = DEFAULT_ORG_ID) {
   }
 }
 
-export async function getSLABreachedTickets(orgId = DEFAULT_ORG_ID): Promise<Ticket[]> {
+export async function getSLABreachedTickets(orgId: number): Promise<Ticket[]> {
   const rows = await getDb().execute(sql`
     SELECT * FROM tickets
     WHERE (sla_response_met = 0 OR sla_resolve_met = 0)

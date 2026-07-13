@@ -123,6 +123,7 @@ Run alongside feature phases; none block the others.
 24. **Tier 3 gaps** — Telegram, auto-retrain, outbound campaigns, email channel, custom automations.
 25. ~~**Multi-tenant isolation hardening.**~~ ✅ Done — `fix/tenant-isolation`. Org scoping enforced across GitHub repo queries/tools, push notifications, related-ticket links, SLA breach checks, and ticket lookups; IDOR fixes on repo delete and ticket routes/actions; `tests/unit/tenant-isolation.test.ts` + `tests/unit/tenant-isolation-regressions.test.ts` pin every fix.
 26. ~~**KB-only agent mode.**~~ ✅ Done — `feat/kb-grounded-agent`. Agent no longer skips orgs with zero GitHub repos; runs without code-search tools, grounded on KB context + prior resolved answers, with a no-hallucination instruction. Confidence reviewer still gates auto-deflection. `tests/unit/kb-only-agent.test.ts`.
+27. ~~**Explicit orgId everywhere.**~~ ✅ Done — `fix/require-explicit-org-id`. Every `orgId = DEFAULT_ORG_ID` default parameter removed from `lib/`; compiler surfaced 28 unscoped call sites (analytics page/API, dashboard, layout unread count, FAQ routes, tickets API, notification actions) that were serving org 1's data to every tenant. `tests/unit/no-default-org.test.ts` bans the pattern permanently; `tests/unit/org-scoped-boundaries.test.ts` pins each boundary.
 
 ---
 

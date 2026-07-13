@@ -32,7 +32,7 @@ export async function promoteToKBAction(
 
   try {
     const embedding = await embedText(`${question}\n\n${answer}`, orgId)
-    await createArticle({ question, answer, embedding, model: EMBEDDING_MODEL, sourceTicketId: ticket.id })
+    await createArticle({ question, answer, embedding, model: EMBEDDING_MODEL, sourceTicketId: ticket.id }, orgId)
   } catch (err) {
     return { error: String(err) }
   }

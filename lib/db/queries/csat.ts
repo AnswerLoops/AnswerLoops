@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { getDb } from '../drizzle'
-import { csatMessages, csatRatings, DEFAULT_ORG_ID } from '../schema'
+import { csatMessages, csatRatings } from '../schema'
 import { sql } from 'drizzle-orm'
 
 export async function mapCsatMessage(messageId: string, ticketId: number): Promise<void> {
@@ -42,7 +42,7 @@ export interface CsatStats {
   breakdown: { rating: number; count: number }[]
 }
 
-export async function getCsatStats(orgId = DEFAULT_ORG_ID): Promise<CsatStats> {
+export async function getCsatStats(orgId: number): Promise<CsatStats> {
   const [agg] = await getDb().execute(sql`
     SELECT
       AVG(rating)::float AS avg_rating,

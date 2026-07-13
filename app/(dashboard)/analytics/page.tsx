@@ -31,16 +31,16 @@ function Bar({ value, max, className = 'bg-brand-500' }: { value: number; max: n
 export default async function AnalyticsPage() {
   const session = await auth()
   const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
-  const stats = await getDeflectionStats()
+  const stats = await getDeflectionStats(orgId)
   const rate = deflectionRate(stats.deflected, stats.answered)
   const roiConfig = await getOrgROIConfig(orgId)
   const savings = computeSavings(stats.deflected, roiConfig)
-  const trend = await getDeflectionTrend()
-  const categories = await getCategoryBreakdown()
-  const docGaps = await getDocGaps()
-  const sla = await getSLAStats()
-  const accuracyByCategory = await getDeflectionAccuracyByCategory()
-  const csat = await getCsatStats()
+  const trend = await getDeflectionTrend(14, orgId)
+  const categories = await getCategoryBreakdown(orgId)
+  const docGaps = await getDocGaps(20, orgId)
+  const sla = await getSLAStats(orgId)
+  const accuracyByCategory = await getDeflectionAccuracyByCategory(orgId)
+  const csat = await getCsatStats(orgId)
 
   const trendMax = Math.max(1, ...trend.map((t) => t.answered))
   const catMax = Math.max(1, ...categories.map((c) => c.count))
