@@ -1,7 +1,6 @@
 'use server'
 
 import { z } from 'zod'
-import { redirect } from 'next/navigation'
 import { auth, unstable_update } from '@/auth'
 import { updateOrgName, setOrgOnboarded } from '@/lib/db/queries/orgs'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
@@ -25,13 +24,17 @@ export async function updateWorkspaceNameAction(
   return null
 }
 
-export async function completeOnboardingAction(): Promise<void> {
+// Called directly from a client onClick handler (not a <form action>), so
+// redirect()'s throw-based navigation never reaches the browser — it's
+// only intercepted when Next dispatches the action itself. Return a plain
+// result instead and let the caller navigate with router.push.
+export async function completeOnboardingAction(): Promise<{ error?: string } | null> {
   const session = await auth()
-  if (!session?.user) redirect('/login')
+  if (!session?.user) return { error: 'Unauthorized' }
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
   await setOrgOnboarded(orgId)
   // Stamp the JWT so a future DB wipe won't force the user back through onboarding.
   await unstable_update({ onboarded: true })
-  redirect('/dashboard')
+  return null
 }

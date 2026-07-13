@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { updateWorkspaceNameAction, completeOnboardingAction } from '@/app/actions/onboarding'
 import { saveDiscordIntegrationAction, saveTelegramIntegrationAction } from '@/app/actions/integrations'
 import { ingestUrlAction } from '@/app/actions/ingest-url'
@@ -741,11 +741,20 @@ function SeedStep({ onDone }: { onDone: () => void }) {
 // ── Step 4: Done ───────────────────────────────────────────────────────────────
 
 function DoneStep({ completedSteps }: { completedSteps: Set<string> }) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleFinish() {
     setLoading(true)
-    await completeOnboardingAction()
+    setError(null)
+    const result = await completeOnboardingAction()
+    if (result?.error) {
+      setError(result.error)
+      setLoading(false)
+      return
+    }
+    router.push('/dashboard')
   }
 
   const items = [
@@ -790,6 +799,8 @@ function DoneStep({ completedSteps }: { completedSteps: Set<string> }) {
           <li>• Fine-tune AI model, SLA, and channels in <strong>Settings</strong></li>
         </ul>
       </div>
+
+      {error && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
       <button onClick={handleFinish} disabled={loading}
         className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-700 transition-all disabled:opacity-60 shadow-md shadow-brand-600/25">
