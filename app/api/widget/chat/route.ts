@@ -6,31 +6,25 @@ import { getKBContext } from '@/lib/db/queries/kb'
 import { getPriorAnswers, getCandidateVectors } from '@/lib/db/queries/embeddings'
 import { findRelated } from '@/lib/ai/related'
 import { getOrgByWidgetToken } from '@/lib/db/queries/widgets'
+import { rateLimit } from '@/lib/ratelimit'
 
-// Simple in-memory rate limit: max 20 requests per IP per minute
-const rateLimitMap = new Map<string, { count: number; reset: number }>()
+// Per-IP+token: catches a single abusive visitor. Per-token: caps total cost
+// exposure for one org even if the IP rotates (proxies, mobile networks, botnets).
+const IP_TOKEN_MAX = 20
+const IP_TOKEN_WINDOW_MS = 60_000
+const TOKEN_MAX = 100
+const TOKEN_WINDOW_MS = 60_000
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(ip)
-  if (!entry || entry.reset < now) {
-    rateLimitMap.set(ip, { count: 1, reset: now + 60_000 })
-    return true
-  }
-  if (entry.count >= 20) return false
-  entry.count++
-  return true
-}
+// Each message is capped well above normal chat length; the whole array is
+// capped so a caller can't send thousands of messages to inflate model cost.
+const MAX_MESSAGE_CHARS = 4_000
+const MAX_MESSAGES = 50
 
 export async function POST(request: Request) {
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
     request.headers.get('x-real-ip') ??
     'unknown'
-
-  if (!checkRateLimit(ip)) {
-    return new Response('Too many requests', { status: 429 })
-  }
 
   let body: { messages?: unknown[]; widgetToken?: string }
   try {
@@ -46,14 +40,33 @@ export async function POST(request: Request) {
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response('Missing messages', { status: 400 })
   }
+  if (messages.length > MAX_MESSAGES) {
+    return new Response('Too many messages', { status: 400 })
+  }
+
+  const tokenLimit = rateLimit(`widget-token:${widgetToken}`, TOKEN_MAX, TOKEN_WINDOW_MS)
+  if (!tokenLimit.ok) {
+    return new Response('Too many requests', { status: 429 })
+  }
+  const ipLimit = rateLimit(`widget-ip:${widgetToken}:${ip}`, IP_TOKEN_MAX, IP_TOKEN_WINDOW_MS)
+  if (!ipLimit.ok) {
+    return new Response('Too many requests', { status: 429 })
+  }
 
   const org = await getOrgByWidgetToken(widgetToken)
   if (!org) {
     return new Response('Invalid widget token', { status: 404 })
   }
 
-  // AI SDK v6: UIMessage[] → ModelMessage[] via official converter
   const uiMessages = messages as UIMessage[]
+  const oversized = uiMessages.some((m) =>
+    m.parts?.some((p) => p.type === 'text' && (p as { text: string }).text.length > MAX_MESSAGE_CHARS)
+  )
+  if (oversized) {
+    return new Response('Message too long', { status: 400 })
+  }
+
+  // AI SDK v6: UIMessage[] → ModelMessage[] via official converter
   const modelMessages = await convertToModelMessages(uiMessages)
 
   if (modelMessages.length === 0) {
