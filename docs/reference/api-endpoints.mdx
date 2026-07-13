@@ -1,8 +1,28 @@
 ---
-title: Api Endpoints
-description: Coming soon.
+title: API Endpoints
+description: Authentication and tenant scoping rules for the AnswerLoops API surface.
 ---
 
+## Authentication & tenant isolation
+
+Every dashboard API route requires a signed-in session, and every query it runs
+is scoped to the caller's organization:
+
+- **Session routes** (`/api/tickets/*`, `/api/github/repos/*`, `/api/kb/*`,
+  `/api/push/subscribe`, and the rest of the dashboard surface) resolve the
+  org from the session. Requests without a session receive `401`; resources
+  belonging to another org return `404` — object IDs are never enough to read
+  or mutate data across orgs.
+- **Bot ingest** (`POST /api/ingest`, Telegram/Email webhooks) authenticates
+  with a per-org `bot_secret` bearer token; the org is resolved from that
+  secret.
+- **Widget chat** (`POST /api/widget/chat`) is public but authenticates by
+  per-org widget token; all knowledge-base and prior-answer lookups are scoped
+  to the org that owns the token.
+- **GitHub webhook** (`POST /api/github/webhook`) verifies the HMAC-SHA256
+  signature and resolves the org from the configured repository row.
+
 <Info>
-  This page is being written. Check back soon or open an issue on [GitHub](https://github.com/NathanTarbert/community-platform).
+  A full endpoint-by-endpoint reference is being written. Check back soon or
+  open an issue on [GitHub](https://github.com/NathanTarbert/community-platform).
 </Info>
