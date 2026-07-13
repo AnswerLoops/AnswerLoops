@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
   if (from === 'onboarding') {
     const next = new URL('/onboarding', baseUrl)
     next.searchParams.set('discord_connected', '1')
+    next.searchParams.set('guild_id', guildId)
     return Response.redirect(next)
   }
 
