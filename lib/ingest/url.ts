@@ -3,6 +3,7 @@ import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
 import { createArticle, createArticleFromSource, countArticles } from '@/lib/db/queries/kb'
 import { createKBSource, getKBSourceByFilename, updateKBSourceChunkCount } from '@/lib/db/queries/kb-sources'
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
+import { logger } from '@/lib/logger'
 
 const MAX_CHUNK_CHARS = 1800
 const MIN_CHUNK_CHARS = 60
@@ -13,6 +14,16 @@ const MAX_PAGES = 25                  // hard ceiling on crawl breadth
 const MAX_CHUNKS_PER_IMPORT = 150     // bounds embeddings per import
 const MAX_TOTAL_CHARS = 600_000       // bounds total text embedded per import
 const MAX_ARTICLES_PER_ORG = 2000     // KB size ceiling per workspace
+
+// The import service's crawl/batch-scrape rate limit is per *request*, not
+// per page (its lowest published tier allows just 1 such request/min). A
+// site import must therefore always be ONE batch-scrape call regardless of
+// page count — never split into multiple calls, which would multiply
+// request usage instead of reducing it. SCRAPE_CONCURRENCY instead bounds
+// how many pages that one call fetches in parallel internally (a separate,
+// per-job concurrency limit); kept low so it stays under the lowest
+// published concurrent-browser tier since we can't detect the account's plan.
+const SCRAPE_CONCURRENCY = 2
 
 export class IngestLimitError extends Error {}
 
@@ -163,53 +174,98 @@ export async function ingestSite(
   url: string,
   orgId: number,
   maxPages = MAX_PAGES,
-): Promise<{ created: number; pages: number; skipped: number }> {
+): Promise<{ created: number; pages: number; pagesFound: number; skipped: number; incomplete: boolean }> {
   if (MOCK_EXTERNALS) {
     const mockMd = `## Mock Site Page\n\nThis is mock site content for ${url}. It contains enough text to be chunked into a KB article for testing purposes. The site crawl returns multiple pages.`
     const existing = await getKBSourceByFilename(orgId, url)
-    if (existing) return { created: 0, pages: 1, skipped: 1 }
+    if (existing) return { created: 0, pages: 1, pagesFound: 1, skipped: 1, incomplete: false }
     const source = await createKBSource({ orgId, filename: url, fileType: 'url', sizeBytes: mockMd.length })
     const chunks = chunkMarkdown(mockMd, 'Mock Site Page')
     const created = await saveChunks(chunks, orgId, source.id)
     await updateKBSourceChunkCount(source.id, created)
-    return { created, pages: 1, skipped: 0 }
+    return { created, pages: 1, pagesFound: 1, skipped: 0, incomplete: false }
   }
 
   const app = makeClient()
+  const limit = Math.min(maxPages, MAX_PAGES)
 
-  const crawlResult = await app.crawlUrl(url, {
-    limit: Math.min(maxPages, MAX_PAGES),
-    scrapeOptions: { formats: ['markdown'] },
-  } as Parameters<typeof app.crawlUrl>[1])
+  // Discover page URLs first (cheap — no scraping yet), then drop pages
+  // already ingested before spending scrape requests on them.
+  const mapResult = await app.mapUrl(url, { limit })
+  const mappedUrls = (mapResult.links ?? []).map((l) => l.url).filter(Boolean).slice(0, limit)
+  const pagesFound = mappedUrls.length
 
-  const pages = (crawlResult as { data?: unknown[] }).data ?? []
-
-  let created = 0
+  const candidateUrls: string[] = []
   let skipped = 0
-
-  for (const page of pages as Array<{ markdown?: string; metadata?: { title?: string; sourceURL?: string } }>) {
-    if (!page.markdown) continue
-
-    const pageUrl = page.metadata?.sourceURL ?? url
+  for (const pageUrl of mappedUrls) {
     const existing = await getKBSourceByFilename(orgId, pageUrl)
     if (existing) {
       skipped++
       continue
     }
-
-    const source = await createKBSource({
-      orgId,
-      filename: pageUrl,
-      fileType: 'url',
-      sizeBytes: page.markdown.length,
-    })
-
-    const title = page.metadata?.title ?? pageUrl
-    const chunks = chunkMarkdown(page.markdown, title)
-    const pageCreated = await saveChunks(chunks, orgId, source.id)
-    await updateKBSourceChunkCount(source.id, pageCreated)
-    created += pageCreated
+    candidateUrls.push(pageUrl)
   }
 
-  return { created, pages: pages.length, skipped }
+  let created = 0
+  let scraped = 0
+  let incomplete = false
+
+  if (candidateUrls.length > 0) {
+    // One request for every candidate URL — the import service rate-limits
+    // by request, not by page, so splitting this into multiple calls would
+    // use more of that budget, not less. Concurrency *within* this single
+    // job is bounded by SCRAPE_CONCURRENCY instead.
+    let batchResult
+    try {
+      batchResult = await app.batchScrape(candidateUrls, {
+        options: { formats: ['markdown'] },
+        maxConcurrency: SCRAPE_CONCURRENCY,
+      })
+    } catch (err) {
+      logger.warn('site import batch scrape failed — nothing scraped this run, safe to retry', {
+        module: 'ingest/url',
+        orgId,
+        url,
+        candidateCount: candidateUrls.length,
+        error: err,
+      })
+      batchResult = undefined
+      incomplete = true
+    }
+
+    for (const page of batchResult?.data ?? []) {
+      if (!page.markdown) continue
+      scraped++
+
+      const pageUrl = page.metadata?.sourceURL ?? url
+      const existing = await getKBSourceByFilename(orgId, pageUrl)
+      if (existing) {
+        skipped++
+        continue
+      }
+
+      const source = await createKBSource({
+        orgId,
+        filename: pageUrl,
+        fileType: 'url',
+        sizeBytes: page.markdown.length,
+      })
+
+      const title = page.metadata?.title ?? pageUrl
+      const chunks = chunkMarkdown(page.markdown, title)
+      const pageCreated = await saveChunks(chunks, orgId, source.id)
+      await updateKBSourceChunkCount(source.id, pageCreated)
+      created += pageCreated
+    }
+
+    // The job can also complete but return fewer documents than requested
+    // (individual page failures — 404s, robots.txt blocks, timeouts) without
+    // throwing. Surface that as incomplete too so the UI doesn't claim more
+    // pages landed than actually did.
+    if (batchResult && scraped < candidateUrls.length) {
+      incomplete = true
+    }
+  }
+
+  return { created, pages: scraped, pagesFound, skipped, incomplete }
 }
