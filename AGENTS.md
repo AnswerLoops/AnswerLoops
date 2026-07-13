@@ -214,9 +214,10 @@ After completing any phase or significant feature, do ALL of the following befor
 | New AI/LLM capability | Build Plan · Architecture · Business Value · Competitive Analysis · Production Setup Guide |
 | New integration or channel | Build Plan · Architecture · Multi-Tenant SaaS Plan · Production Setup Guide |
 | Env var added/changed | Production Setup Guide |
-| Pricing / moat / positioning shift | Business Value · Competitive Analysis |
-| Schema / data model change | Architecture (data model section) |
+| Pricing / moat / positioning shift | Business Value · Competitive Analysis · Roadmap |
+| Schema / data model change | Architecture (data model section) · Agent Architecture |
 | Deployment change | Architecture (deployment section) · Production Setup Guide |
+| Roadmap item shipped or reprioritized | Roadmap |
 
 Notion page IDs — stored in `.env.notion` (gitignored, never committed).
 Read `.env.notion` at the start of any PR workflow to resolve these variable names:
@@ -232,8 +233,13 @@ Read `.env.notion` at the start of any PR workflow to resolve these variable nam
 | `$NOTION_CLAUDE_RULES_ID` | Claude Rules & Checks |
 | `$NOTION_SKILLS_PAGE_ID` | Skills & Commands |
 | `$NOTION_DOCS_MAP_ID` | Docs Map (Mintlify structure) |
+| `$NOTION_ISSUES_BACKLOG_ID` | Issues Backlog (unfixed items surfaced during audits/reviews) |
+| `$NOTION_ROADMAP_ID` | Roadmap |
+| `$NOTION_AGENT_ARCH_ID` | Agent Architecture (machine-readable schema reference) |
 
 Setup: `cp .env.notion.example .env.notion` then fill in your workspace IDs.
+
+**Issues Backlog rule:** when a code review, audit, or debugging session surfaces a real problem that isn't fixed in the current PR, add it to the Issues Backlog page (`$NOTION_ISSUES_BACKLOG_ID`) instead of letting it evaporate at the end of the conversation. When an item from that page gets fixed, remove it from the backlog and confirm it's reflected in Build Plan with a ✅ and PR link.
 
 Use `mcp__notion__notion-update-page` with `command: "update_content"` and targeted `old_str`/`new_str` pairs — never replace entire pages.
 
