@@ -406,10 +406,11 @@ function UrlIngestSection({ onImported }: { onImported: () => void }) {
           <p className="text-xs text-red-500">{result.error}</p>
         )}
         {result.created != null && !result.error && (
-          <p className="text-xs text-green-600">
+          <p className={`text-xs ${result.incomplete ? 'text-amber-600' : 'text-green-600'}`}>
             {result.pages != null
-              ? `Imported ${result.created} articles from ${result.pages} pages${result.skipped ? ` (${result.skipped} already in KB, skipped)` : ''}.`
+              ? `Imported ${result.created} articles from ${result.pages}${result.pagesFound ? ` of ${result.pagesFound}` : ''} pages${result.skipped ? ` (${result.skipped} already in KB, skipped)` : ''}.`
               : `Imported ${result.created} articles${result.skipped ? ` (${result.skipped} already in KB, skipped)` : ''}.`}
+            {result.incomplete && ' Import was interrupted partway through — click Import again to pick up the remaining pages.'}
           </p>
         )}
       </form>

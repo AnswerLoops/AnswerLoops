@@ -22,7 +22,9 @@ export interface IngestUrlResult {
   error?: string
   created?: number
   pages?: number
+  pagesFound?: number
   skipped?: number
+  incomplete?: boolean
 }
 
 export async function ingestUrlAction(
@@ -34,7 +36,7 @@ export async function ingestUrlAction(
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
   if (!MOCK_EXTERNALS && !process.env.FIRECRAWL_API_KEY) {
-    return { error: 'FIRECRAWL_API_KEY is not configured. Add it to your .env file.' }
+    return { error: 'URL import is not configured for this workspace. Contact your administrator.' }
   }
 
   const limit = rateLimit(`ingest:${orgId}`, IMPORT_MAX, IMPORT_WINDOW_MS)
@@ -51,7 +53,13 @@ export async function ingestUrlAction(
   try {
     if (mode === 'site') {
       const result = await ingestSite(url, orgId)
-      return { created: result.created, pages: result.pages, skipped: result.skipped }
+      return {
+        created: result.created,
+        pages: result.pages,
+        pagesFound: result.pagesFound,
+        skipped: result.skipped,
+        incomplete: result.incomplete,
+      }
     } else {
       const result = await ingestUrl(url, orgId)
       return { created: result.created, skipped: result.skipped ? 1 : 0 }
@@ -63,7 +71,7 @@ export async function ingestUrlAction(
       return { error: 'No AI provider configured. Add OPENAI_API_KEY to your environment variables, or configure a provider in Settings → AI Model.' }
     }
     if (msg.includes('Rate limit exceeded') || msg.includes('FirecrawlSdkError')) {
-      return { error: 'Firecrawl rate limit exceeded. Wait a minute and try again, or use Single page mode instead of Entire site.' }
+      return { error: 'Import rate limit exceeded. Wait a minute and try again, or use Single page mode instead of Entire site.' }
     }
     logger.error('ingest-url failed', { module: 'actions/ingest-url', error: err })
     return { error: 'Import failed. Check the URL and try again.' }
