@@ -175,8 +175,8 @@ interface Guild { id: string; name: string; channels: GuildChannel[] }
 
 const BOT_PERMISSIONS = '85056'
 
-function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
-  const [subStep, setSubStep] = useState<DiscordSubStep>('choose')
+function DiscordFlow({ onDone, onBack, oauthGuildId }: { onDone: () => void; onBack: () => void; oauthGuildId?: string }) {
+  const [subStep, setSubStep] = useState<DiscordSubStep>(oauthGuildId ? 'channels' : 'choose')
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [loadingUrl, setLoadingUrl] = useState(false)
   // manual flow state
@@ -192,6 +192,7 @@ function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => voi
 
   // Check if platform has DISCORD_CLIENT_ID configured (1-click mode)
   useEffect(() => {
+    if (oauthGuildId) return
     setLoadingUrl(true)
     fetch('/api/discord/invite-url')
       .then((r) => r.json())
@@ -200,7 +201,30 @@ function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => voi
       })
       .catch(() => {})
       .finally(() => setLoadingUrl(false))
-  }, [])
+  }, [oauthGuildId])
+
+  // Just returned from 1-click Discord OAuth — the bot already joined the
+  // server, but no channels are monitored yet. Fetch this guild's channels
+  // using the platform bot token (same endpoint Settings uses) and land
+  // straight on the channel picker instead of silently completing with
+  // zero channels monitored.
+  useEffect(() => {
+    if (!oauthGuildId) return
+    setFetching(true)
+    setFetchError('')
+    fetch(`/api/discord/guilds?guild_id=${oauthGuildId}`)
+      .then((r) => r.json())
+      .then((data: { guildId?: string; channels?: GuildChannel[]; error?: string }) => {
+        if (data.error || !data.channels) {
+          setFetchError(data.error ?? 'Could not load channels for this server.')
+          return
+        }
+        setGuilds([{ id: oauthGuildId, name: 'Your server', channels: data.channels }])
+        setSelectedGuild(oauthGuildId)
+      })
+      .catch(() => setFetchError('Failed to reach Discord — check your internet connection.'))
+      .finally(() => setFetching(false))
+  }, [oauthGuildId])
 
   const manualInviteUrl = clientId.trim()
     ? `https://discord.com/oauth2/authorize?client_id=${clientId.trim()}&scope=bot&permissions=${BOT_PERMISSIONS}`
@@ -362,11 +386,24 @@ function DiscordFlow({ onDone, onBack }: { onDone: () => void; onBack: () => voi
   // channels step
   return (
     <div className="space-y-5">
-      <BackButton onClick={() => setSubStep('invite')} />
+      <BackButton onClick={() => (oauthGuildId ? onBack() : setSubStep('invite'))} />
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-gray-800">Pick channels to monitor</p>
-        <p className="text-xs text-gray-500">Messages posted here become support tickets automatically.</p>
+        <p className="text-sm font-semibold text-gray-800">
+          {oauthGuildId ? 'Bot added — now pick channels to monitor' : 'Pick channels to monitor'}
+        </p>
+        <p className="text-xs text-gray-500">
+          {oauthGuildId
+            ? "Discord won't send any messages here until you select at least one channel."
+            : 'Messages posted here become support tickets automatically.'}
+        </p>
       </div>
+      {fetching && guilds.length === 0 && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3">
+          <Spinner className="h-4 w-4 text-brand-500 shrink-0" />
+          <p className="text-xs font-medium text-brand-700">Loading your server's channels…</p>
+        </div>
+      )}
+      {fetchError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{fetchError}</p>}
       {guilds.length > 1 && (
         <Field label="Server">
           <select value={selectedGuild} onChange={(e) => { setSelectedGuild(e.target.value); setSelectedChannels(new Set()) }} className={inputCls}>
@@ -434,8 +471,8 @@ function TelegramFlow({ onDone, onBack }: { onDone: () => void; onBack: () => vo
   )
 }
 
-function ConnectStep({ onDone }: { onDone: () => void }) {
-  const [platform, setPlatform] = useState<Platform>(null)
+function ConnectStep({ onDone, oauthGuildId }: { onDone: () => void; oauthGuildId?: string }) {
+  const [platform, setPlatform] = useState<Platform>(oauthGuildId ? 'discord' : null)
   const [connectingSlack, setConnectingSlack] = useState(false)
   const [slackError, setSlackError] = useState<string | null>(null)
 
@@ -505,7 +542,7 @@ function ConnectStep({ onDone }: { onDone: () => void }) {
       )}
 
       {platform === 'discord' && (
-        <DiscordFlow onDone={onDone} onBack={() => setPlatform(null)} />
+        <DiscordFlow onDone={onDone} onBack={() => setPlatform(null)} oauthGuildId={oauthGuildId} />
       )}
 
       {platform === 'telegram' && (
@@ -777,15 +814,22 @@ export default function OnboardingWizard({ initialName }: { initialName: string 
   const searchParams = useSearchParams()
   const [step, setStep] = useState<Step>('name')
   const [completed, setCompleted] = useState<Set<string>>(new Set())
+  const [discordOAuthGuildId, setDiscordOAuthGuildId] = useState<string | undefined>()
 
-  // Auto-advance after Discord OAuth callback
+  // After Discord OAuth callback the bot has joined the server, but no
+  // channels are monitored yet — land on the channel picker (Connect step)
+  // instead of skipping straight to Seed KB, or messages posted before the
+  // user finds Settings → Integrations would silently never become tickets.
   useEffect(() => {
     if (searchParams.get('discord_connected') === '1') {
-      setCompleted((prev) => new Set([...prev, 'name', 'connect']))
-      setStep('seed')
-      // Clean the query param without a full reload
+      const guildId = searchParams.get('guild_id') ?? undefined
+      setCompleted((prev) => new Set([...prev, 'name']))
+      setStep('connect')
+      setDiscordOAuthGuildId(guildId)
+      // Clean the query params without a full reload
       const url = new URL(window.location.href)
       url.searchParams.delete('discord_connected')
+      url.searchParams.delete('guild_id')
       window.history.replaceState({}, '', url.toString())
     }
   }, [searchParams])
@@ -839,7 +883,7 @@ export default function OnboardingWizard({ initialName }: { initialName: string 
 
           {/* Step content */}
           {step === 'name'    && <NameStep    initialName={initialName} onDone={() => advance('name')} />}
-          {step === 'connect' && <ConnectStep onDone={() => advance('connect')} />}
+          {step === 'connect' && <ConnectStep onDone={() => advance('connect')} oauthGuildId={discordOAuthGuildId} />}
           {step === 'seed'    && <SeedStep    onDone={() => advance('seed')} />}
           {step === 'done'    && <DoneStep    completedSteps={completed} />}
         </div>
