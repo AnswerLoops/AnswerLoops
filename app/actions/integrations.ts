@@ -4,7 +4,13 @@ import crypto from 'crypto'
 import { z } from 'zod'
 import { refresh } from 'next/cache'
 import { auth } from '@/auth'
-import { upsertIntegration, deleteIntegration, getIntegration } from '@/lib/db/queries/integrations'
+import {
+  upsertIntegration,
+  deleteIntegration,
+  getIntegration,
+  getIntegrationByInboundAddress,
+} from '@/lib/db/queries/integrations'
+import { getOrg } from '@/lib/db/queries/orgs'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 
@@ -271,6 +277,63 @@ export async function deleteTelegramIntegrationAction(
 }
 
 // ── Email ─────────────────────────────────────────────────────────────────────
+
+const EMAIL_INBOUND_DOMAIN = process.env.EMAIL_INBOUND_DOMAIN ?? 'inbox.answerloops.app'
+
+function slugifyForEmail(input: string): string {
+  const s = input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return s || 'org'
+}
+
+async function generateUniqueInboundAddress(base: string): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const suffix = crypto.randomBytes(3).toString('hex')
+    const candidate = `${base}-${suffix}@${EMAIL_INBOUND_DOMAIN}`
+    const taken = await getIntegrationByInboundAddress(candidate)
+    if (!taken) return candidate
+  }
+  throw new Error('Could not generate a unique inbound address')
+}
+
+/**
+ * Zero-setup email onboarding: generates a platform-hosted inbound address
+ * and enables the integration immediately — no provider account, API key, or
+ * DNS change required. This is the primary path; saveEmailIntegrationAction
+ * below remains as the "Advanced: bring your own provider" disclosure.
+ */
+export async function connectPlatformEmailAction(
+  _prevState: unknown,
+  _formData: FormData
+): Promise<{ error?: string; inboundAddress?: string } | null> {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
+  const existing = await getIntegration(orgId, 'email')
+  // inbound_address is set once and is immutable — reconnecting must not churn it.
+  if (existing?.inbound_address) {
+    refresh()
+    return { inboundAddress: existing.inbound_address }
+  }
+
+  const org = await getOrg(orgId)
+  const base = slugifyForEmail(org?.slug || org?.name || `org-${orgId}`)
+  const inboundAddress = await generateUniqueInboundAddress(base)
+
+  await upsertIntegration({
+    orgId,
+    platform: 'email',
+    inboundAddress,
+    botSecret: existing?.bot_secret ?? crypto.randomBytes(32).toString('hex'),
+    confidenceThreshold: existing?.confidence_threshold ?? 0.8,
+  })
+
+  refresh()
+  return { inboundAddress }
+}
 
 const EmailIntegrationSchema = z.object({
   replyFromAddress: z.string().email('Invalid reply-from email address').optional().or(z.literal('')),

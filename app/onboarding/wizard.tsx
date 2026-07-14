@@ -3,7 +3,7 @@
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { updateWorkspaceNameAction, completeOnboardingAction } from '@/app/actions/onboarding'
-import { saveDiscordIntegrationAction, saveTelegramIntegrationAction } from '@/app/actions/integrations'
+import { saveDiscordIntegrationAction, saveTelegramIntegrationAction, connectPlatformEmailAction } from '@/app/actions/integrations'
 import { ingestUrlAction } from '@/app/actions/ingest-url'
 import type { IngestUrlResult } from '@/app/actions/ingest-url'
 
@@ -57,7 +57,7 @@ const inputCls = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 
 
 function PrimaryButton({ pending, label, pendingLabel, color, type = 'submit', onClick }: {
   pending?: boolean; label: string; pendingLabel?: string
-  color?: 'discord' | 'slack' | 'telegram' | 'default'
+  color?: 'discord' | 'slack' | 'telegram' | 'email' | 'default'
   type?: 'submit' | 'button'
   onClick?: () => void
 }) {
@@ -65,6 +65,7 @@ function PrimaryButton({ pending, label, pendingLabel, color, type = 'submit', o
     color === 'discord'  ? 'bg-[#5865F2] hover:bg-[#4752c4] text-white shadow-[#5865F2]/25' :
     color === 'slack'    ? 'bg-[#4A154B] hover:bg-[#3d1040] text-white shadow-[#4A154B]/25' :
     color === 'telegram' ? 'bg-[#229ED9] hover:bg-[#1a8ec5] text-white shadow-[#229ED9]/25' :
+    color === 'email'    ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/25' :
                            'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/25'
   return (
     <button
@@ -530,6 +531,7 @@ function ConnectStep({ onDone, oauthGuildId }: { onDone: () => void; oauthGuildI
             <PlatformCard
               icon={<EmailIcon className="h-7 w-7 text-amber-500" />}
               label="Email"
+              badge="1-click"
               bg="hover:bg-amber-50/60 bg-white"
               borderColor="border-gray-200 hover:border-amber-400/50"
               onClick={() => setPlatform('email')}
@@ -550,19 +552,7 @@ function ConnectStep({ onDone, oauthGuildId }: { onDone: () => void; oauthGuildI
       )}
 
       {platform === 'email' && (
-        <div className="space-y-5">
-          <BackButton onClick={() => setPlatform(null)} />
-          <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <EmailIcon className="h-5 w-5 text-amber-600" />
-              <p className="text-sm font-semibold text-amber-800">Email needs webhook setup</p>
-            </div>
-            <p className="text-xs text-amber-700">
-              Email ingest works via a webhook — your provider (SendGrid, Mailgun, Postmark, Cloudflare) posts inbound emails to your AnswerLoops endpoint. Configure it in <strong>Settings → Email</strong> after completing onboarding.
-            </p>
-          </div>
-          <PrimaryButton type="button" label="Continue, I'll set up email in Settings →" onClick={onDone} />
-        </div>
+        <EmailFlow onDone={onDone} onBack={() => setPlatform(null)} />
       )}
 
       {platform === 'slack' && (
@@ -593,6 +583,64 @@ function ConnectStep({ onDone, oauthGuildId }: { onDone: () => void; oauthGuildI
             Skip — I&apos;ll connect Slack in Settings
           </button>
         </div>
+      )}
+    </div>
+  )
+}
+
+function EmailFlow({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const [state, formAction, pending] = useActionState(connectPlatformEmailAction, null)
+  const inboundAddress = (state as { inboundAddress?: string } | null)?.inboundAddress ?? null
+
+  function copyAddress() {
+    if (!inboundAddress) return
+    navigator.clipboard.writeText(inboundAddress)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="space-y-5">
+      <BackButton onClick={onBack} />
+      {!inboundAddress ? (
+        <>
+          <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <EmailIcon className="h-5 w-5 text-amber-600" />
+              <p className="text-sm font-semibold text-amber-800">Get a support inbox in one click</p>
+            </div>
+            <p className="text-xs text-amber-700">
+              No email provider account, API key, or DNS setup needed — we&apos;ll generate a ready-to-use address you can share with customers or forward your existing mailbox to.
+            </p>
+          </div>
+          {(state as { error?: string } | null)?.error && (
+            <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{(state as { error?: string }).error}</p>
+          )}
+          <form action={formAction}>
+            <PrimaryButton pending={pending} label="Connect email" pendingLabel="Connecting…" color="email" />
+          </form>
+        </>
+      ) : (
+        <>
+          <div className="rounded-xl border border-green-100 bg-green-50 p-4 space-y-2">
+            <p className="text-sm font-semibold text-green-800">Your support inbox is ready</p>
+            <div className="relative">
+              <code className="block text-xs font-mono text-gray-900 bg-white border border-gray-200 rounded px-3 py-2 pr-16 break-all">
+                {inboundAddress}
+              </code>
+              <button
+                type="button"
+                onClick={copyAddress}
+                className="absolute top-2 right-2 rounded px-2 py-1 text-[10px] font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                {copied ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+            <p className="text-xs text-green-700">Share this with customers, or forward your existing support mailbox to it. You can manage advanced settings later in Settings → Email.</p>
+          </div>
+          <PrimaryButton type="button" label="Continue →" onClick={onDone} />
+        </>
       )}
     </div>
   )

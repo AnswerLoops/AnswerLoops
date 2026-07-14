@@ -105,8 +105,10 @@ After deploying, register the webhook: `POST {AUTH_URL}/api/telegram/register` (
 | `RESEND_API_KEY` | API key from resend.com. Enables email alerts (new ticket, SLA breach, resolved). |
 | `RESEND_FROM` | Verified sender address e.g. `hello@yourdomain.com` |
 | `RESEND_WAITLIST_FROM` | From address for waitlist confirmation emails. Falls back to `RESEND_FROM`. |
+| `RESEND_WEBHOOK_SECRET` | Svix signing secret (`whsec_...`) from your Resend inbound webhook config — required to offer customers the zero-setup email channel (see [Email Channel Setup](/self-hosting/email-channel)) |
+| `EMAIL_INBOUND_DOMAIN` | Domain used when generating each org's platform-hosted inbound address (defaults to `inbox.answerloops.app`) — self-hosters should set this to a domain they control |
 
-If absent, email notifications skip silently — nothing breaks.
+If absent, email notifications skip silently — nothing breaks. Without `RESEND_WEBHOOK_SECRET`, the platform-hosted email path is unavailable but the BYO-provider path still works.
 
 ## URL ingest — Firecrawl (optional)
 

@@ -8,6 +8,7 @@ import {
   primaryKey,
   uniqueIndex,
   index,
+  jsonb,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -263,6 +264,9 @@ export const integrations = pgTable(
     escalationRoleId: text('escalation_role_id'),
     connectedGuildId: text('connected_guild_id'),
     confidenceThreshold: doublePrecision('confidence_threshold').default(0.8),
+    // Platform-hosted inbound email address ({slug}-{rand}@inbox domain).
+    // Set once at connect-time for the email platform row; immutable after.
+    inboundAddress: text('inbound_address').unique(),
     enabled: integer('enabled').notNull().default(1),
     createdAt: text('created_at').notNull().default(now),
     updatedAt: text('updated_at').notNull().default(now),
@@ -271,6 +275,41 @@ export const integrations = pgTable(
     uniqueIndex('integrations_org_platform').on(t.orgId, t.platform),
     index('idx_integrations_bot_secret').on(t.botSecret),
     index('idx_integrations_org').on(t.orgId),
+  ]
+)
+
+// Raw-inbound persistence + idempotency + conversation-threading spine for the
+// email channel. rfc_message_id is the RFC 5322 Message-ID header — NOT the
+// provider's API id — because that's what a customer's reply carries in its
+// In-Reply-To/References headers; storing both directions here is what lets a
+// reply to an AI answer land on the same ticket instead of spawning a new one.
+export const emailMessages = pgTable(
+  'email_messages',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id),
+    direction: text('direction').notNull(), // 'in' | 'out'
+    rfcMessageId: text('rfc_message_id').notNull().unique(),
+    // Resend's own internal id for outbound sends — delivery-status webhooks
+    // (bounced/complained/delivery_delayed) reference this, not our RFC id.
+    providerMessageId: text('provider_message_id').unique(),
+    inReplyTo: text('in_reply_to'),
+    references: text('references'),
+    ticketId: integer('ticket_id').references(() => tickets.id, { onDelete: 'set null' }),
+    fromAddr: text('from_addr'),
+    toAddr: text('to_addr'),
+    subject: text('subject'),
+    spamVerdict: text('spam_verdict'),
+    // 'received' | 'processed' | 'rejected_spam' | 'rejected_loop' |
+    // 'rejected_filter' | 'sent' | 'bounced' | 'delivery_failed'
+    status: text('status').notNull().default('received'),
+    rawPayload: jsonb('raw_payload'),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    index('idx_email_messages_org').on(t.orgId),
+    index('idx_email_messages_ticket').on(t.ticketId),
+    index('idx_email_messages_in_reply_to').on(t.inReplyTo),
   ]
 )
 

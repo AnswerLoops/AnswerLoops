@@ -18,6 +18,7 @@ export interface Integration {
   webhook_secret: string | null
   escalation_role_id: string | null
   confidence_threshold: number | null
+  inbound_address: string | null
   enabled: number
   created_at: string
   updated_at: string
@@ -37,6 +38,7 @@ function toIntegration(row: typeof integrations.$inferSelect): Integration {
     webhook_secret: row.webhookSecret,
     escalation_role_id: row.escalationRoleId ?? null,
     confidence_threshold: row.confidenceThreshold ?? 0.8,
+    inbound_address: row.inboundAddress ?? null,
     enabled: row.enabled,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
@@ -65,6 +67,22 @@ export async function getIntegrationByBotSecret(botSecret: string): Promise<Inte
     .select()
     .from(integrations)
     .where(and(eq(integrations.botSecret, botSecret), eq(integrations.enabled, 1)))
+    .limit(1)
+  return row ? decryptRow(toIntegration(row)) : null
+}
+
+/** Resolve the org that owns a platform-hosted inbound email address. */
+export async function getIntegrationByInboundAddress(address: string): Promise<Integration | null> {
+  const [row] = await getDb()
+    .select()
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.inboundAddress, address.toLowerCase()),
+        eq(integrations.platform, 'email'),
+        eq(integrations.enabled, 1)
+      )
+    )
     .limit(1)
   return row ? decryptRow(toIntegration(row)) : null
 }
@@ -119,6 +137,7 @@ export async function upsertIntegration(input: {
   webhookSecret?: string | null
   escalationRoleId?: string | null
   confidenceThreshold?: number | null
+  inboundAddress?: string | null
 }): Promise<Integration> {
   const channelIdsJson = input.channelIds ? JSON.stringify(input.channelIds) : null
   const encryptedBotToken = input.botToken ? encryptToken(input.botToken) : null
@@ -137,6 +156,7 @@ export async function upsertIntegration(input: {
         webhookSecret: encryptedWebhookSecret ?? undefined,
         escalationRoleId: input.escalationRoleId !== undefined ? (input.escalationRoleId ?? null) : undefined,
         confidenceThreshold: input.confidenceThreshold !== undefined ? (input.confidenceThreshold ?? 0.8) : undefined,
+        inboundAddress: input.inboundAddress ?? undefined,
         enabled: 1,
         updatedAt: new Date().toISOString(),
       })
@@ -157,6 +177,7 @@ export async function upsertIntegration(input: {
       webhookSecret: encryptedWebhookSecret ?? null,
       escalationRoleId: input.escalationRoleId ?? null,
       confidenceThreshold: input.confidenceThreshold ?? 0.8,
+      inboundAddress: input.inboundAddress ?? null,
     })
     .returning()
 

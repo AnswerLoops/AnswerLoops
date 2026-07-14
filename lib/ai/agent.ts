@@ -23,10 +23,16 @@ const MOD = 'ai/agent'
 
 type Platform = 'discord' | 'slack' | 'telegram' | 'email' | 'github'
 
-async function postReply(channelId: string, content: string, orgId: number, platform: Platform): Promise<string | null> {
+async function postReply(
+  channelId: string,
+  content: string,
+  orgId: number,
+  platform: Platform,
+  ticketId?: number
+): Promise<string | null> {
   if (platform === 'slack') return sendToSlackChannel(channelId, content, orgId)
   if (platform === 'telegram') return sendToTelegramChat(channelId, content, orgId)
-  if (platform === 'email') return sendEmailReply(channelId, content, orgId)
+  if (platform === 'email') return sendEmailReply(channelId, content, orgId, ticketId)
   return sendToChannel(channelId, content, orgId)
 }
 
@@ -154,11 +160,11 @@ Guidelines:
     if (autoDeflect) {
       await createNotification('ai_draft_ready', `Auto-answered (${pct}%) — ticket #${ticketId}`, ticketId, orgId)
       const message = `${text}\n\n*React 👍 / 👎 if this helped. A team member will follow up if not.*`
-      postedMessageId = await postReply(channelId, message, orgId, platform)
+      postedMessageId = await postReply(channelId, message, orgId, platform, ticketId)
 
       // Post CSAT prompt as follow-up and store its message ID
       const csatPrompt = `*How would you rate this answer?*\n1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣\n_(React with a number to rate)_`
-      const csatMessageId = await postReply(channelId, csatPrompt, orgId, platform)
+      const csatMessageId = await postReply(channelId, csatPrompt, orgId, platform, ticketId)
       if (csatMessageId) await mapCsatMessage(csatMessageId, ticketId)
 
       logger.info('auto-deflected', { module: MOD, ticketId, confidence: pct, platform })
@@ -190,7 +196,7 @@ Guidelines:
       }
 
       const message = `**[Needs Human Review — ${pct}% confidence]**\n${text}\n\n*A team member will follow up shortly.*${escalationMention}`
-      postedMessageId = await postReply(channelId, message, orgId, platform)
+      postedMessageId = await postReply(channelId, message, orgId, platform, ticketId)
       logger.info('routed to human review', { module: MOD, ticketId, confidence: pct, platform, escalated: !!escalationRoleId })
     }
 
