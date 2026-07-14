@@ -39,11 +39,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Topnav */}
-        <header className="h-12 shrink-0 border-b border-gray-200 bg-white flex items-center justify-between px-3 md:px-6">
+        <header className="h-12 shrink-0 border-b border-gray-200 bg-white flex items-center px-3 md:px-6">
           <MobileDrawer triggerLabel="Open navigation" triggerClassName="md:hidden">
             <div className="flex flex-col h-full">{sidebarContent}</div>
           </MobileDrawer>
-          <div className="flex items-center gap-4">
+          {/* ml-auto (not justify-between) — the drawer trigger is display:none
+              at md+, which removes it from flex layout entirely; with only one
+              flex child left, justify-between degenerates to flex-start and
+              this cluster would collapse to the header's left edge. */}
+          <div className="flex items-center gap-4 ml-auto">
             <Link href="/" className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors">
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m15 18-6-6 6-6"/>
