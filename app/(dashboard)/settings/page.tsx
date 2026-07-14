@@ -4,7 +4,7 @@ import { useActionState, useRef, useTransition } from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { updateSLAAction } from '@/app/actions/sla'
-import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackChannelsAction, deleteSlackIntegrationAction, saveTelegramIntegrationAction, deleteTelegramIntegrationAction, saveEmailIntegrationAction, deleteEmailIntegrationAction } from '@/app/actions/integrations'
+import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackChannelsAction, deleteSlackIntegrationAction, saveTelegramIntegrationAction, deleteTelegramIntegrationAction, saveEmailIntegrationAction, deleteEmailIntegrationAction, connectPlatformEmailAction } from '@/app/actions/integrations'
 import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwnershipAction } from '@/app/actions/invitations'
 import { getWidgetTokenAction, regenerateWidgetTokenAction } from '@/app/actions/widget'
 import { saveAIConfigAction, clearAIConfigAction } from '@/app/actions/ai-config'
@@ -940,6 +940,7 @@ interface EmailIntegration {
   channel_ids: string[]
   escalation_role_id: string | null
   confidence_threshold: number | null
+  inbound_address: string | null
   enabled: number
   bot_secret?: string | null
 }
@@ -947,9 +948,24 @@ interface EmailIntegration {
 function EmailIntegrationCard() {
   const [integration, setIntegration] = useState<EmailIntegration | null | undefined>(undefined)
   const [editing, setEditing] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [webhookSecret, setWebhookSecret] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const { toastMessage, showToast } = useToast()
   const [, startDeleteTransition] = useTransition()
+
+  const [connectState, connectAction, connectPending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await connectPlatformEmailAction(prev, fd)
+      if (result && !('error' in result && result.error)) {
+        const updated = await fetch('/api/integrations').then((r) => r.json())
+        setIntegration(updated.find((i: EmailIntegration) => i.platform === 'email') ?? null)
+        showToast('Email connected')
+      }
+      return result
+    },
+    null
+  )
 
   const [saveState, saveAction, savePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
@@ -988,8 +1004,16 @@ function EmailIntegrationCard() {
   if (integration === undefined) return <p className="text-sm text-gray-400">Loading…</p>
 
   const connected = integration !== null && integration.enabled === 1
-  const showForm = !connected || editing
+  const hosted = connected && !!integration?.inbound_address
+  const showForm = advancedOpen && (!connected || editing)
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+
+  function copyAddress() {
+    if (!integration?.inbound_address) return
+    navigator.clipboard.writeText(integration.inbound_address)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <>
@@ -1001,9 +1025,11 @@ function EmailIntegrationCard() {
             <div>
               <p className="text-sm font-medium text-gray-900">Email</p>
               <p className="text-xs text-gray-500">
-                {connected
-                  ? `Connected · replies from ${integration.bot_token ?? 'RESEND_FROM'}`
-                  : 'Not connected'}
+                {hosted
+                  ? 'Connected · platform-hosted address'
+                  : connected
+                    ? `Connected · replies from ${integration.bot_token ?? 'RESEND_FROM'}`
+                    : 'Not connected'}
               </p>
             </div>
           </div>
@@ -1011,17 +1037,59 @@ function EmailIntegrationCard() {
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
               {connected ? 'Active' : 'Inactive'}
             </span>
-            {connected && !editing && (
-              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-                Edit
+            {connected && !editing && hosted && (
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={deletePending}
+                onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
+              >
+                {deletePending ? 'Removing…' : 'Disconnect'}
               </Button>
             )}
           </div>
         </div>
 
+        {!connected && (
+          <div className="rounded-lg bg-blue-50 border border-blue-100 p-4 space-y-3">
+            <p className="text-sm text-blue-900">
+              Get a ready-to-use support inbox address — no email provider account, API key, or DNS setup required.
+            </p>
+            <form action={connectAction}>
+              <Button type="submit" size="sm" disabled={connectPending}>
+                {connectPending ? 'Connecting…' : 'Connect email'}
+              </Button>
+            </form>
+            {(connectState as { error?: string } | null)?.error && (
+              <p className="text-xs text-red-600">{(connectState as { error?: string }).error}</p>
+            )}
+          </div>
+        )}
+
+        {hosted && !editing && (
+          <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-2">
+            <p className="text-xs font-medium text-gray-600">Your support inbox address</p>
+            <p className="text-xs text-gray-500">
+              Share this address with customers, or forward your existing support mailbox to it.
+            </p>
+            <div className="relative">
+              <code className="block text-xs font-mono text-gray-900 bg-white border border-gray-200 rounded px-3 py-2 pr-16 break-all">
+                {integration?.inbound_address}
+              </code>
+              <button
+                type="button"
+                onClick={copyAddress}
+                className="absolute top-2 right-2 rounded px-2 py-1 text-[10px] font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                {copied ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {connected && !editing && (
           <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 divide-y divide-gray-100">
-            <ReadOnlyRow label="Reply-from address" value={integration.bot_token ?? '— (uses RESEND_FROM env var)'} />
+            {!hosted && <ReadOnlyRow label="Reply-from address" value={integration.bot_token ?? '— (uses RESEND_FROM env var)'} />}
             <ReadOnlyRow label="Allowed senders" value={integration.channel_ids.join(', ') || '— (all senders)'} />
             {integration.escalation_role_id && (
               <ReadOnlyRow label="Escalation email" value={integration.escalation_role_id} />
@@ -1030,8 +1098,34 @@ function EmailIntegrationCard() {
           </div>
         )}
 
-        {/* Webhook endpoint info — shown once after save, or always when connected */}
-        {(connected || webhookSecret) && (
+        {connected && !editing && (
+          <button
+            type="button"
+            onClick={() => { setAdvancedOpen((v) => !v); setEditing(false) }}
+            className="text-xs text-gray-500 hover:text-gray-700 underline"
+          >
+            {advancedOpen ? 'Hide advanced settings' : 'Advanced settings'}
+          </button>
+        )}
+
+        {connected && advancedOpen && !editing && (
+          <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+            Edit sender filters / escalation
+          </Button>
+        )}
+
+        {!connected && (
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((v) => !v)}
+            className="text-xs text-gray-500 hover:text-gray-700 underline"
+          >
+            {advancedOpen ? 'Hide advanced: bring your own provider' : 'Advanced: bring your own email provider'}
+          </button>
+        )}
+
+        {/* Legacy BYO-provider webhook endpoint info — only relevant off the hosted path */}
+        {!hosted && (connected || webhookSecret) && (
           <div className="rounded-md bg-amber-50 border border-amber-100 p-3 space-y-2">
             <p className="text-xs font-medium text-amber-800">Webhook endpoint</p>
             <p className="text-xs text-amber-700">
@@ -2044,7 +2138,7 @@ export default function SettingsPage() {
             className={[
               'px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
               activeTab === tab.id
-                ? 'border-[#C9603A] text-[#C9603A]'
+                ? 'border-brand-600 text-brand-600'
                 : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300',
             ].join(' ')}
           >

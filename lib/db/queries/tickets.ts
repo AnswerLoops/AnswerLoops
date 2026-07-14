@@ -326,6 +326,43 @@ export async function markThreadDiscordDeleted(threadId: string): Promise<void> 
     .where(eq(tickets.discordThreadId, threadId))
 }
 
+/**
+ * Record an inbound customer email reply as a follow-up on an existing ticket.
+ * Reopens the ticket if it was resolved/closed — a reply means the issue
+ * isn't actually done. System path (webhook ingest), so unscoped by design.
+ */
+export async function recordCustomerReply(ticketId: number, content: string): Promise<void> {
+  const ticket = await getTicketByIdUnscoped(ticketId)
+  if (!ticket) throw new Error('Ticket not found')
+
+  const now = new Date().toISOString()
+  const wasClosed = ticket.status === 'resolved' || ticket.status === 'closed'
+  const db = getDb()
+
+  if (wasClosed) {
+    await db
+      .update(tickets)
+      .set({ status: 'open', updatedAt: now })
+      .where(eq(tickets.id, ticketId))
+  } else {
+    await db.update(tickets).set({ updatedAt: now }).where(eq(tickets.id, ticketId))
+  }
+
+  await db.insert(ticketEvents).values({
+    ticketId,
+    eventType: 'customer_reply',
+    oldValue: wasClosed ? ticket.status : null,
+    newValue: wasClosed ? 'open' : null,
+    actor: 'customer',
+  })
+
+  await db.insert(ticketReplies).values({
+    ticketId,
+    staffName: 'Customer',
+    content,
+  })
+}
+
 export async function deleteTicket(id: number): Promise<void> {
   const db = await getDb()
   await db.delete(ticketReplies).where(eq(ticketReplies.ticketId, id))

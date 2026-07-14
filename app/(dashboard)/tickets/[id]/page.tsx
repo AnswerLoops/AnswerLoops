@@ -19,6 +19,7 @@ import { getArticleBySourceTicket } from '@/lib/db/queries/kb'
 import { PromoteKBButton } from '@/components/tickets/promote-kb-button'
 import { LocalDate } from '@/components/ui/local-date'
 import { getIntegration, parseGuildChannelMap } from '@/lib/db/queries/integrations'
+import { getEmailMessagesForTicket } from '@/lib/db/queries/email-messages'
 
 // Always reflect the latest ticket state (drafts, assessments, feedback).
 export const dynamic = 'force-dynamic'
@@ -30,16 +31,22 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const ticket = await getTicketById(Number(id), orgId)
   if (!ticket) notFound()
 
-  const [replies, events, related, assessment, feedback, kbArticle, members, discordIntegration] = await Promise.all([
-    getTicketReplies(ticket.id),
-    getTicketEvents(ticket.id),
-    getRelatedTickets(ticket.id, orgId),
-    getAssessment(ticket.id),
-    getFeedbackSummary(ticket.id),
-    getArticleBySourceTicket(ticket.id, orgId),
-    getOrgMembers(orgId),
-    getIntegration(orgId, 'discord'),
-  ])
+  const [replies, events, related, assessment, feedback, kbArticle, members, discordIntegration, emailMessages] =
+    await Promise.all([
+      getTicketReplies(ticket.id),
+      getTicketEvents(ticket.id),
+      getRelatedTickets(ticket.id, orgId),
+      getAssessment(ticket.id),
+      getFeedbackSummary(ticket.id),
+      getArticleBySourceTicket(ticket.id, orgId),
+      getOrgMembers(orgId),
+      getIntegration(orgId, 'discord'),
+      ticket.source_platform === 'email' ? getEmailMessagesForTicket(ticket.id, orgId) : Promise.resolve([]),
+    ])
+
+  const failedDelivery = emailMessages.find(
+    (m) => m.direction === 'out' && (m.status === 'bounced' || m.status === 'delivery_failed')
+  )
 
   const sla = getSLAStatus(ticket)
   const duplicateCount = related.filter((r) => r.score >= DUPLICATE_THRESHOLD).length
@@ -82,6 +89,11 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
             {duplicateCount > 0 && (
               <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
                 Asked {duplicateCount + 1}×
+              </span>
+            )}
+            {failedDelivery && (
+              <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                {failedDelivery.status === 'bounced' ? 'Reply bounced' : 'Delivery failed'}
               </span>
             )}
             {assessment && (

@@ -5,16 +5,34 @@ description: Route inbound support emails through the AnswerLoops AI pipeline.
 
 ## How it works
 
-AnswerLoops accepts inbound emails via a **webhook endpoint** — no IMAP polling, no persistent connection. Your email provider (SendGrid, Mailgun, Postmark, Cloudflare Email Routing, or any provider that supports inbound webhooks) forwards emails to `POST /api/email/ingest`. The AI pipeline triages, embeds, and answers the email, then replies directly to the sender via Resend.
+AnswerLoops accepts inbound emails via a **webhook endpoint** — no IMAP polling, no persistent connection. The AI pipeline triages, embeds, and answers the email, then replies directly to the sender via Resend, preserving proper RFC 5322 threading (`Message-ID` / `In-Reply-To` / `References`) so replies land in the same conversation instead of forking a new one.
 
-## 1. Prerequisites
+There are two ways to connect:
+
+- **Platform-hosted (recommended)** — one click, zero setup. AnswerLoops generates a dedicated inbox address on our infrastructure; you share that address (or forward an existing mailbox to it) and everything else — signature verification, spam/loop filtering, delivery-status tracking — is handled for you.
+- **Bring your own provider (advanced)** — point your own SendGrid/Mailgun/Postmark/Cloudflare account at our webhook using a shared secret, if you need a custom sending domain outside the platform-hosted address.
+
+## Quickstart: platform-hosted (zero setup)
+
+1. Go to **Settings → Email**.
+2. Click **Connect email**. No API key, no DNS record, no webhook config — AnswerLoops immediately generates an address like `acme-4f2a1c@inbox.answerloops.app`.
+3. Share that address with customers, or forward your existing support mailbox to it.
+4. Done. Inbound mail is triaged, answered, and replied to automatically; replies thread correctly on the customer's next reply.
+
+The generated address is set once and is immutable for the life of the integration — reconnecting never changes it.
+
+## Advanced: bring your own provider
+
+Use this path only if you need a custom sending domain or already run your own inbound email infrastructure.
+
+### 1. Prerequisites
 
 - `RESEND_API_KEY` and `RESEND_FROM` must be set (used for outbound replies)
 - An account with a supported email routing provider
 
-## 2. Configure in AnswerLoops Settings
+### 2. Configure in AnswerLoops Settings
 
-Go to **Settings → Email** and enter:
+Under **Settings → Email → Advanced: bring your own email provider**, enter:
 
 - **Reply-from address** (optional) — the `From:` address for AI replies. Defaults to `RESEND_FROM` env var if blank.
 - **Allowed sender addresses/domains** (optional) — comma-separated list of emails or domains to accept (e.g. `example.com, partner@other.com`). Leave blank to accept all inbound email.
@@ -23,7 +41,7 @@ Go to **Settings → Email** and enter:
 
 Click **Connect**. The webhook secret is shown once — copy it before closing.
 
-## 3. Configure your email provider
+### 3. Configure your email provider
 
 Point your provider's inbound webhook at:
 
@@ -37,7 +55,7 @@ Set the custom secret header:
 X-Email-Webhook-Secret: <your webhook secret>
 ```
 
-### Provider-specific guides
+#### Provider-specific guides
 
 **SendGrid Inbound Parse**
 1. Settings → Inbound Parse → Add Host & URL
@@ -59,9 +77,18 @@ X-Email-Webhook-Secret: <your webhook secret>
 1. Email → Email Routing → Rules
 2. Forward to a Worker that POSTs to your webhook URL with the secret header
 
-## 4. Verify
+## Verify
 
-Send an email to your monitored address. A ticket should appear in `/tickets` within a few seconds with source badge "Email from sender@domain.com".
+Send an email to your address. A ticket should appear in `/tickets` within a few seconds with source badge "Email from sender@domain.com". Reply to the AI's answer from your own inbox — it should append to the same ticket rather than opening a new one.
+
+## Reliability
+
+- **Idempotent by construction** — every inbound email is keyed on its RFC `Message-ID`; a provider webhook retry is a no-op, never a duplicate ticket.
+- **Mail-loop guarded** — `Auto-Submitted`, `Precedence`, `X-Auto-Response-Suppress`, `List-Id`, and no-reply sender patterns are all detected and rejected before a reply is ever generated; a per-sender reply throttle is a backstop against anything that slips through.
+- **Spam-tolerant, fail-open** — provider spam signals are honored when present; absence of a signal never blocks a legitimate email.
+- **HTML fallback** — HTML-only emails are converted to plain text rather than silently dropped.
+- **Delivery-status visibility** — bounces, spam complaints, and delivery failures on outbound replies are tracked against the ticket and surfaced with a badge on the ticket detail page.
+- **Rate-limited per org** — a compromised or misbehaving upstream account can't burn one org's AI spend or flood the ticket queue for everyone else.
 
 ## Environment variables
 
@@ -69,13 +96,14 @@ Send an email to your monitored address. A ticket should appear in `/tickets` wi
 |---|---|
 | `RESEND_API_KEY` | Required for outbound replies |
 | `RESEND_FROM` | Default reply-from address (e.g. `support@yourdomain.com`) |
+| `RESEND_WEBHOOK_SECRET` | Svix signing secret for Resend's inbound webhook (`whsec_...`) — required for the platform-hosted path |
+| `EMAIL_INBOUND_DOMAIN` | Domain used when generating platform-hosted inbound addresses (defaults to `inbox.answerloops.app`) |
 
-No additional env vars are required — the webhook secret is stored in the database per org.
+The BYO-provider webhook secret is generated automatically and stored in the database per org — no env var needed for that path.
 
 ## Notes
 
 - Quoted reply chains are stripped — only the new message content is ingested.
 - `Subject` is prepended to the body so triage has full context.
 - Messages under 10 characters are ignored.
-- The webhook secret is auto-generated per org and stable — re-saving settings preserves the same secret.
-- Replies use Resend's `In-Reply-To` header for proper email threading.
+- Replies set `Message-ID`, `In-Reply-To`, and `References` for correct email-client threading.

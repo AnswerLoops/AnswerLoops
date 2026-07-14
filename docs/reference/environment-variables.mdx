@@ -96,6 +96,8 @@ These are platform-wide defaults. Individual orgs can override the AI model in *
 | `RESEND_API_KEY` | Resend API key — used for both outbound transactional email and the email ingest channel |
 | `RESEND_FROM` | Default sender address for transactional emails, e.g. `support@answerloops.com` |
 | `RESEND_WAITLIST_FROM` | Sender address for waitlist emails (can be the same as `RESEND_FROM`) |
+| `RESEND_WEBHOOK_SECRET` | Svix signing secret (`whsec_...`) for Resend's inbound email webhook — required for the platform-hosted (zero-setup) email channel |
+| `EMAIL_INBOUND_DOMAIN` | Domain used when generating platform-hosted inbound addresses, e.g. `inbox.answerloops.app` (optional — has a default) |
 
 ## Firecrawl
 
