@@ -3,7 +3,7 @@ title: Security Scanning
 description: How AnswerLoops scans for vulnerabilities, secrets, and code issues — pre-commit hooks, CI pipeline, and the /project:security-fix skill.
 ---
 
-AnswerLoops ships with a three-layer security scanning pipeline that runs on every commit and every CI build.
+AnswerLoops ships with a four-layer security scanning pipeline that runs on every commit and every CI build.
 
 ## Layers
 
@@ -13,6 +13,7 @@ AnswerLoops ships with a three-layer security scanning pipeline that runs on eve
 | **Secrets** | Trivy | API keys, tokens, credentials committed to source |
 | **Misconfiguration** | Trivy | Dockerfile issues, IaC misconfigurations |
 | **SAST** (Static Application Security Testing) | Semgrep | Code-level issues: insecure crypto, injection sinks, missing auth |
+| **GitHub Actions workflow audit** | Zizmor (CI only) | Script injection via untrusted `${{ github.event.* }}` interpolation, unpinned third-party actions, overly broad `permissions:`, credential persistence through artifacts, unsafe `pull_request_target` usage |
 | **Supply-chain trust** | pnpm trust policy (CI only) | Dependencies that lost provenance attestation relative to an earlier version |
 
 ---
@@ -58,6 +59,8 @@ The `security.yml` GitHub Actions workflow runs on every push and pull request, 
 **`trivy`** — full filesystem scan (SCA + secrets + misconfig), fails on CRITICAL/HIGH.
 
 **`audit`** — `pnpm audit --audit-level=high`, catches advisories not yet in Trivy's DB.
+
+**`zizmor`** — audits every workflow in `.github/workflows/` for GitHub Actions-specific security issues (regular persona, matching the confidence bar of the other blocking gates — not `--pedantic`, which also flags code-smell-level items like missing concurrency groups). Every `actions/checkout` step in this repo sets `persist-credentials: false`, every job declares an explicit `permissions:` block, and every workflow has a `concurrency:` group — zizmor fails the build if any of that regresses.
 
 **`trust-policy`** — runs `pnpm install` with `trustPolicy: no-downgrade`. Fails on any
 dependency that has lost provenance attestation relative to an earlier published version
