@@ -62,7 +62,7 @@ export function WaitlistForm({ className = '', dark = false }: { className?: str
       <button
         type="submit"
         disabled={state === 'loading'}
-        className="rounded-xl bg-brand-500 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-400 transition-colors disabled:opacity-60 whitespace-nowrap"
+        className="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-brand-600/20 hover:bg-brand-700 transition-colors disabled:opacity-60 whitespace-nowrap"
       >
         {state === 'loading' ? 'Joining…' : 'Join the waitlist'}
       </button>

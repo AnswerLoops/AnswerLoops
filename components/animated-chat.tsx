@@ -25,7 +25,7 @@ const MESSAGES = [
     type: 'user' as const,
     name: 'maya',
     initial: 'M',
-    color: 'bg-purple-500',
+    color: 'bg-brand-800',
     time: 'today at 2:19 PM',
     text: "Getting 'rate limit exceeded' on the API even though I'm under my plan's limit?",
   },

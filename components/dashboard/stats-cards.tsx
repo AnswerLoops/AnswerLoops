@@ -103,14 +103,17 @@ export function StatsCards({ total, open, inProgress, resolved, slaBreaches, pen
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {cards.map((card) => (
-        <div key={card.label} className="rounded-xl border border-gray-200 bg-white p-4">
+        <div
+          key={card.label}
+          className="rounded-xl border border-border bg-surface p-4 shadow-sm shadow-ink-900/[0.03] transition-shadow hover:shadow-md hover:shadow-ink-900/[0.05]"
+        >
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-gray-500">{card.label}</p>
-            <div className={`flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 ${card.accent && card.accentClass ? card.accentClass : 'text-gray-400'}`}>
+            <p className="text-xs font-medium text-ink-500">{card.label}</p>
+            <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${card.accent ? 'bg-brand-50' : 'bg-gray-100'} ${card.accent && card.accentClass ? card.accentClass : 'text-ink-400'}`}>
               {card.icon}
             </div>
           </div>
-          <p className={`text-2xl font-bold ${card.accent && card.accentClass ? card.accentClass : 'text-gray-900'}`}>
+          <p className={`text-2xl font-bold tracking-tight ${card.accent && card.accentClass ? card.accentClass : 'text-ink-900'}`}>
             {card.display}
           </p>
         </div>
