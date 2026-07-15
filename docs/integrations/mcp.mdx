@@ -38,6 +38,7 @@ Streamable HTTP, JSON-RPC 2.0, single endpoint: `POST /api/mcp`.
 - `initialize` and `notifications/initialized` don't require auth (standard MCP handshake)
 - Every other method requires `Authorization: Bearer <key>` — the key resolves to an organization, and every tool call is scoped to that org's data only
 - Rate limited per organization (shared across all of that org's keys): 60 requests/minute
+- Request bodies are capped at 64KB — larger requests get a 413 before the body is read
 
 ## Tools
 

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { resolveApiKey } from '@/lib/db/queries/api-keys'
+import { isValidApiKeyFormat } from '@/lib/mcp/keys'
 import { MCP_TOOLS, callMcpTool } from '@/lib/mcp/tools'
 import { rpcError, rpcResult, JsonRpcErrorCode, type JsonRpcRequest } from '@/lib/mcp/protocol'
 import { rateLimit } from '@/lib/ratelimit'
@@ -15,13 +16,31 @@ const PROTOCOL_VERSION = '2024-11-05'
 const RATE_LIMIT_MAX = 60
 const RATE_LIMIT_WINDOW_MS = 60_000
 
+// Largest legitimate payload is create_ticket's 4000-char content plus JSON
+// envelope — 64KB is generous headroom. Enforced before the body is buffered,
+// because this path runs before auth: without it, an unauthenticated client
+// can make the server buffer arbitrarily large bodies (same posture as the
+// email ingest route's MAX_BODY_BYTES).
+const MAX_BODY_BYTES = 64 * 1024
+
 export async function POST(req: NextRequest) {
+  const contentLength = Number(req.headers.get('content-length') ?? 0)
+  if (contentLength > MAX_BODY_BYTES) {
+    return Response.json(rpcError(null, JsonRpcErrorCode.INVALID_REQUEST, 'Request body too large'), { status: 413 })
+  }
+
   const authHeader = req.headers.get('authorization') ?? ''
   const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
 
   let body: JsonRpcRequest
   try {
-    body = (await req.json()) as JsonRpcRequest
+    // content-length can lie (or be absent on chunked transfer) — re-check the
+    // actual byte count after reading, before the JSON parse.
+    const raw = await req.text()
+    if (raw.length > MAX_BODY_BYTES) {
+      return Response.json(rpcError(null, JsonRpcErrorCode.INVALID_REQUEST, 'Request body too large'), { status: 413 })
+    }
+    body = JSON.parse(raw) as JsonRpcRequest
   } catch {
     return Response.json(rpcError(null, JsonRpcErrorCode.PARSE_ERROR, 'Invalid JSON'), { status: 400 })
   }
@@ -51,6 +70,13 @@ export async function POST(req: NextRequest) {
 
   if (!bearerKey) {
     return Response.json(rpcError(id, JsonRpcErrorCode.UNAUTHORIZED, 'Missing Authorization: Bearer <key> header'), { status: 401 })
+  }
+
+  // Cheap format check before hashing + hitting the DB — a malformed key can
+  // never match, so junk/scanner traffic is rejected without a query. Same
+  // response as an unknown key, so this leaks nothing about key validity.
+  if (!isValidApiKeyFormat(bearerKey)) {
+    return Response.json(rpcError(id, JsonRpcErrorCode.UNAUTHORIZED, 'Invalid or revoked API key'), { status: 401 })
   }
 
   const resolved = await resolveApiKey(bearerKey)

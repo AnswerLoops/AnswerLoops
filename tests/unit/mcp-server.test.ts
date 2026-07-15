@@ -265,6 +265,31 @@ describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
     expect(s).toContain("JsonRpcErrorCode.UNAUTHORIZED, 'Invalid or revoked API key'")
   })
 
+  it('caps the request body size before buffering — pre-auth memory-DoS guard', () => {
+    const s = src()
+    expect(s).toContain('MAX_BODY_BYTES')
+    // Header check runs first, then the actual byte count is re-checked after
+    // reading (content-length can lie or be absent on chunked transfer).
+    const headerCheckIdx = s.indexOf("req.headers.get('content-length')")
+    const rawReadIdx = s.indexOf('await req.text()')
+    const postReadCheckIdx = s.indexOf('raw.length > MAX_BODY_BYTES')
+    expect(headerCheckIdx).toBeGreaterThan(-1)
+    expect(rawReadIdx).toBeGreaterThan(headerCheckIdx)
+    expect(postReadCheckIdx).toBeGreaterThan(rawReadIdx)
+    expect(s).toContain('{ status: 413 }')
+  })
+
+  it('rejects malformed keys via isValidApiKeyFormat before hashing or hitting the DB', () => {
+    const s = src()
+    const formatCheckIdx = s.indexOf('isValidApiKeyFormat(bearerKey)')
+    const resolveIdx = s.indexOf('resolveApiKey(bearerKey)')
+    expect(formatCheckIdx).toBeGreaterThan(-1)
+    expect(formatCheckIdx).toBeLessThan(resolveIdx)
+    // Must return the same message as an unknown key — no validity oracle.
+    const formatBranch = s.slice(formatCheckIdx, formatCheckIdx + 250)
+    expect(formatBranch).toContain('Invalid or revoked API key')
+  })
+
   it('applies a per-org rate limit before dispatching tools/list or tools/call', () => {
     const s = src()
     const limitIdx = s.indexOf('rateLimit(`mcp:${orgId}`')
