@@ -293,6 +293,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
                      ticket.source_platform === 'slack' ? 'Slack user' :
                      ticket.source_platform === 'telegram' ? 'Telegram user' :
                      ticket.source_platform === 'email' ? 'Email sender' :
+                     ticket.source_platform === 'mcp' ? 'Opened by' :
                      'Discord user'}
                   </dt>
                   <dd>{ticket.discord_author_name}</dd>

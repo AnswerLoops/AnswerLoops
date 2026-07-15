@@ -406,5 +406,26 @@ export const waitlist = pgTable('waitlist', {
   createdAt: text('created_at').notNull().default(sql`now()`),
 })
 
+// Agent/MCP API keys. Only the SHA-256 hash is stored — the plaintext key is
+// shown once at creation time and is not recoverable, same UX precedent as
+// the email integration's one-time webhook secret display.
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id),
+    keyHash: text('key_hash').notNull().unique(),
+    keyPrefix: text('key_prefix').notNull(),
+    name: text('name').notNull(),
+    createdAt: text('created_at').notNull().default(now),
+    lastUsedAt: text('last_used_at'),
+    expiresAt: text('expires_at'),
+    revokedAt: text('revoked_at'),
+  },
+  (t) => [
+    index('idx_api_keys_org').on(t.orgId),
+  ]
+)
+
 /** The default workspace that owns all data until real auth assigns memberships. */
 export const DEFAULT_ORG_ID = 1

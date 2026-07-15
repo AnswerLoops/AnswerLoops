@@ -10,6 +10,7 @@ const PLATFORM_LABELS: Record<string, { button: string; hint: string; success: s
   telegram: { button: 'Send reply to Telegram',  hint: 'Posts in the Telegram chat',                     success: 'Reply sent to Telegram!' },
   email:    { button: 'Send reply by email',     hint: 'Replies to the sender\'s email address',         success: 'Reply sent by email!' },
   discord:  { button: 'Send reply to Discord',   hint: 'Posts as "[Response from your name]" in the Discord thread', success: 'Reply sent to Discord!' },
+  mcp:      { button: 'Save reply',              hint: 'This ticket was opened by an AI agent — there\'s no chat channel to post back into; the reply is saved on the ticket for the agent to read via the API.', success: 'Reply saved!' },
 }
 
 export function ReplyForm({ ticketId, sourcePlatform = 'discord' }: { ticketId: number; sourcePlatform?: string }) {

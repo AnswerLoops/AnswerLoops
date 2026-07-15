@@ -21,7 +21,7 @@ import type { PriorAnswer } from '@/types'
 
 const MOD = 'ai/agent'
 
-type Platform = 'discord' | 'slack' | 'telegram' | 'email' | 'github'
+type Platform = 'discord' | 'slack' | 'telegram' | 'email' | 'github' | 'mcp'
 
 async function postReply(
   channelId: string,
@@ -33,6 +33,10 @@ async function postReply(
   if (platform === 'slack') return sendToSlackChannel(channelId, content, orgId)
   if (platform === 'telegram') return sendToTelegramChat(channelId, content, orgId)
   if (platform === 'email') return sendEmailReply(channelId, content, orgId, ticketId)
+  // MCP-created tickets have no live channel to auto-post into — the draft is
+  // saved (updateTicketAIDraft, above) and surfaced via the ticket itself
+  // (get_tickets tool / dashboard), not pushed anywhere.
+  if (platform === 'mcp') return null
   return sendToChannel(channelId, content, orgId)
 }
 
@@ -152,8 +156,10 @@ Guidelines:
 
     logger.info('assessment complete', { module: MOD, ticketId, confidence: pct, autoDeflect })
 
-    // Load escalation config for this platform (github has no integrations row — returns null)
-    const integration = platform === 'github' ? null : await getIntegration(orgId, platform as Exclude<Platform, 'github'>).catch(() => null)
+    // Load escalation config for this platform (github/mcp have no integrations row — returns null)
+    const integration = platform === 'github' || platform === 'mcp'
+      ? null
+      : await getIntegration(orgId, platform as Exclude<Platform, 'github' | 'mcp'>).catch(() => null)
     const escalationRoleId = integration?.escalation_role_id ?? null
 
     let postedMessageId: string | null = null

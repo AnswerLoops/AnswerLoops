@@ -1,0 +1,92 @@
+---
+title: MCP Server
+description: Give any AI agent (Claude, Cursor, your own bot) direct access to your knowledge base, FAQ, and tickets via the Model Context Protocol.
+---
+
+AnswerLoops ships an [MCP](https://modelcontextprotocol.io) server so any MCP-compatible agent can search your knowledge base, read the latest FAQ, list/create tickets, and generate grounded answers — the same pipeline that powers Discord, Slack, and email.
+
+<Tip>
+  This is what makes AnswerLoops agent-first: the tools below aren't a separate integration bolted on top, they call the exact same triage/answer pipeline every other channel uses, including deflection-limit metering and org-scoped data isolation.
+</Tip>
+
+## Setup
+
+1. Go to **Settings → API Keys**
+2. Click **Create key**, give it a name (e.g. "Cursor" or "Support bot")
+3. Copy the plaintext key shown — it's only displayed once and cannot be recovered later
+4. Paste the generated config into your MCP client's config file
+
+```json
+{
+  "mcpServers": {
+    "answerloops": {
+      "url": "https://your-instance.example.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer al_live_..."
+      }
+    }
+  }
+}
+```
+
+Revoke a key any time from the same page — revoked keys are rejected immediately and shown greyed out in the list rather than deleted, so usage history stays auditable.
+
+## Transport
+
+Streamable HTTP, JSON-RPC 2.0, single endpoint: `POST /api/mcp`.
+
+- `initialize` and `notifications/initialized` don't require auth (standard MCP handshake)
+- Every other method requires `Authorization: Bearer <key>` — the key resolves to an organization, and every tool call is scoped to that org's data only
+- Rate limited per key: 60 requests/minute
+
+## Tools
+
+| Tool | Purpose |
+|---|---|
+| `search_kb` | Semantic search over published KB articles (promoted from resolved tickets) |
+| `get_faq` | Fetch the most recently generated FAQ digest |
+| `get_tickets` | List tickets, optionally filtered by `status`, `priority`, or `category` |
+| `create_ticket` | Open a new ticket — runs through the same AI triage pipeline as every other channel |
+| `generate_answer` | Generate a KB-grounded answer with a confidence score, without opening a ticket |
+
+### search_kb
+
+```json
+{ "name": "search_kb", "arguments": { "query": "how do I reset my API key", "limit": 5 } }
+```
+
+Returns up to `limit` (max 20) matches: `{ question, answer, score }[]`.
+
+### get_faq
+
+No arguments. Returns the latest weekly FAQ digest, or a message if none has been generated yet.
+
+### get_tickets
+
+```json
+{ "name": "get_tickets", "arguments": { "status": "open", "priority": "high", "limit": 10 } }
+```
+
+All filters are optional. Returns up to `limit` (max 20) tickets, most recent first.
+
+### create_ticket
+
+```json
+{ "name": "create_ticket", "arguments": { "content": "Users report webhook retries are duplicated", "authorName": "Slack bot" } }
+```
+
+`content` is required (max 4000 characters). The ticket is tagged `source_platform: "mcp"` and runs through the same category/priority classification and auto-draft pipeline as a Discord or Slack message — it may get auto-answered if confidence is high, otherwise it queues for human review in the dashboard. There's no chat channel to post a reply back into, so replies are saved on the ticket for the calling agent to read back via `get_tickets`.
+
+### generate_answer
+
+```json
+{ "name": "generate_answer", "arguments": { "question": "What's the rate limit on the widget API?" } }
+```
+
+Returns `{ answer, confidence, answered_fully, high_confidence }`. This counts against the organization's monthly deflection limit — if the limit is reached, the tool returns an error instead of generating for free, matching the same metering every other channel is subject to.
+
+## Security notes
+
+- Keys are shown once at creation; only a SHA-256 hash is stored server-side
+- Every tool call is scoped by the org resolved from the API key — there is no way for one org's key to read or write another org's data
+- Revoked and expired keys are rejected before any tool runs
