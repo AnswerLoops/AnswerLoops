@@ -23,7 +23,7 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={googlePending}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-border-strong bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 shadow-sm transition-all hover:bg-gray-50 hover:border-brand-200 disabled:opacity-60"
         >
           <GoogleIcon />
           {googlePending ? 'Redirecting…' : 'Continue with Google'}

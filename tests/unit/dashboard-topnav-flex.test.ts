@@ -48,12 +48,11 @@ describe('dashboard topnav does not rely on justify-between with a conditionally
   it('the utility cluster uses ml-auto to right-align unconditionally', () => {
     const src = read('app/(dashboard)/layout.tsx')
     const headerIdx = src.indexOf('<header')
-    const clusterIdx = src.indexOf('flex items-center gap-4', headerIdx)
-    expect(clusterIdx).toBeGreaterThan(headerIdx)
-    const clusterDivStart = src.lastIndexOf('<div', clusterIdx)
-    const clusterDivTagEnd = src.indexOf('>', clusterDivStart)
-    const clusterOpenTag = src.slice(clusterDivStart, clusterDivTagEnd)
-    expect(clusterOpenTag).toContain('ml-auto')
+    // Match the utility cluster regardless of gap-* spacing tweaks (brand polish
+    // may change gap-4 → gap-3 etc.); the invariant under test is ml-auto.
+    const clusterMatch = src.slice(headerIdx).match(/<div\b[^>]*\bml-auto\b[^>]*>/)
+    expect(clusterMatch, 'expected a div with ml-auto inside the header').not.toBeNull()
+    expect(clusterMatch![0]).toMatch(/flex items-center gap-\d+/)
   })
 
   it('the mobile drawer trigger is still hidden at desktop widths (md:hidden preserved)', () => {

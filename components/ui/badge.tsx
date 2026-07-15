@@ -3,29 +3,29 @@ import type { TicketStatus, Priority, TicketCategory, AIDraftStatus } from '@/ty
 const statusColors: Record<TicketStatus, string> = {
   open: 'bg-blue-100 text-blue-800',
   in_progress: 'bg-yellow-100 text-yellow-800',
-  resolved: 'bg-green-100 text-green-800',
+  resolved: 'bg-emerald-100 text-emerald-800',
   closed: 'bg-gray-100 text-gray-600',
 }
 
 const priorityColors: Record<Priority, string> = {
   critical: 'bg-red-100 text-red-800',
   high: 'bg-orange-100 text-orange-800',
-  medium: 'bg-yellow-100 text-yellow-800',
+  medium: 'bg-amber-100 text-amber-800',
   low: 'bg-gray-100 text-gray-600',
 }
 
 const categoryColors: Record<TicketCategory, string> = {
   bug: 'bg-red-100 text-red-800',
-  feature_request: 'bg-purple-100 text-purple-800',
+  feature_request: 'bg-brand-100 text-brand-800',
   documentation: 'bg-amber-100 text-amber-800',
-  how_to: 'bg-blue-100 text-blue-800',
+  how_to: 'bg-brand-50 text-brand-700',
   general_question: 'bg-gray-100 text-gray-700',
 }
 
 const draftColors: Record<AIDraftStatus, string> = {
   pending: 'bg-gray-100 text-gray-600',
   posted: 'bg-brand-100 text-brand-800',
-  approved: 'bg-green-100 text-green-800',
+  approved: 'bg-emerald-100 text-emerald-800',
   overridden: 'bg-gray-100 text-gray-500',
 }
 

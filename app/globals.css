@@ -1,45 +1,93 @@
 @import "tailwindcss";
 
 :root {
+  /* Surfaces — cool gray neutrals (Brand Style Guide §3) */
   --background: #ffffff;
-  --foreground: #2A2A2A;
+  --foreground: #111827;
+  --surface: #ffffff;
+  --surface-muted: #f9fafb;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --muted: #6b7280;
+  --ring: #2563eb;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  /* Demoted warm accent — badges / limited highlights only (§4) */
+  --accent: #ea580c;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-muted: var(--muted);
+  --color-ring: var(--ring);
+  --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
 
-  /* AnswerLoops brand — terracotta from logo */
-  --color-brand-50:  #FEF3EE;
-  --color-brand-100: #FDDECF;
-  --color-brand-200: #FABDA0;
-  --color-brand-300: #F49B70;
-  --color-brand-400: #EE7A4A;
-  --color-brand-500: #DC6840;
-  --color-brand-600: #C9603A;  /* primary — logo terracotta */
-  --color-brand-700: #A64A28;
-  --color-brand-800: #7A3218;
-  --color-brand-900: #52200F;
-  --color-brand-950: #2D1008;
+  /* AnswerLoops brand blue — Brand Style Guide §2 */
+  --color-brand-50:  #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
 
-  /* Warm cream — logo background */
-  --color-warm-50:  #FFFDF9;
-  --color-warm-100: #F5EBE0;  /* logo bg */
-  --color-warm-200: #EDD8C4;
-
-  /* Complementary amber */
-  --color-amber-brand: #E8A83A;
-
-  /* Complementary teal (cool contrast) */
-  --color-teal-brand: #3A7C8C;
+  /* Charcoal neutrals (aligned to gray scale for dashboards) */
+  --color-ink-50:  #f9fafb;
+  --color-ink-100: #f3f4f6;
+  --color-ink-200: #e5e7eb;
+  --color-ink-300: #d1d5db;
+  --color-ink-400: #9ca3af;
+  --color-ink-500: #6b7280;
+  --color-ink-600: #4b5563;
+  --color-ink-700: #374151;
+  --color-ink-800: #1f2937;
+  --color-ink-900: #111827;
+  --color-ink-950: #030712;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--ring) 28%, transparent);
+    color: var(--foreground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 @keyframes fadeIn {
@@ -50,4 +98,9 @@ body {
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
+}
+
+@keyframes softRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

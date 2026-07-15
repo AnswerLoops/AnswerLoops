@@ -20,38 +20,38 @@ const GithubIcon = ({ className = 'h-4 w-4' }: { className?: string }) => (
 
 function Nav({ loggedIn }: { loggedIn: boolean }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-20 border-b border-border/80 bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
         <div className="flex items-center gap-8">
           <Link href="/"><Logo width={110} /></Link>
           <nav className="hidden md:flex items-center gap-6">
-            <Link href="#features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Features</Link>
-            <Link href="#how-it-works" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">How it works</Link>
-            <Link href="#pricing" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Pricing</Link>
-            <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Docs</a>
+            <Link href="#features" className="text-sm text-ink-500 hover:text-ink-900 transition-colors">Features</Link>
+            <Link href="#how-it-works" className="text-sm text-ink-500 hover:text-ink-900 transition-colors">How it works</Link>
+            <Link href="#pricing" className="text-sm text-ink-500 hover:text-ink-900 transition-colors">Pricing</Link>
+            <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="text-sm text-ink-500 hover:text-ink-900 transition-colors">Docs</a>
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+          <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-800 transition-colors">
             <GithubIcon />
             GitHub
           </Link>
           {loggedIn ? (
-            <Link href="/dashboard" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors">
+            <Link href="/dashboard" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-brand-600/25 hover:bg-brand-700 transition-colors">
               Go to dashboard →
             </Link>
           ) : (
-            <span className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600">
+            <span className="rounded-full border border-accent/25 bg-orange-50 px-3 py-1 text-xs font-semibold text-accent">
               Coming soon
             </span>
           )}
           <MobileDrawer triggerLabel="Open navigation" triggerClassName="md:hidden">
             <nav className="flex flex-col p-4 gap-1">
-              <Link href="#features" className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">Features</Link>
-              <Link href="#how-it-works" className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">How it works</Link>
-              <Link href="#pricing" className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">Pricing</Link>
-              <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">Docs</a>
-              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+              <Link href="#features" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Features</Link>
+              <Link href="#how-it-works" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">How it works</Link>
+              <Link href="#pricing" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Pricing</Link>
+              <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Docs</a>
+              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">
                 <GithubIcon />
                 GitHub
               </a>
@@ -67,24 +67,24 @@ function Nav({ loggedIn }: { loggedIn: boolean }) {
 
 function ChatMockup() {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3">
+    <div className="rounded-2xl border border-border bg-surface shadow-2xl shadow-brand-950/20 overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-border bg-gray-50 px-4 py-3">
         <div className="flex gap-1.5">
           <span className="h-3 w-3 rounded-full bg-red-400" />
-          <span className="h-3 w-3 rounded-full bg-yellow-400" />
-          <span className="h-3 w-3 rounded-full bg-green-400" />
+          <span className="h-3 w-3 rounded-full bg-amber-400" />
+          <span className="h-3 w-3 rounded-full bg-emerald-400" />
         </div>
         <div className="flex items-center gap-1.5 mx-auto">
           <LogoMark size={16} className="text-brand-600" />
-          <span className="text-xs font-medium text-gray-500">AnswerLoops — #support</span>
+          <span className="text-xs font-medium text-ink-500">AnswerLoops — #support</span>
         </div>
       </div>
-      <div className="p-4 space-y-4 min-h-[280px] bg-white">
+      <div className="p-4 space-y-4 min-h-[280px] bg-surface">
         <div className="flex gap-2.5">
-          <div className="h-7 w-7 shrink-0 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">A</div>
+          <div className="h-7 w-7 shrink-0 rounded-full bg-brand-500 flex items-center justify-center text-white text-[10px] font-bold">A</div>
           <div className="flex-1">
             <div className="text-[11px] text-gray-400 mb-1">alex <span className="text-gray-300">today at 2:14 PM</span></div>
-            <div className="rounded-xl rounded-tl-none bg-gray-100 px-3 py-2 text-xs text-gray-700 max-w-xs">
+            <div className="rounded-xl rounded-tl-none bg-gray-100 px-3 py-2 text-xs text-ink-700 max-w-xs">
               How do I reset my API key? I can&apos;t find the settings page
             </div>
           </div>
@@ -94,12 +94,12 @@ function ChatMockup() {
             <LogoMark size={16} className="text-white" />
           </div>
           <div className="flex-1">
-            <div className="text-[11px] text-gray-400 mb-1">AnswerLoops <span className="rounded bg-brand-100 px-1 py-0.5 text-brand-600 text-[9px] font-bold">AI</span> <span className="text-gray-300">today at 2:14 PM</span></div>
-            <div className="rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-gray-700 max-w-sm leading-relaxed">
+            <div className="text-[11px] text-ink-400 mb-1">AnswerLoops <span className="rounded bg-brand-100 px-1 py-0.5 text-brand-600 text-[9px] font-bold">AI</span> <span className="text-ink-300">today at 2:14 PM</span></div>
+            <div className="rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-ink-700 max-w-sm leading-relaxed">
               To reset your API key, go to <span className="font-medium text-brand-700">Settings → API Keys</span> and click &quot;Regenerate&quot;. Your old key will be invalidated immediately. You can find your settings by clicking your avatar in the top-right corner.
             </div>
             <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
+              <span className="text-[10px] text-emerald-500 font-medium flex items-center gap-1">
                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7"/></svg>
                 Auto-posted · 98% confidence
               </span>
@@ -107,7 +107,7 @@ function ChatMockup() {
           </div>
         </div>
         <div className="flex gap-2.5">
-          <div className="h-7 w-7 shrink-0 rounded-full bg-purple-500 flex items-center justify-center text-white text-[10px] font-bold">M</div>
+          <div className="h-7 w-7 shrink-0 rounded-full bg-brand-800 flex items-center justify-center text-white text-[10px] font-bold">M</div>
           <div className="flex-1">
             <div className="text-[11px] text-gray-400 mb-1">maria <span className="text-gray-300">today at 2:19 PM</span></div>
             <div className="rounded-xl rounded-tl-none bg-gray-100 px-3 py-2 text-xs text-gray-700 max-w-xs">
@@ -125,7 +125,7 @@ function ChatMockup() {
               Yes! Google Workspace SSO is available on the Enterprise plan. You can configure it under <span className="font-medium text-brand-700">Settings → Authentication → SAML/SSO</span>.
             </div>
             <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
+              <span className="text-[10px] text-emerald-500 font-medium flex items-center gap-1">
                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7"/></svg>
                 Auto-posted · 96% confidence
               </span>
@@ -139,29 +139,28 @@ function ChatMockup() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-black">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-brand-900/50 via-transparent to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-brand-950/60 via-transparent to-transparent" />
+    <section className="relative overflow-hidden bg-ink-950">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-brand-700/40 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-brand-950/80 via-transparent to-transparent" />
+      <div className="absolute inset-0 opacity-[0.07] bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><circle cx=%222%22 cy=%222%22 r=%221%22 fill=%22%23eff6ff%22/></svg>')]" />
       <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-16">
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-300 mb-8">
-            <GithubIcon className="h-3 w-3" />
-            Open source · AGPL-3.0 · Self-host free
-          </div>
-          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-white leading-tight">
-            AI agents for your
-            <br />
-            <span className="text-brand-400">developer community</span>
+        <div className="text-center animate-[softRise_0.5s_ease-out]">
+          <p className="mb-5 text-4xl sm:text-5xl font-semibold tracking-tight">
+            <span className="text-white">answer</span>
+            <span className="text-brand-400">loops</span>
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-white/90 leading-snug max-w-2xl mx-auto">
+            AI agents for your developer community
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-300 leading-relaxed">
+          <p className="mx-auto mt-5 max-w-xl text-base text-ink-300 leading-relaxed">
             Connect Discord or Slack. AnswerLoops triages every question with AI, answers from your own docs and resolved tickets, and auto-posts replies — so your team handles only the hard 10%.
           </p>
-          <div className="mt-10 mx-auto max-w-lg">
+          <div className="mt-8 mx-auto max-w-lg">
             <WaitlistForm dark />
-            <p className="mt-3 text-xs text-slate-500 text-center">Be first to know when we launch. No spam.</p>
+            <p className="mt-3 text-xs text-ink-500 text-center">Be first to know when we launch. No spam.</p>
           </div>
         </div>
-        <div className="mt-16 mx-auto max-w-2xl">
+        <div className="mt-14 mx-auto max-w-2xl animate-[softRise_0.65s_ease-out]">
           <AnimatedChat />
         </div>
       </div>
@@ -174,12 +173,12 @@ function Hero() {
 function TrustBar() {
   const integrations = ['Discord', 'Slack', 'Telegram', 'Email', 'GitHub', 'Webhooks']
   return (
-    <section className="border-b border-gray-100 bg-gray-50 py-8">
+    <section className="border-b border-border bg-gray-50 py-8">
       <div className="mx-auto max-w-6xl px-6">
-        <p className="text-center text-xs font-medium uppercase tracking-widest text-gray-400 mb-6">Works with your existing tools</p>
+        <p className="text-center text-xs font-medium uppercase tracking-widest text-ink-400 mb-6">Works with your existing tools</p>
         <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
           {integrations.map((name) => (
-            <span key={name} className="text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors">{name}</span>
+            <span key={name} className="text-sm font-semibold text-ink-400 hover:text-brand-700 transition-colors">{name}</span>
           ))}
         </div>
       </div>
@@ -240,19 +239,19 @@ function HowItWorks() {
     },
   ]
   return (
-    <section id="how-it-works" className="bg-gray-50 border-y border-gray-100 py-24">
+    <section id="how-it-works" className="bg-gray-50 border-y border-border py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-gray-900">From setup to self-improving in minutes</h2>
-          <p className="mt-3 text-gray-500 max-w-xl mx-auto">The whole pipeline ships on day one — nothing to assemble, no ML team required.</p>
+          <h2 className="text-3xl font-bold text-ink-900">From setup to self-improving in minutes</h2>
+          <p className="mt-3 text-ink-500 max-w-xl mx-auto">The whole pipeline ships on day one — nothing to assemble, no ML team required.</p>
         </div>
         <div className="grid sm:grid-cols-2 gap-6">
           {steps.map((s) => (
-            <div key={s.n} className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm hover:shadow-md transition-shadow">
+            <div key={s.n} className="rounded-2xl border border-border bg-surface p-8 shadow-sm shadow-ink-900/[0.03] hover:shadow-md hover:border-brand-200 transition-all">
               <div className="text-xs font-bold text-brand-500 tracking-widest mb-3">{s.n}</div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{s.title}</h3>
-              <p className="text-sm text-gray-600 leading-relaxed mb-3">{s.body}</p>
-              <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-100 pt-3">{s.detail}</p>
+              <h3 className="text-lg font-semibold text-ink-900 mb-2">{s.title}</h3>
+              <p className="text-sm text-ink-600 leading-relaxed mb-3">{s.body}</p>
+              <p className="text-xs text-ink-400 leading-relaxed border-t border-border pt-3">{s.detail}</p>
             </div>
           ))}
         </div>
@@ -370,7 +369,7 @@ function Testimonials() {
       name: 'Jordan K.',
       role: 'Developer Relations, open-source OSS project',
       avatar: 'J',
-      color: 'bg-violet-500',
+      color: 'bg-brand-600',
     },
     {
       quote: "Self-hosting was a one-liner. Our legal team was thrilled — user data never leaves our VPC.",
@@ -384,11 +383,11 @@ function Testimonials() {
       name: 'Sam R.',
       role: 'Community Lead, developer platform',
       avatar: 'S',
-      color: 'bg-blue-500',
+      color: 'bg-brand-800',
     },
   ]
   return (
-    <section className="bg-warm-100 border-y border-warm-200 py-24">
+    <section className="bg-gray-50 border-y border-gray-200 py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center mb-14">
           <h2 className="text-3xl font-bold text-gray-900">Loved by developer communities</h2>
