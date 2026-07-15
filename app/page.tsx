@@ -18,30 +18,42 @@ const GithubIcon = ({ className = 'h-4 w-4' }: { className?: string }) => (
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
+function NavWordmark() {
+  return (
+    <span className="flex items-center gap-2.5">
+      <LogoMark size={30} />
+      <span className="text-lg font-semibold tracking-tight">
+        <span className="text-white">answer</span>
+        <span className="bg-gradient-to-r from-brand-400 to-indigo-400 bg-clip-text text-transparent">Loops</span>
+      </span>
+    </span>
+  )
+}
+
 function Nav({ loggedIn }: { loggedIn: boolean }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-border/80 bg-white/90 backdrop-blur-md">
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-ink-950/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
         <div className="flex items-center gap-8">
-          <Link href="/"><Logo width={110} /></Link>
+          <Link href="/"><NavWordmark /></Link>
           <nav className="hidden md:flex items-center gap-6">
-            <Link href="#features" className="text-sm text-ink-500 hover:text-ink-900 transition-colors">Features</Link>
-            <Link href="#how-it-works" className="text-sm text-ink-500 hover:text-ink-900 transition-colors">How it works</Link>
-            <Link href="#pricing" className="text-sm text-ink-500 hover:text-ink-900 transition-colors">Pricing</Link>
-            <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="text-sm text-ink-500 hover:text-ink-900 transition-colors">Docs</a>
+            <Link href="#features" className="text-sm text-white/60 hover:text-white transition-colors">Features</Link>
+            <Link href="#how-it-works" className="text-sm text-white/60 hover:text-white transition-colors">How it works</Link>
+            <Link href="#pricing" className="text-sm text-white/60 hover:text-white transition-colors">Pricing</Link>
+            <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="text-sm text-white/60 hover:text-white transition-colors">Docs</a>
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-800 transition-colors">
+          <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors">
             <GithubIcon />
             GitHub
           </Link>
           {loggedIn ? (
-            <Link href="/dashboard" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-brand-600/25 hover:bg-brand-700 transition-colors">
+            <Link href="/dashboard" className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-gradient-to-r from-brand-600 to-brand-500 px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white shadow-sm shadow-brand-600/30 hover:from-brand-500 hover:to-brand-400 transition-colors">
               Go to dashboard →
             </Link>
           ) : (
-            <span className="rounded-full border border-accent/25 bg-orange-50 px-3 py-1 text-xs font-semibold text-accent">
+            <span className="whitespace-nowrap rounded-full border border-accent/30 bg-accent/10 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold text-accent">
               Coming soon
             </span>
           )}
@@ -65,102 +77,77 @@ function Nav({ loggedIn }: { loggedIn: boolean }) {
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
-function ChatMockup() {
-  return (
-    <div className="rounded-2xl border border-border bg-surface shadow-2xl shadow-brand-950/20 overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-border bg-gray-50 px-4 py-3">
-        <div className="flex gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-red-400" />
-          <span className="h-3 w-3 rounded-full bg-amber-400" />
-          <span className="h-3 w-3 rounded-full bg-emerald-400" />
-        </div>
-        <div className="flex items-center gap-1.5 mx-auto">
-          <LogoMark size={16} className="text-brand-600" />
-          <span className="text-xs font-medium text-ink-500">AnswerLoops — #support</span>
-        </div>
-      </div>
-      <div className="p-4 space-y-4 min-h-[280px] bg-surface">
-        <div className="flex gap-2.5">
-          <div className="h-7 w-7 shrink-0 rounded-full bg-brand-500 flex items-center justify-center text-white text-[10px] font-bold">A</div>
-          <div className="flex-1">
-            <div className="text-[11px] text-gray-400 mb-1">alex <span className="text-gray-300">today at 2:14 PM</span></div>
-            <div className="rounded-xl rounded-tl-none bg-gray-100 px-3 py-2 text-xs text-ink-700 max-w-xs">
-              How do I reset my API key? I can&apos;t find the settings page
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-2.5">
-          <div className="h-7 w-7 shrink-0 rounded-full bg-brand-600 flex items-center justify-center">
-            <LogoMark size={16} className="text-white" />
-          </div>
-          <div className="flex-1">
-            <div className="text-[11px] text-ink-400 mb-1">AnswerLoops <span className="rounded bg-brand-100 px-1 py-0.5 text-brand-600 text-[9px] font-bold">AI</span> <span className="text-ink-300">today at 2:14 PM</span></div>
-            <div className="rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-ink-700 max-w-sm leading-relaxed">
-              To reset your API key, go to <span className="font-medium text-brand-700">Settings → API Keys</span> and click &quot;Regenerate&quot;. Your old key will be invalidated immediately. You can find your settings by clicking your avatar in the top-right corner.
-            </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] text-emerald-500 font-medium flex items-center gap-1">
-                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7"/></svg>
-                Auto-posted · 98% confidence
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-2.5">
-          <div className="h-7 w-7 shrink-0 rounded-full bg-brand-800 flex items-center justify-center text-white text-[10px] font-bold">M</div>
-          <div className="flex-1">
-            <div className="text-[11px] text-gray-400 mb-1">maria <span className="text-gray-300">today at 2:19 PM</span></div>
-            <div className="rounded-xl rounded-tl-none bg-gray-100 px-3 py-2 text-xs text-gray-700 max-w-xs">
-              Do you support SSO with Google Workspace?
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-2.5">
-          <div className="h-7 w-7 shrink-0 rounded-full bg-brand-600 flex items-center justify-center">
-            <LogoMark size={16} className="text-white" />
-          </div>
-          <div className="flex-1">
-            <div className="text-[11px] text-gray-400 mb-1">AnswerLoops <span className="rounded bg-brand-100 px-1 py-0.5 text-brand-600 text-[9px] font-bold">AI</span> <span className="text-gray-300">today at 2:19 PM</span></div>
-            <div className="rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-gray-700 max-w-sm leading-relaxed">
-              Yes! Google Workspace SSO is available on the Enterprise plan. You can configure it under <span className="font-medium text-brand-700">Settings → Authentication → SAML/SSO</span>.
-            </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] text-emerald-500 font-medium flex items-center gap-1">
-                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7"/></svg>
-                Auto-posted · 96% confidence
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+const HERO_PILLS = [
+  {
+    icon: (
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" />
+      </svg>
+    ),
+    label: 'Connect in minutes',
+  },
+  {
+    icon: (
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    label: 'Trained on your docs & tickets',
+  },
+  {
+    icon: (
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+    label: 'Auto-answers the easy 90%',
+  },
+  {
+    icon: (
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-4a4 4 0 10-4-4 4 4 0 004 4zm6 4a4 4 0 10-4-4" />
+      </svg>
+    ),
+    label: 'Escalate the hard 10%',
+  },
+]
 
 function Hero() {
   return (
     <section className="relative overflow-hidden bg-ink-950">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-brand-700/40 via-transparent to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-brand-950/80 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(29,78,216,0.3),_transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(49,46,129,0.4),_transparent_60%)]" />
       <div className="absolute inset-0 opacity-[0.07] bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><circle cx=%222%22 cy=%222%22 r=%221%22 fill=%22%23eff6ff%22/></svg>')]" />
       <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-16">
         <div className="text-center animate-[softRise_0.5s_ease-out]">
-          <p className="mb-5 text-4xl sm:text-5xl font-semibold tracking-tight">
-            <span className="text-white">answer</span>
-            <span className="text-brand-400">loops</span>
-          </p>
-          <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-white/90 leading-snug max-w-2xl mx-auto">
-            AI agents for your developer community
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/80">
+            <span aria-hidden>✨</span>
+            AI agents that work where your devs are
+          </div>
+          <h1 className="mt-6 text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
+            <span className="text-white">AI agents for your</span>
+            <br />
+            <span className="bg-gradient-to-r from-brand-400 via-brand-500 to-indigo-400 bg-clip-text text-transparent">
+              developer community
+            </span>
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-base text-ink-300 leading-relaxed">
+          <p className="mx-auto mt-6 max-w-xl text-base text-white/60 leading-relaxed">
             Connect Discord or Slack. AnswerLoops triages every question with AI, answers from your own docs and resolved tickets, and auto-posts replies — so your team handles only the hard 10%.
           </p>
           <div className="mt-8 mx-auto max-w-lg">
             <WaitlistForm dark />
-            <p className="mt-3 text-xs text-ink-500 text-center">Be first to know when we launch. No spam.</p>
+            <p className="mt-3 text-xs text-white/40 text-center">Be first to know when we launch. No spam.</p>
+          </div>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            {HERO_PILLS.map((p) => (
+              <div key={p.label} className="flex items-center gap-2 text-sm text-white/50">
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/5 text-brand-400">{p.icon}</span>
+                {p.label}
+              </div>
+            ))}
           </div>
         </div>
-        <div className="mt-14 mx-auto max-w-2xl animate-[softRise_0.65s_ease-out]">
+        <div className="mt-14 mx-auto max-w-3xl animate-[softRise_0.65s_ease-out]">
           <AnimatedChat />
         </div>
       </div>
@@ -171,7 +158,7 @@ function Hero() {
 // ── Trust bar ─────────────────────────────────────────────────────────────────
 
 function TrustBar() {
-  const integrations = ['Discord', 'Slack', 'Telegram', 'Email', 'GitHub', 'Webhooks']
+  const integrations = ['Discord', 'Slack', 'Telegram', 'Email', 'GitHub', 'Website Widget']
   return (
     <section className="border-b border-border bg-gray-50 py-8">
       <div className="mx-auto max-w-6xl px-6">

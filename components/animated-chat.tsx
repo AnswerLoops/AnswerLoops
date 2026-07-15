@@ -3,240 +3,231 @@
 import { useEffect, useRef, useState } from 'react'
 import { LogoMark } from './logo'
 
-const MESSAGES = [
-  {
-    id: 0,
-    type: 'user' as const,
-    name: 'alex',
-    initial: 'A',
-    color: 'bg-blue-500',
-    time: 'today at 2:14 PM',
-    text: "My webhooks stopped firing after the v2.3 update. Checked the logs but nothing shows up.",
-  },
-  {
-    id: 1,
-    type: 'ai' as const,
-    time: 'today at 2:14 PM',
-    text: "Known issue in v2.3 — webhook signature validation was tightened. Your endpoint must return 200 before processing the payload. Add res.status(200).send('ok') at the top of your handler, then process async.",
-    confidence: 94,
-  },
-  {
-    id: 2,
-    type: 'user' as const,
-    name: 'maya',
-    initial: 'M',
-    color: 'bg-brand-800',
-    time: 'today at 2:19 PM',
-    text: "Getting 'rate limit exceeded' on the API even though I'm under my plan's limit?",
-  },
-  {
-    id: 3,
-    type: 'ai' as const,
-    time: 'today at 2:19 PM',
-    text: "Rate limits apply per-minute and per-day separately. You may be hitting the 60 req/min cap. Catch 429 errors and retry after the Retry-After header value. Pro raises it to 300 req/min.",
-    confidence: 91,
-  },
-]
+const USER_MSG = "Can't seem to get the webhooks to fire for my social media scheduling tool 😕 anyone know what's up?"
+const AI_MSG = "Found it — webhook signature validation was tightened in the last release. Make sure your endpoint returns 200 before processing the payload async."
 
-const CHAR_DELAY = 33
-const AI_THINKING_DELAY = 900
-const BETWEEN_EXCHANGE_DELAY = 700
-const END_PAUSE = 2800
+const CHAR_DELAY = 28
+const AI_THINKING_DELAY = 1000
+const AFTER_REPLY_DELAY = 900
+const DASHBOARD_HOLD_MS = 3600
+const RESTART_DELAY = 500
 
-type State =
-  | { phase: 'idle' }
-  | { phase: 'typing'; msgId: number; charCount: number }
-  | { phase: 'thinking'; msgId: number }   // AI typing indicator
-  | { phase: 'done'; msgId: number }        // message fully shown
+type Scene = 'chat' | 'dashboard'
+type Phase = 'idle' | 'user-typing' | 'ai-thinking' | 'ai-typing' | 'ai-done'
 
 export function AnimatedChat() {
-  const [states, setStates] = useState<State[]>([{ phase: 'idle' }])
-  // completedUpTo: msgId where all prior messages are fully rendered
-  const [completedMsgs, setCompletedMsgs] = useState<Set<number>>(new Set())
-  const [typingMsgId, setTypingMsgId] = useState<number | null>(null)
-  const [typingCharCount, setTypingCharCount] = useState(0)
-  const [thinkingFor, setThinkingFor] = useState<number | null>(null)
-  const [visibleMsgs, setVisibleMsgs] = useState<number[]>([])
+  const [scene, setScene] = useState<Scene>('chat')
+  const [phase, setPhase] = useState<Phase>('idle')
+  const [userChars, setUserChars] = useState(0)
+  const [aiChars, setAiChars] = useState(0)
+  const [badgeIn, setBadgeIn] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Separate ref for the dashboard-scene badge/reset chain — these two timers
+  // run concurrently with each other, so they can't share timerRef (delay()
+  // cancels whatever timerRef currently holds, which would kill the badge
+  // reveal the instant the reset timer below it was scheduled).
+  const sceneTimerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const clear = () => {
     if (timerRef.current) clearTimeout(timerRef.current)
   }
-
   const delay = (ms: number, fn: () => void) => {
     clear()
     timerRef.current = setTimeout(fn, ms)
   }
+  const clearSceneTimers = () => {
+    sceneTimerRefs.current.forEach(clearTimeout)
+    sceneTimerRefs.current = []
+  }
+  const sceneDelay = (ms: number, fn: () => void) => {
+    sceneTimerRefs.current.push(setTimeout(fn, ms))
+  }
 
-  // Sequencer: runs through messages 0→3 then resets
-  const runMessage = (msgId: number) => {
-    const msg = MESSAGES[msgId]
-    if (!msg) {
-      // All done — pause then restart
-      delay(END_PAUSE, () => {
-        setVisibleMsgs([])
-        setCompletedMsgs(new Set())
-        setTypingMsgId(null)
-        setTypingCharCount(0)
-        setThinkingFor(null)
-        delay(400, () => runMessage(0))
+  const typeUser = (i: number) => {
+    if (i > USER_MSG.length) {
+      setPhase('ai-thinking')
+      delay(AI_THINKING_DELAY, () => typeAi(0))
+      return
+    }
+    setUserChars(i)
+    timerRef.current = setTimeout(() => typeUser(i + 1), CHAR_DELAY)
+  }
+
+  const typeAi = (i: number) => {
+    if (i === 0) setPhase('ai-typing')
+    if (i > AI_MSG.length) {
+      setPhase('ai-done')
+      delay(AFTER_REPLY_DELAY, () => {
+        setScene('dashboard')
+        clearSceneTimers()
+        sceneDelay(500, () => setBadgeIn(true))
+        sceneDelay(500 + DASHBOARD_HOLD_MS, () => {
+          setBadgeIn(false)
+          setScene('chat')
+          setPhase('idle')
+          setUserChars(0)
+          setAiChars(0)
+          delay(RESTART_DELAY, () => {
+            setPhase('user-typing')
+            typeUser(0)
+          })
+        })
       })
       return
     }
-
-    if (msg.type === 'ai') {
-      // Show thinking indicator first
-      setThinkingFor(msgId)
-      delay(AI_THINKING_DELAY, () => {
-        setThinkingFor(null)
-        startTyping(msgId)
-      })
-    } else {
-      startTyping(msgId)
-    }
-  }
-
-  const startTyping = (msgId: number) => {
-    setVisibleMsgs(prev => [...prev, msgId])
-    setTypingMsgId(msgId)
-    setTypingCharCount(0)
-    typeChar(msgId, 0)
-  }
-
-  const typeChar = (msgId: number, charIdx: number) => {
-    const msg = MESSAGES[msgId]
-    if (!msg) return
-    const full = msg.text
-    if (charIdx >= full.length) {
-      // Done typing this message
-      setTypingMsgId(null)
-      setTypingCharCount(full.length)
-      setCompletedMsgs(prev => new Set([...prev, msgId]))
-      delay(BETWEEN_EXCHANGE_DELAY, () => runMessage(msgId + 1))
-      return
-    }
-    setTypingCharCount(charIdx + 1)
-    timerRef.current = setTimeout(() => typeChar(msgId, charIdx + 1), CHAR_DELAY)
+    setAiChars(i)
+    timerRef.current = setTimeout(() => typeAi(i + 1), CHAR_DELAY)
   }
 
   useEffect(() => {
-    delay(600, () => runMessage(0))
-    return clear
+    delay(700, () => {
+      setPhase('user-typing')
+      typeUser(0)
+    })
+    return () => {
+      clear()
+      clearSceneTimers()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const getDisplayText = (msgId: number) => {
-    const msg = MESSAGES[msgId]
-    if (!msg) return ''
-    if (completedMsgs.has(msgId)) return msg.text
-    if (typingMsgId === msgId) return msg.text.slice(0, typingCharCount)
-    return ''
-  }
-
-  // Determine what slot to show the thinking indicator in — it appears before the AI msg
-  const thinkingSlotAfter = thinkingFor !== null ? thinkingFor - 1 : null
+  const userText = USER_MSG.slice(0, userChars)
+  const aiText = AI_MSG.slice(0, aiChars)
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
-      {/* Title bar */}
-      <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3">
-        <div className="flex gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-red-400" />
-          <span className="h-3 w-3 rounded-full bg-yellow-400" />
-          <span className="h-3 w-3 rounded-full bg-green-400" />
+    <div className="relative rounded-2xl border border-white/10 shadow-2xl shadow-black/50 overflow-hidden min-h-[380px] sm:min-h-[420px]">
+      {/* ── Scene 1: community channel (Discord-style) ── */}
+      <div
+        className={`flex bg-[#313338] transition-opacity duration-500 ${scene === 'chat' ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}
+      >
+        {/* Guild rail */}
+        <div className="hidden sm:flex w-16 shrink-0 flex-col items-center gap-3 bg-[#1e1f22] py-3">
+          <div className="h-10 w-10 rounded-2xl bg-[#313338] flex items-center justify-center text-white/70 text-xs font-bold">DV</div>
+          <div className="h-8 w-1 rounded-full bg-white/10" />
+          <div className="h-10 w-10 rounded-2xl bg-brand-600 flex items-center justify-center ring-2 ring-white/10">
+            <LogoMark size={20} />
+          </div>
+          <div className="h-10 w-10 rounded-2xl bg-[#313338] flex items-center justify-center text-white/40 text-xs">+</div>
         </div>
-        <div className="flex items-center gap-1.5 mx-auto">
-          <LogoMark size={16} className="text-brand-600" />
-          <span className="text-xs font-medium text-gray-500">AnswerLoops — #support</span>
+
+        {/* Channel list */}
+        <div className="hidden md:flex w-48 shrink-0 flex-col bg-[#2b2d31] p-3">
+          <div className="text-xs font-semibold text-white/80 px-1 mb-3">devtools community</div>
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-white/30 px-1 mb-1">Text Channels</div>
+          <div className="flex flex-col gap-0.5">
+            <div className="rounded px-2 py-1 text-sm text-white/40"># general</div>
+            <div className="rounded bg-white/10 px-2 py-1 text-sm text-white font-medium"># support</div>
+            <div className="rounded px-2 py-1 text-sm text-white/40"># bugs</div>
+          </div>
         </div>
-      </div>
 
-      {/* Messages */}
-      <div className="p-4 space-y-4 h-[520px] overflow-hidden bg-white">
-        {MESSAGES.map((msg, i) => {
-          const isVisible = visibleMsgs.includes(msg.id)
-          const displayText = getDisplayText(msg.id)
-          const isDone = completedMsgs.has(msg.id)
-          const isUser = msg.type === 'user'
+        {/* Chat pane */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex items-center gap-2 border-b border-black/20 px-4 py-3 shadow-sm">
+            <span className="text-white/30 text-lg font-light">#</span>
+            <span className="text-sm font-semibold text-white">support</span>
+          </div>
 
-          return (
-            <div key={msg.id}>
-              {/* Thinking indicator — shown before this AI message while thinking */}
-              {msg.type === 'ai' && thinkingFor === msg.id && (
-                <div className="flex gap-2.5 animate-[fadeIn_0.2s_ease]">
-                  <div className="h-7 w-7 shrink-0 rounded-full bg-brand-600 flex items-center justify-center">
-                    <LogoMark size={16} className="text-white" />
+          <div className="p-4 space-y-4 h-[300px] sm:h-[340px] overflow-hidden">
+            {(phase !== 'idle') && (
+              <div className="flex gap-3 items-start animate-[fadeIn_0.25s_ease]">
+                <div className="h-9 w-9 shrink-0 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">J</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm mb-0.5">
+                    <span className="font-medium text-white">jordan_dev</span>{' '}
+                    <span className="text-[11px] text-white/30">Today at 2:14 PM</span>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-[11px] text-gray-400 mb-1">
-                      AnswerLoops <span className="rounded bg-brand-100 px-1 py-0.5 text-brand-600 text-[9px] font-bold">AI</span>{' '}
-                      <span className="text-gray-300">{msg.time}</span>
-                    </div>
-                    <div className="rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2.5 w-72 flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:0ms]" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:150ms]" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:300ms]" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Message itself */}
-              {isVisible && (
-                <div className={`flex gap-2.5 animate-[fadeIn_0.25s_ease] ${isUser ? 'flex-row-reverse' : ''}`}>
-                  {isUser ? (
-                    <div
-                      className={`h-7 w-7 shrink-0 rounded-full ${msg.color} flex items-center justify-center text-white text-[10px] font-bold`}
-                    >
-                      {msg.initial}
-                    </div>
-                  ) : (
-                    <div className="h-7 w-7 shrink-0 rounded-full bg-brand-600 flex items-center justify-center">
-                      <LogoMark size={16} className="text-white" />
-                    </div>
-                  )}
-                  <div className={`flex-1 ${isUser ? 'flex flex-col items-end' : ''}`}>
-                    <div className={`text-[11px] text-gray-400 mb-1 ${isUser ? 'text-right' : ''}`}>
-                      {isUser ? (
-                        <>
-                          {msg.name} <span className="text-gray-300">{msg.time}</span>
-                        </>
-                      ) : (
-                        <>
-                          AnswerLoops{' '}
-                          <span className="rounded bg-brand-100 px-1 py-0.5 text-brand-600 text-[9px] font-bold">AI</span>{' '}
-                          <span className="text-gray-300">{msg.time}</span>
-                        </>
-                      )}
-                    </div>
-                    <div
-                      className={
-                        isUser
-                          ? 'rounded-xl rounded-tr-none bg-gray-100 px-3 py-2 text-xs text-gray-700 w-56'
-                          : 'rounded-xl rounded-tl-none bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-gray-700 w-72 leading-relaxed'
-                      }
-                    >
-                      {displayText}
-                      {typingMsgId === msg.id && (
-                        <span className="inline-block w-[2px] h-[10px] bg-brand-500 ml-0.5 align-middle animate-[blink_0.7s_step-end_infinite]" />
-                      )}
-                    </div>
-                    {msg.type === 'ai' && isDone && (
-                      <div className="mt-1.5 animate-[fadeIn_0.3s_ease]">
-                        <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
-                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M5 13l4 4L19 7" />
-                          </svg>
-                          Auto-posted · {msg.confidence}% confidence
-                        </span>
-                      </div>
+                  <div className="text-sm text-white/80 leading-relaxed">
+                    {userText}
+                    {phase === 'user-typing' && (
+                      <span className="inline-block w-[2px] h-[14px] bg-white/60 ml-0.5 align-middle animate-[blink_0.7s_step-end_infinite]" />
                     )}
                   </div>
                 </div>
-              )}
+              </div>
+            )}
+
+            {phase === 'ai-thinking' && (
+              <div className="flex gap-3 items-start animate-[fadeIn_0.2s_ease]">
+                <LogoMark size={36} className="shrink-0" />
+                <div className="flex-1">
+                  <div className="text-sm mb-0.5">
+                    <span className="font-medium text-white">AnswerLoops</span>{' '}
+                    <span className="rounded bg-brand-600 px-1 py-0.5 text-white text-[9px] font-bold align-middle">APP</span>
+                  </div>
+                  <div className="flex items-center gap-1 h-5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:0ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:150ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:300ms]" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(phase === 'ai-typing' || phase === 'ai-done') && (
+              <div className="flex gap-3 items-start animate-[fadeIn_0.25s_ease]">
+                <LogoMark size={36} className="shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm mb-0.5">
+                    <span className="font-medium text-white">AnswerLoops</span>{' '}
+                    <span className="rounded bg-brand-600 px-1 py-0.5 text-white text-[9px] font-bold align-middle">APP</span>{' '}
+                    <span className="text-[11px] text-white/30">Today at 2:14 PM</span>
+                  </div>
+                  <div className="text-sm text-white/80 leading-relaxed">
+                    {aiText}
+                    {phase === 'ai-typing' && (
+                      <span className="inline-block w-[2px] h-[14px] bg-white/60 ml-0.5 align-middle animate-[blink_0.7s_step-end_infinite]" />
+                    )}
+                  </div>
+                  {phase === 'ai-done' && (
+                    <div className="mt-2 w-fit rounded border-l-4 border-brand-500 bg-black/20 px-3 py-2 animate-[fadeIn_0.3s_ease]">
+                      <div className="text-[10px] text-white/40 mb-0.5">docs.answerloops.com</div>
+                      <div className="text-xs font-medium text-brand-300">Webhook Setup Guide →</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Scene 2: AnswerLoops dashboard ── */}
+      <div
+        className={`bg-[#0b0d14] p-4 sm:p-6 transition-opacity duration-500 min-h-[300px] sm:min-h-[340px] flex flex-col ${scene === 'dashboard' ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <LogoMark size={22} />
+          <span className="text-sm font-semibold text-white">AnswerLoops</span>
+          <span className="text-xs text-white/30">/ Tickets</span>
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-white p-4 shadow-xl">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-gray-400">#42</span>
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">how_to</span>
+              <span
+                className={`rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 transition-all duration-300 ${badgeIn ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
+              >
+                Auto-answered · 95%
+              </span>
             </div>
-          )
-        })}
+            <span className="text-[11px] text-gray-400 shrink-0">Just now</span>
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">
+            Can&apos;t get webhooks to fire for social media scheduling tool
+          </h3>
+          <p className="text-xs text-gray-500 leading-relaxed mb-3">
+            jordan_dev · #support · Discord
+          </p>
+          <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" /></svg>
+            Resolved automatically — no human review needed
+          </div>
+        </div>
+
+        <div className="flex-1" />
       </div>
     </div>
   )

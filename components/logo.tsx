@@ -5,23 +5,17 @@ interface LogoMarkProps {
   className?: string
 }
 
-// Small icon-only mark — SVG for tight spaces (avatars, tiny badges)
+// Small icon-only mark — brand gradient is baked into the source image, so
+// this renders identically on light or dark surfaces (unlike a currentColor SVG).
 export function LogoMark({ size = 32, className = '' }: LogoMarkProps) {
   return (
-    <svg
+    <Image
+      src="/icon.png"
+      alt=""
       width={size}
       height={size}
-      viewBox="0 0 40 40"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
-      <path d="M 12 30 A 13 13 0 0 1 28 10" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M 23 8 L 28 10 L 25 15" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M 28 10 A 13 13 0 0 1 12 30" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M 17 32 L 12 30 L 15 25" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="20" cy="20" r="4.5" fill="currentColor" />
-    </svg>
+      className={`object-contain ${className}`}
+    />
   )
 }
 
