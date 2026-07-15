@@ -37,7 +37,7 @@ Streamable HTTP, JSON-RPC 2.0, single endpoint: `POST /api/mcp`.
 
 - `initialize` and `notifications/initialized` don't require auth (standard MCP handshake)
 - Every other method requires `Authorization: Bearer <key>` — the key resolves to an organization, and every tool call is scoped to that org's data only
-- Rate limited per key: 60 requests/minute
+- Rate limited per organization (shared across all of that org's keys): 60 requests/minute
 
 ## Tools
 
@@ -55,7 +55,7 @@ Streamable HTTP, JSON-RPC 2.0, single endpoint: `POST /api/mcp`.
 { "name": "search_kb", "arguments": { "query": "how do I reset my API key", "limit": 5 } }
 ```
 
-Returns up to `limit` (max 20) matches: `{ question, answer, score }[]`.
+`query` is capped at 2000 characters. Returns up to `limit` (max 20) matches: `{ question, answer, score }[]`.
 
 ### get_faq
 
@@ -83,7 +83,7 @@ All filters are optional. Returns up to `limit` (max 20) tickets, most recent fi
 { "name": "generate_answer", "arguments": { "question": "What's the rate limit on the widget API?" } }
 ```
 
-Returns `{ answer, confidence, answered_fully, high_confidence }`. This counts against the organization's monthly deflection limit — if the limit is reached, the tool returns an error instead of generating for free, matching the same metering every other channel is subject to.
+`question` is capped at 2000 characters. Returns `{ answer, confidence, answered_fully, high_confidence }`. This counts against the organization's monthly deflection limit — if the limit is reached, the tool returns an error instead of generating for free, matching the same metering every other channel is subject to.
 
 ## Security notes
 

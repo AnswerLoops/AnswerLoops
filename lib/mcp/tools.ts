@@ -19,6 +19,11 @@ const MOD = 'mcp/tools'
 // (and a way to accidentally exfiltrate an org's entire dataset in one call).
 const MAX_RESULTS = 20
 
+// Caps free-text inputs that feed an embedding or LLM call directly — the
+// rate limiter caps request *count*, not per-request size, so an uncapped
+// query/question is a way to run up real token cost in a single call.
+const MAX_QUERY_LEN = 2000
+
 function textResult(data: unknown): McpToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] }
 }
@@ -45,6 +50,7 @@ const searchKbDef: McpToolDefinition = {
 async function searchKb(orgId: number, args: Record<string, unknown>): Promise<McpToolResult> {
   const query = typeof args.query === 'string' ? args.query.trim() : ''
   if (!query) return errorResult('query is required')
+  if (query.length > MAX_QUERY_LEN) return errorResult(`query must be ${MAX_QUERY_LEN} characters or fewer`)
   const limit = Math.min(Number(args.limit) || 5, MAX_RESULTS)
 
   const vector = await embedText(query, orgId)
@@ -97,10 +103,11 @@ async function getTicketsTool(orgId: number, args: Record<string, unknown>): Pro
       priority: args.priority as Priority | undefined,
       category: args.category as TicketCategory | undefined,
     },
-    orgId
+    orgId,
+    limit
   )
   return textResult(
-    tickets.slice(0, limit).map((t) => ({
+    tickets.map((t) => ({
       id: t.id,
       content: t.content,
       category: t.category,
@@ -165,6 +172,7 @@ const generateAnswerDef: McpToolDefinition = {
 async function generateAnswer(orgId: number, args: Record<string, unknown>): Promise<McpToolResult> {
   const question = typeof args.question === 'string' ? args.question.trim() : ''
   if (!question) return errorResult('question is required')
+  if (question.length > MAX_QUERY_LEN) return errorResult(`question must be ${MAX_QUERY_LEN} characters or fewer`)
 
   const { allowed, used, limit } = await checkDeflectionLimit(orgId)
   if (!allowed) {

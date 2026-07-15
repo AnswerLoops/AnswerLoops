@@ -98,6 +98,12 @@ describe('lib/mcp/tools: tool registry', () => {
     expect(result.content[0].text).toContain('query is required')
   })
 
+  it('search_kb rejects a query over 2000 chars without hitting the embedding API (cost-abuse guard)', async () => {
+    const result = await callMcpTool('search_kb', { query: 'x'.repeat(2001) }, 1)
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('2000 characters')
+  })
+
   it('create_ticket rejects missing content and content over 4000 chars without hitting the DB', async () => {
     const empty = await callMcpTool('create_ticket', {}, 1)
     expect(empty.isError).toBe(true)
@@ -112,6 +118,12 @@ describe('lib/mcp/tools: tool registry', () => {
     const result = await callMcpTool('generate_answer', {}, 1)
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain('question is required')
+  })
+
+  it('generate_answer rejects a question over 2000 chars without hitting the LLM (cost-abuse guard)', async () => {
+    const result = await callMcpTool('generate_answer', { question: 'x'.repeat(2001) }, 1)
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('2000 characters')
   })
 })
 
@@ -137,6 +149,14 @@ describe('lib/mcp/tools: source-level wiring', () => {
     expect(s).toContain('const MAX_RESULTS = 20')
     expect(s).toContain('Math.min(Number(args.limit) || 5, MAX_RESULTS)')
     expect(s).toContain('Math.min(Number(args.limit) || 10, MAX_RESULTS)')
+  })
+
+  it('get_tickets passes limit down to the query layer instead of pulling the full org table into memory', () => {
+    const s = src()
+    const fnStart = s.indexOf('async function getTicketsTool')
+    const fnBody = s.slice(fnStart, fnStart + 700)
+    expect(fnBody).toMatch(/getTickets\(\s*\{[\s\S]*?\},\s*orgId,\s*limit\s*\)/)
+    expect(fnBody).not.toContain('.slice(0, limit)')
   })
 
   it('callMcpTool catches thrown errors from any tool instead of letting them 500 the route', () => {
@@ -215,6 +235,17 @@ describe('schema: api_keys table', () => {
   })
 })
 
+describe('lib/db/queries/tickets: getTickets supports a DB-level limit', () => {
+  it('accepts an optional limit param and applies it with $dynamic().limit(), not a client-side slice', () => {
+    const src = readSrc('lib/db/queries/tickets.ts')
+    const fnStart = src.indexOf('export async function getTickets')
+    const fnBody = src.slice(fnStart, fnStart + 600)
+    expect(fnBody).toContain('limit?: number')
+    expect(fnBody).toContain('.$dynamic()')
+    expect(fnBody).toMatch(/if \(limit\) query = query\.limit\(limit\)/)
+  })
+})
+
 describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
   const src = () => readSrc('app/api/mcp/route.ts')
 
@@ -279,5 +310,15 @@ describe('SourcePlatform / Platform: mcp is a first-class value everywhere sourc
   it('postReply no-ops for mcp tickets instead of trying to post to a nonexistent channel', () => {
     const s = readSrc('lib/ai/agent.ts')
     expect(s).toMatch(/if \(platform === 'mcp'\) return null/)
+  })
+
+  it('staff reply/draft-edit actions also skip sendToChannel for mcp tickets — discord_channel_id holds a synthetic id, not a real channel', () => {
+    // create_ticket stashes its synthetic messageId in discord_channel_id, which
+    // reads as "present" to a naive truthiness check — these two call sites in
+    // app/actions/tickets.ts must explicitly exclude 'mcp', not just check
+    // channelId presence, or every staff reply fires a doomed live Discord call.
+    const s = readSrc('app/actions/tickets.ts')
+    const matches = [...s.matchAll(/else if \(ticket\.source_platform !== 'mcp'\)/g)]
+    expect(matches.length).toBe(2)
   })
 })

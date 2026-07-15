@@ -96,7 +96,11 @@ export async function postReplyAction(
         logger.warn('failed to post reply to github', { module: 'actions/tickets', error: err })
       }
     }
-  } else {
+  } else if (ticket.source_platform !== 'mcp') {
+    // MCP tickets have no live channel to post into — discord_channel_id holds
+    // the synthetic messageId from create_ticket, which would otherwise look
+    // "present" and trigger a doomed live Discord API call. Reply stays saved
+    // on the ticket for the calling agent to read via get_tickets.
     const channelId = ticket.discord_thread_id ?? ticket.discord_channel_id
     if (channelId) {
       const message = `**[Response from ${staffName}]:** ${content}`
@@ -173,7 +177,8 @@ export async function updateAIDraftAction(
           logger.warn('failed to post edited draft to github', { module: 'actions/tickets', error: err })
         }
       }
-    } else {
+    } else if (ticket.source_platform !== 'mcp') {
+      // MCP tickets have no live channel to post into — see postReplyAction above.
       const channelId = ticket.discord_thread_id ?? ticket.discord_channel_id
       if (channelId) {
         await sendToChannel(channelId, `**[Updated AI Answer]**\n${newDraft}`, orgId)
