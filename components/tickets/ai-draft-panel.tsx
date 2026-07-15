@@ -13,7 +13,7 @@ interface AIDraftPanelProps {
 }
 
 const PLATFORM_NAME: Record<string, string> = {
-  github: 'GitHub', slack: 'Slack', telegram: 'Telegram', email: 'email', discord: 'Discord',
+  github: 'GitHub', slack: 'Slack', telegram: 'Telegram', email: 'email', discord: 'Discord', mcp: 'the requesting agent',
 }
 
 export function AIDraftPanel({ ticketId, draft, status, sourcePlatform = 'discord' }: AIDraftPanelProps) {

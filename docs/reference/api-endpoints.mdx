@@ -21,6 +21,12 @@ is scoped to the caller's organization:
   to the org that owns the token.
 - **GitHub webhook** (`POST /api/github/webhook`) verifies the HMAC-SHA256
   signature and resolves the org from the configured repository row.
+- **MCP server** (`POST /api/mcp`) is public but authenticates every method
+  except `initialize`/`notifications/initialized` via `Authorization: Bearer
+  <key>`; the org is resolved from the API key. See [MCP
+  Server](/integrations/mcp) for the tool surface. `GET /api/api-keys` and the
+  create/revoke actions behind it are session routes like the rest of the
+  dashboard.
 
 <Info>
   A full endpoint-by-endpoint reference is being written. Check back soon or

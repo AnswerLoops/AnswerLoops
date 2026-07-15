@@ -93,17 +93,21 @@ export async function createTicket(input: CreateTicketInput, orgId: number): Pro
   return toTicket(row)
 }
 
-export async function getTickets(filters: TicketFilters = {}, orgId: number): Promise<Ticket[]> {
+export async function getTickets(filters: TicketFilters = {}, orgId: number, limit?: number): Promise<Ticket[]> {
   const conditions = [eq(tickets.orgId, orgId)]
   if (filters.status) conditions.push(eq(tickets.status, filters.status))
   if (filters.priority) conditions.push(eq(tickets.priority, filters.priority))
   if (filters.category) conditions.push(eq(tickets.category, filters.category))
 
-  const rows = await getDb()
+  let query = getDb()
     .select()
     .from(tickets)
     .where(and(...conditions))
     .orderBy(desc(tickets.createdAt))
+    .$dynamic()
+  if (limit) query = query.limit(limit)
+
+  const rows = await query
   return rows.map(toTicket)
 }
 

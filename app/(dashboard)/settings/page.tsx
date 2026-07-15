@@ -9,6 +9,7 @@ import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwner
 import { getWidgetTokenAction, regenerateWidgetTokenAction } from '@/app/actions/widget'
 import { saveAIConfigAction, clearAIConfigAction } from '@/app/actions/ai-config'
 import { saveROIConfigAction } from '@/app/actions/roi'
+import { createApiKeyAction, revokeApiKeyAction } from '@/app/actions/api-keys'
 import { Button } from '@/components/ui/button'
 import type { SLAConfig, GitHubRepo } from '@/types'
 
@@ -1927,6 +1928,153 @@ function WidgetSection() {
   )
 }
 
+interface ApiKeyRow {
+  id: number
+  name: string
+  key_prefix: string
+  created_at: string
+  last_used_at: string | null
+  expires_at: string | null
+  revoked_at: string | null
+}
+
+function ApiKeysSection() {
+  const [keys, setKeys] = useState<ApiKeyRow[] | null>(null)
+  const [newKeyName, setNewKeyName] = useState('')
+  const [plaintextKey, setPlaintextKey] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [confirmRevoke, setConfirmRevoke] = useState<number | null>(null)
+  const [, startTransition] = useTransition()
+
+  const loadKeys = useCallback(async () => {
+    const res = await fetch('/api/api-keys')
+    if (res.ok) setKeys(await res.json())
+  }, [])
+
+  useEffect(() => { loadKeys() }, [loadKeys])
+
+  const [createState, createAction, creating] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await createApiKeyAction(prev, fd)
+      if (result && !result.error) {
+        setNewKeyName('')
+        if (result.plaintextKey) setPlaintextKey(result.plaintextKey)
+        await loadKeys()
+      }
+      return result
+    },
+    null
+  )
+
+  function revoke(keyId: number) {
+    setConfirmRevoke(null)
+    startTransition(async () => {
+      const fd = new FormData()
+      fd.set('keyId', String(keyId))
+      await revokeApiKeyAction(null, fd)
+      await loadKeys()
+    })
+  }
+
+  function copyKey() {
+    if (!plaintextKey) return
+    navigator.clipboard.writeText(plaintextKey).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const mcpConfig = `{
+  "mcpServers": {
+    "answerloops": {
+      "url": "${baseUrl}/api/mcp",
+      "headers": { "Authorization": "Bearer ${plaintextKey ?? 'al_live_xxxx'}" }
+    }
+  }
+}`
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+        <p className="text-xs text-gray-600">
+          API keys let AI agents (Claude Code, Cursor, or any MCP-compatible client) call AnswerLoops directly —
+          searching your knowledge base, checking tickets, and answering questions using your community&apos;s data,
+          scoped to this org. See <a href="https://docs.answerloops.com/integrations/mcp" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">the MCP docs</a> for setup.
+        </p>
+
+        <form action={createAction} className="flex gap-2">
+          <input
+            name="name"
+            value={newKeyName}
+            onChange={(e) => setNewKeyName(e.target.value)}
+            placeholder="e.g. Claude Code (laptop)"
+            className="flex-1 rounded border border-gray-200 px-3 py-1.5 text-sm"
+            maxLength={100}
+          />
+          <Button type="submit" size="sm" disabled={creating || !newKeyName.trim()}>
+            {creating ? 'Creating…' : 'Create key'}
+          </Button>
+        </form>
+        {createState?.error && <p className="text-xs text-red-600">{createState.error}</p>}
+
+        {plaintextKey && (
+          <div className="rounded-md bg-amber-50 border border-amber-200 p-3 space-y-2">
+            <p className="text-xs font-medium text-amber-800">Copy this now — it won&apos;t be shown again.</p>
+            <div className="relative">
+              <code className="block text-xs font-mono text-amber-900 bg-white border border-amber-200 rounded px-3 py-2 pr-16 break-all select-all">
+                {plaintextKey}
+              </code>
+              <button
+                type="button"
+                onClick={copyKey}
+                className="absolute top-2 right-2 rounded px-2 py-1 text-[10px] font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                {copied ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+            <p className="text-xs font-medium text-amber-800 pt-1">Drop this in your MCP client config:</p>
+            <pre className="bg-gray-950 text-emerald-400 rounded-lg p-3 text-[11px] font-mono overflow-x-auto whitespace-pre">{mcpConfig}</pre>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+        {keys === null ? (
+          <p className="text-sm text-gray-400 p-4">Loading…</p>
+        ) : keys.length === 0 ? (
+          <p className="text-sm text-gray-400 p-4">No API keys yet.</p>
+        ) : (
+          keys.map((k) => {
+            const revoked = !!k.revoked_at
+            return (
+              <div key={k.id} className={`flex items-center justify-between px-4 py-3 ${revoked ? 'opacity-50' : ''}`}>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{k.name}</p>
+                  <p className="text-xs text-gray-400 font-mono">
+                    {k.key_prefix}••••••••
+                    {revoked ? ' · revoked' : k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString()}` : ' · never used'}
+                  </p>
+                </div>
+                {!revoked && (
+                  confirmRevoke === k.id ? (
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="danger" onClick={() => revoke(k.id)}>Confirm</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmRevoke(null)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmRevoke(k.id)}>Revoke</Button>
+                  )
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 function GitHubIntegrationCard() {
   const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [connecting, setConnecting] = useState(false)
@@ -2099,6 +2247,7 @@ const TABS = [
   { id: 'github',    label: 'GitHub' },
   { id: 'ai',        label: 'AI Model' },
   { id: 'widget',    label: 'Widget' },
+  { id: 'api-keys',  label: 'API Keys' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -2216,6 +2365,12 @@ export default function SettingsPage() {
       {activeTab === 'widget' && (
         <section>
           <WidgetSection />
+        </section>
+      )}
+
+      {activeTab === 'api-keys' && (
+        <section>
+          <ApiKeysSection />
         </section>
       )}
     </div>

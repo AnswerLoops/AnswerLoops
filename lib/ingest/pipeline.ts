@@ -14,7 +14,7 @@ import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/retry'
 import type { Priority } from '@/types'
 
-export type Platform = 'discord' | 'slack' | 'telegram' | 'email' | 'github'
+export type Platform = 'discord' | 'slack' | 'telegram' | 'email' | 'github' | 'mcp'
 
 export interface MessagePayload {
   messageId: string
