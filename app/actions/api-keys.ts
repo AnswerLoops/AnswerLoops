@@ -24,7 +24,14 @@ export async function createApiKeyAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const expiresInDays = parsed.data.expiresInDays ? Number(parsed.data.expiresInDays) : null
-  const { plaintextKey } = await createApiKey(orgId, parsed.data.name, expiresInDays)
+  let plaintextKey: string
+  try {
+    ;({ plaintextKey } = await createApiKey(orgId, parsed.data.name, expiresInDays))
+  } catch (err) {
+    // createApiKey throws when the org is at its active-key cap — surface
+    // that as a form error instead of a 500.
+    return { error: err instanceof Error ? err.message : 'Failed to create key' }
+  }
   refresh()
   // Plaintext is returned once — the UI must show it now, it can never be fetched again.
   return { plaintextKey }

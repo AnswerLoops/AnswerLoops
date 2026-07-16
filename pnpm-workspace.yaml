@@ -21,3 +21,4 @@ overrides:
   ws: '>=8.21.0'
   shell-quote: '>=1.8.4'
   undici: '^6.27.0'
+  postcss: '>=8.5.10'   # CVE-2026-41305 — next/next-auth pin 8.4.31 transitively

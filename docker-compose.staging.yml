@@ -55,6 +55,10 @@ services:
       context: .
       target: runner
     restart: unless-stopped
+    # The image HEALTHCHECK probes the app's HTTP port; the bot serves no HTTP,
+    # so the inherited check would mark this container permanently unhealthy.
+    healthcheck:
+      disable: true
     env_file:
       - path: .env.staging
         required: true

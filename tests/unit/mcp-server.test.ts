@@ -147,16 +147,34 @@ describe('lib/mcp/tools: source-level wiring', () => {
   it('caps all list-returning tools at MAX_RESULTS to avoid a full-dataset exfil in one call', () => {
     const s = src()
     expect(s).toContain('const MAX_RESULTS = 20')
-    expect(s).toContain('Math.min(Number(args.limit) || 5, MAX_RESULTS)')
-    expect(s).toContain('Math.min(Number(args.limit) || 10, MAX_RESULTS)')
+    // Both list tools go through clampLimit, which enforces the ceiling (and
+    // rejects negative/NaN values that would otherwise reach SQL LIMIT).
+    expect(s).toContain('clampLimit(args.limit, 5)')
+    expect(s).toContain('clampLimit(args.limit, 10)')
+    const clampStart = s.indexOf('function clampLimit')
+    const clampBody = s.slice(clampStart, clampStart + 300)
+    expect(clampBody).toContain('Math.min(n, MAX_RESULTS)')
+    expect(clampBody).toContain('n < 1')
   })
 
   it('get_tickets passes limit down to the query layer instead of pulling the full org table into memory', () => {
     const s = src()
     const fnStart = s.indexOf('async function getTicketsTool')
-    const fnBody = s.slice(fnStart, fnStart + 700)
+    const fnBody = s.slice(fnStart, fnStart + 1000)
     expect(fnBody).toMatch(/getTickets\(\s*\{[\s\S]*?\},\s*orgId,\s*limit\s*\)/)
     expect(fnBody).not.toContain('.slice(0, limit)')
+  })
+
+  it('get_tickets validates enum filters instead of casting caller input straight into the query', () => {
+    const s = src()
+    const fnStart = s.indexOf('async function getTicketsTool')
+    const fnBody = s.slice(fnStart, fnStart + 1000)
+    expect(fnBody).toContain('parseEnumArg<TicketStatus>(args.status, TICKET_STATUSES)')
+    expect(fnBody).toContain('parseEnumArg<Priority>(args.priority, PRIORITIES)')
+    expect(fnBody).toContain('parseEnumArg<TicketCategory>(args.category, CATEGORIES)')
+    // Invalid values are rejected with an error, not silently filtered on.
+    expect(fnBody).toContain('status === null')
+    expect(fnBody).not.toContain('args.status as TicketStatus')
   })
 
   it('callMcpTool catches thrown errors from any tool instead of letting them 500 the route', () => {
@@ -226,9 +244,23 @@ describe('lib/db/queries/api-keys: org-scoped key lifecycle', () => {
   it('createApiKey never persists the plaintext, only the hash', () => {
     const s = src()
     const fnStart = s.indexOf('export async function createApiKey')
-    const fnBody = s.slice(fnStart, fnStart + 700)
+    const fnBody = s.slice(fnStart, fnStart + 1400)
     expect(fnBody).toContain('keyHash: hash')
     expect(fnBody).not.toMatch(/keyHash:\s*key[,\s]/)
+  })
+
+  it('createApiKey enforces the per-org active-key cap before minting a new credential', () => {
+    const s = src()
+    expect(s).toContain('MAX_ACTIVE_KEYS_PER_ORG')
+    const fnStart = s.indexOf('export async function createApiKey')
+    const fnBody = s.slice(fnStart, fnStart + 1400)
+    // The count is org-scoped and excludes revoked keys, and the check runs
+    // before generateApiKey ever produces a plaintext.
+    expect(fnBody).toContain('isNull(apiKeys.revokedAt)')
+    const capCheckIdx = fnBody.indexOf('MAX_ACTIVE_KEYS_PER_ORG')
+    const generateIdx = fnBody.indexOf('generateApiKey()')
+    expect(capCheckIdx).toBeGreaterThan(-1)
+    expect(generateIdx).toBeGreaterThan(capCheckIdx)
   })
 
   it('revokeApiKey scopes the update by orgId in addition to keyId (IDOR guard)', () => {
@@ -335,18 +367,29 @@ describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
     expect(s).toContain("JsonRpcErrorCode.UNAUTHORIZED, 'Invalid or revoked API key'")
   })
 
-  it('caps the request body size before buffering — pre-auth memory-DoS guard', () => {
+  it('caps the request body size while streaming — pre-auth memory-DoS guard', () => {
     const s = src()
     expect(s).toContain('MAX_BODY_BYTES')
-    // Header check runs first, then the actual byte count is re-checked after
-    // reading (content-length can lie or be absent on chunked transfer).
+    // Header check runs first as a fast reject, then the body is read through
+    // readBodyCapped, which counts actual bytes as chunks arrive and aborts
+    // the read the moment the cap is crossed — req.text() would buffer the
+    // whole body before any check could run, and content-length can lie or be
+    // absent on chunked transfer.
     const headerCheckIdx = s.indexOf("req.headers.get('content-length')")
-    const rawReadIdx = s.indexOf('await req.text()')
-    const postReadCheckIdx = s.indexOf('raw.length > MAX_BODY_BYTES')
+    const cappedReadIdx = s.indexOf('await readBodyCapped(req, MAX_BODY_BYTES)')
     expect(headerCheckIdx).toBeGreaterThan(-1)
-    expect(rawReadIdx).toBeGreaterThan(headerCheckIdx)
-    expect(postReadCheckIdx).toBeGreaterThan(rawReadIdx)
+    expect(cappedReadIdx).toBeGreaterThan(headerCheckIdx)
+    expect(s).not.toContain('await req.text()')
+    const helperStart = s.indexOf('async function readBodyCapped')
+    const helperBody = s.slice(helperStart, helperStart + 800)
+    expect(helperBody).toContain('total += value.byteLength')
+    expect(helperBody).toContain('reader.cancel()')
     expect(s).toContain('{ status: 413 }')
+  })
+
+  it('rejects JSON that is not a JSON-RPC object (null, arrays, primitives) instead of throwing', () => {
+    const s = src()
+    expect(s).toContain("typeof body !== 'object' || body === null || Array.isArray(body)")
   })
 
   it('rejects malformed keys via isValidApiKeyFormat before hashing or hitting the DB', () => {

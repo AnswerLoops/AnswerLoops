@@ -33,6 +33,29 @@ function errorResult(message: string): McpToolResult {
   return { content: [{ type: 'text', text: message }], isError: true }
 }
 
+/**
+ * Clamps a caller-supplied limit to [1, MAX_RESULTS]. Anything non-numeric,
+ * fractional-weird, zero, or negative falls back to the default — a negative
+ * value would otherwise flow into SQL LIMIT and throw.
+ */
+function clampLimit(value: unknown, defaultLimit: number): number {
+  const n = Math.floor(Number(value))
+  if (!Number.isFinite(n) || n < 1) return defaultLimit
+  return Math.min(n, MAX_RESULTS)
+}
+
+/**
+ * Returns the value if it's one of the allowed enum members, undefined if the
+ * caller omitted it, and null if they sent something invalid. The DB layer
+ * parameterizes everything so an arbitrary string is not injectable, but
+ * silently filtering on a nonsense value returns misleading empty results —
+ * reject it instead.
+ */
+function parseEnumArg<T extends string>(value: unknown, allowed: readonly T[]): T | undefined | null {
+  if (value === undefined) return undefined
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value) ? (value as T) : null
+}
+
 // ── search_kb ────────────────────────────────────────────────────────────
 
 const searchKbDef: McpToolDefinition = {
@@ -52,7 +75,7 @@ async function searchKb(orgId: number, args: Record<string, unknown>): Promise<M
   const query = typeof args.query === 'string' ? args.query.trim() : ''
   if (!query) return errorResult('query is required')
   if (query.length > MAX_QUERY_LEN) return errorResult(`query must be ${MAX_QUERY_LEN} characters or fewer`)
-  const limit = Math.min(Number(args.limit) || 5, MAX_RESULTS)
+  const limit = clampLimit(args.limit, 5)
 
   const vector = await embedText(query, orgId)
   const results = await searchArticles(vector, limit, orgId)
@@ -96,17 +119,20 @@ const getTicketsDef: McpToolDefinition = {
   },
 }
 
+const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const
+const PRIORITIES = ['critical', 'high', 'medium', 'low'] as const
+const CATEGORIES = ['bug', 'feature_request', 'documentation', 'how_to', 'general_question'] as const
+
 async function getTicketsTool(orgId: number, args: Record<string, unknown>): Promise<McpToolResult> {
-  const limit = Math.min(Number(args.limit) || 10, MAX_RESULTS)
-  const tickets = await getTickets(
-    {
-      status: args.status as TicketStatus | undefined,
-      priority: args.priority as Priority | undefined,
-      category: args.category as TicketCategory | undefined,
-    },
-    orgId,
-    limit
-  )
+  const limit = clampLimit(args.limit, 10)
+  const status = parseEnumArg<TicketStatus>(args.status, TICKET_STATUSES)
+  const priority = parseEnumArg<Priority>(args.priority, PRIORITIES)
+  const category = parseEnumArg<TicketCategory>(args.category, CATEGORIES)
+  if (status === null) return errorResult(`status must be one of: ${TICKET_STATUSES.join(', ')}`)
+  if (priority === null) return errorResult(`priority must be one of: ${PRIORITIES.join(', ')}`)
+  if (category === null) return errorResult(`category must be one of: ${CATEGORIES.join(', ')}`)
+
+  const tickets = await getTickets({ status, priority, category }, orgId, limit)
   return textResult(
     tickets.map((t) => ({
       id: t.id,
