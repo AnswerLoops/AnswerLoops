@@ -427,5 +427,24 @@ export const apiKeys = pgTable(
   ]
 )
 
+// One row per generate_answer MCP call. Unlike every other channel, this call
+// never creates a ticket/ai_assessments row — without a table of its own,
+// the org's monthly deflection usage would never reflect API-originated LLM
+// spend. highConfidence mirrors ai_assessments.autoDeflected semantics: only
+// high-confidence generations count against the plan's deflection limit,
+// same as an auto-answered ticket.
+export const apiGenerations = pgTable(
+  'api_generations',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id),
+    highConfidence: integer('high_confidence').notNull().default(0),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    index('idx_api_generations_org').on(t.orgId),
+  ]
+)
+
 /** The default workspace that owns all data until real auth assigns memberships. */
 export const DEFAULT_ORG_ID = 1

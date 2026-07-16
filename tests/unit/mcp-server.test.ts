@@ -167,6 +167,50 @@ describe('lib/mcp/tools: source-level wiring', () => {
     expect(dispatchBody).toContain('catch (err)')
     expect(dispatchBody).toContain("errorResult('Internal error running tool')")
   })
+
+  it('create_ticket derives a deterministic, org-namespaced messageId from idempotencyKey so retries hit the pipeline dedup gate', () => {
+    const s = src()
+    const fnStart = s.indexOf('async function createTicketTool')
+    const fnBody = s.slice(fnStart, fnStart + 1500)
+    expect(fnBody).toContain('const idempotencyKey =')
+    expect(fnBody).toMatch(/`mcp-\$\{orgId\}-\$\{idempotencyKey\}`/)
+    // Without a key it must still fall back to the old random-id behavior —
+    // idempotency is opt-in, not a breaking change for existing callers.
+    expect(fnBody).toContain("Math.random().toString(36)")
+  })
+
+  it('generate_answer records every call via recordApiGeneration so high-confidence generations count against the deflection limit', () => {
+    const s = src()
+    const fnStart = s.indexOf('async function generateAnswer')
+    const fnBody = s.slice(fnStart, fnStart + 2300)
+    const highConfidenceIdx = fnBody.indexOf('shouldAutoDeflect(assessment)')
+    const recordIdx = fnBody.indexOf('recordApiGeneration(orgId, highConfidence)')
+    expect(highConfidenceIdx).toBeGreaterThan(-1)
+    expect(recordIdx).toBeGreaterThan(highConfidenceIdx)
+  })
+})
+
+describe('lib/db/queries/api-generations: generate_answer usage tracking', () => {
+  it('exports recordApiGeneration and getMonthlyApiGenerations', async () => {
+    const q = await import('../../lib/db/queries/api-generations')
+    expect(typeof q.recordApiGeneration).toBe('function')
+    expect(typeof q.getMonthlyApiGenerations).toBe('function')
+  })
+
+  it('getMonthlyApiGenerations only counts high-confidence rows, mirroring auto_deflected semantics', () => {
+    const src = readSrc('lib/db/queries/api-generations.ts')
+    expect(src).toContain('eq(apiGenerations.highConfidence, 1)')
+  })
+})
+
+describe('lib/billing/usage: getMonthlyDeflections folds in API-originated generations', () => {
+  it('adds getMonthlyApiGenerations to the ticket-based deflection count instead of only counting tickets', () => {
+    const src = readSrc('lib/billing/usage.ts')
+    expect(src).toContain('getMonthlyApiGenerations(orgId, periodStart)')
+    const fnStart = src.indexOf('export async function getMonthlyDeflections')
+    const fnBody = src.slice(fnStart, fnStart + 900)
+    expect(fnBody).toMatch(/Number\(row\?\.n \?\? 0\) \+ apiGenerations/)
+  })
 })
 
 describe('lib/db/queries/api-keys: org-scoped key lifecycle', () => {
@@ -182,7 +226,7 @@ describe('lib/db/queries/api-keys: org-scoped key lifecycle', () => {
   it('createApiKey never persists the plaintext, only the hash', () => {
     const s = src()
     const fnStart = s.indexOf('export async function createApiKey')
-    const fnBody = s.slice(fnStart, fnStart + 400)
+    const fnBody = s.slice(fnStart, fnStart + 700)
     expect(fnBody).toContain('keyHash: hash')
     expect(fnBody).not.toMatch(/keyHash:\s*key[,\s]/)
   })
@@ -216,6 +260,15 @@ describe('lib/db/queries/api-keys: org-scoped key lifecycle', () => {
     const fnBody = s.slice(fnStart, fnStart + 800)
     expect(fnBody).toContain('lastUsedAt: new Date().toISOString()')
   })
+
+  it('createApiKey accepts an optional expiresInDays and writes a computed expiresAt', () => {
+    const s = src()
+    const fnStart = s.indexOf('export async function createApiKey')
+    const fnBody = s.slice(fnStart, fnStart + 700)
+    expect(fnBody).toContain('expiresInDays?: number | null')
+    expect(fnBody).toMatch(/expiresInDays\s*\?\s*new Date\(Date\.now\(\)/)
+    expect(fnBody).toContain('expiresAt')
+  })
 })
 
 describe('schema: api_keys table', () => {
@@ -231,6 +284,23 @@ describe('schema: api_keys table', () => {
     const sql = readSrc('drizzle/0015_api_keys.sql')
     expect(sql).toMatch(/key_hash TEXT NOT NULL UNIQUE/)
     expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS idx_api_keys_org ON api_keys \(org_id\)/)
+    expect(sql).toMatch(/REFERENCES orgs\(id\)/)
+  })
+})
+
+describe('schema: api_generations table (generate_answer usage metering)', () => {
+  it('defines the api_generations table with an org-scoped high_confidence flag', async () => {
+    const { apiGenerations } = await import('../../lib/db/schema')
+    const cols = apiGenerations as unknown as Record<string, unknown>
+    for (const col of ['orgId', 'highConfidence', 'createdAt']) {
+      expect(cols, col).toHaveProperty(col)
+    }
+  })
+
+  it('migration file creates api_generations with an org index', () => {
+    const sql = readSrc('drizzle/0016_api_generations.sql')
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS api_generations/)
+    expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS idx_api_generations_org ON api_generations \(org_id\)/)
     expect(sql).toMatch(/REFERENCES orgs\(id\)/)
   })
 })
@@ -296,6 +366,16 @@ describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
     const toolsListIdx = s.indexOf("body.method === 'tools/list'")
     expect(limitIdx).toBeGreaterThan(-1)
     expect(limitIdx).toBeLessThan(toolsListIdx)
+  })
+
+  it('applies a per-IP rate limit before any auth check, so unauthenticated traffic cannot hammer the route unthrottled', () => {
+    const s = src()
+    const ipLimitIdx = s.indexOf('rateLimit(`mcp-ip:${ip}`')
+    const bodySizeCheckIdx = s.indexOf('contentLength > MAX_BODY_BYTES')
+    const authCheckIdx = s.indexOf('if (!bearerKey)')
+    expect(ipLimitIdx).toBeGreaterThan(-1)
+    expect(ipLimitIdx).toBeLessThan(bodySizeCheckIdx)
+    expect(ipLimitIdx).toBeLessThan(authCheckIdx)
   })
 
   it('rejects tools/call for a tool name not present in MCP_TOOLS before invoking it', () => {
