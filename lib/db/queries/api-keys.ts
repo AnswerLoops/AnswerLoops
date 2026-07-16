@@ -1,4 +1,4 @@
-import { eq, and, isNull } from 'drizzle-orm'
+import { eq, and, isNull, sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
 import { apiKeys } from '../schema'
 import { generateApiKey, hashApiKey } from '@/lib/mcp/keys'
@@ -27,12 +27,37 @@ function toApiKey(row: typeof apiKeys.$inferSelect): ApiKey {
   }
 }
 
-/** Creates a key and returns the plaintext once — never retrievable again after this call. */
-export async function createApiKey(orgId: number, name: string): Promise<{ plaintextKey: string; record: ApiKey }> {
+// Per-org ceiling on active (non-revoked) keys. There's no legitimate reason
+// for one org to hold more, and without a cap a compromised session can mint
+// unlimited long-lived credentials (each one an independent path into the
+// org's data that survives the session ending).
+export const MAX_ACTIVE_KEYS_PER_ORG = 25
+
+/**
+ * Creates a key and returns the plaintext once — never retrievable again after this call.
+ * expiresInDays is optional; omit (or pass undefined/null) for a key that never expires.
+ * Throws if the org is already at MAX_ACTIVE_KEYS_PER_ORG active keys.
+ */
+export async function createApiKey(
+  orgId: number,
+  name: string,
+  expiresInDays?: number | null
+): Promise<{ plaintextKey: string; record: ApiKey }> {
+  const [{ n: activeCount }] = await getDb()
+    .select({ n: sql<number>`count(*)::int` })
+    .from(apiKeys)
+    .where(and(eq(apiKeys.orgId, orgId), isNull(apiKeys.revokedAt)))
+  if (Number(activeCount) >= MAX_ACTIVE_KEYS_PER_ORG) {
+    throw new Error(`Active API key limit reached (${MAX_ACTIVE_KEYS_PER_ORG}). Revoke an unused key first.`)
+  }
+
   const { key, hash, prefix } = generateApiKey()
+  const expiresAt = expiresInDays
+    ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
+    : null
   const [row] = await getDb()
     .insert(apiKeys)
-    .values({ orgId, keyHash: hash, keyPrefix: prefix, name })
+    .values({ orgId, keyHash: hash, keyPrefix: prefix, name, expiresAt })
     .returning()
   return { plaintextKey: key, record: toApiKey(row) }
 }

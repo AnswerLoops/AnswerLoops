@@ -147,16 +147,34 @@ describe('lib/mcp/tools: source-level wiring', () => {
   it('caps all list-returning tools at MAX_RESULTS to avoid a full-dataset exfil in one call', () => {
     const s = src()
     expect(s).toContain('const MAX_RESULTS = 20')
-    expect(s).toContain('Math.min(Number(args.limit) || 5, MAX_RESULTS)')
-    expect(s).toContain('Math.min(Number(args.limit) || 10, MAX_RESULTS)')
+    // Both list tools go through clampLimit, which enforces the ceiling (and
+    // rejects negative/NaN values that would otherwise reach SQL LIMIT).
+    expect(s).toContain('clampLimit(args.limit, 5)')
+    expect(s).toContain('clampLimit(args.limit, 10)')
+    const clampStart = s.indexOf('function clampLimit')
+    const clampBody = s.slice(clampStart, clampStart + 300)
+    expect(clampBody).toContain('Math.min(n, MAX_RESULTS)')
+    expect(clampBody).toContain('n < 1')
   })
 
   it('get_tickets passes limit down to the query layer instead of pulling the full org table into memory', () => {
     const s = src()
     const fnStart = s.indexOf('async function getTicketsTool')
-    const fnBody = s.slice(fnStart, fnStart + 700)
+    const fnBody = s.slice(fnStart, fnStart + 1000)
     expect(fnBody).toMatch(/getTickets\(\s*\{[\s\S]*?\},\s*orgId,\s*limit\s*\)/)
     expect(fnBody).not.toContain('.slice(0, limit)')
+  })
+
+  it('get_tickets validates enum filters instead of casting caller input straight into the query', () => {
+    const s = src()
+    const fnStart = s.indexOf('async function getTicketsTool')
+    const fnBody = s.slice(fnStart, fnStart + 1000)
+    expect(fnBody).toContain('parseEnumArg<TicketStatus>(args.status, TICKET_STATUSES)')
+    expect(fnBody).toContain('parseEnumArg<Priority>(args.priority, PRIORITIES)')
+    expect(fnBody).toContain('parseEnumArg<TicketCategory>(args.category, CATEGORIES)')
+    // Invalid values are rejected with an error, not silently filtered on.
+    expect(fnBody).toContain('status === null')
+    expect(fnBody).not.toContain('args.status as TicketStatus')
   })
 
   it('callMcpTool catches thrown errors from any tool instead of letting them 500 the route', () => {
@@ -166,6 +184,50 @@ describe('lib/mcp/tools: source-level wiring', () => {
     expect(dispatchBody).toContain('try {')
     expect(dispatchBody).toContain('catch (err)')
     expect(dispatchBody).toContain("errorResult('Internal error running tool')")
+  })
+
+  it('create_ticket derives a deterministic, org-namespaced messageId from idempotencyKey so retries hit the pipeline dedup gate', () => {
+    const s = src()
+    const fnStart = s.indexOf('async function createTicketTool')
+    const fnBody = s.slice(fnStart, fnStart + 1500)
+    expect(fnBody).toContain('const idempotencyKey =')
+    expect(fnBody).toMatch(/`mcp-\$\{orgId\}-\$\{idempotencyKey\}`/)
+    // Without a key it must still fall back to the old random-id behavior —
+    // idempotency is opt-in, not a breaking change for existing callers.
+    expect(fnBody).toContain("Math.random().toString(36)")
+  })
+
+  it('generate_answer records every call via recordApiGeneration so high-confidence generations count against the deflection limit', () => {
+    const s = src()
+    const fnStart = s.indexOf('async function generateAnswer')
+    const fnBody = s.slice(fnStart, fnStart + 2300)
+    const highConfidenceIdx = fnBody.indexOf('shouldAutoDeflect(assessment)')
+    const recordIdx = fnBody.indexOf('recordApiGeneration(orgId, highConfidence)')
+    expect(highConfidenceIdx).toBeGreaterThan(-1)
+    expect(recordIdx).toBeGreaterThan(highConfidenceIdx)
+  })
+})
+
+describe('lib/db/queries/api-generations: generate_answer usage tracking', () => {
+  it('exports recordApiGeneration and getMonthlyApiGenerations', async () => {
+    const q = await import('../../lib/db/queries/api-generations')
+    expect(typeof q.recordApiGeneration).toBe('function')
+    expect(typeof q.getMonthlyApiGenerations).toBe('function')
+  })
+
+  it('getMonthlyApiGenerations only counts high-confidence rows, mirroring auto_deflected semantics', () => {
+    const src = readSrc('lib/db/queries/api-generations.ts')
+    expect(src).toContain('eq(apiGenerations.highConfidence, 1)')
+  })
+})
+
+describe('lib/billing/usage: getMonthlyDeflections folds in API-originated generations', () => {
+  it('adds getMonthlyApiGenerations to the ticket-based deflection count instead of only counting tickets', () => {
+    const src = readSrc('lib/billing/usage.ts')
+    expect(src).toContain('getMonthlyApiGenerations(orgId, periodStart)')
+    const fnStart = src.indexOf('export async function getMonthlyDeflections')
+    const fnBody = src.slice(fnStart, fnStart + 900)
+    expect(fnBody).toMatch(/Number\(row\?\.n \?\? 0\) \+ apiGenerations/)
   })
 })
 
@@ -182,9 +244,23 @@ describe('lib/db/queries/api-keys: org-scoped key lifecycle', () => {
   it('createApiKey never persists the plaintext, only the hash', () => {
     const s = src()
     const fnStart = s.indexOf('export async function createApiKey')
-    const fnBody = s.slice(fnStart, fnStart + 400)
+    const fnBody = s.slice(fnStart, fnStart + 1400)
     expect(fnBody).toContain('keyHash: hash')
     expect(fnBody).not.toMatch(/keyHash:\s*key[,\s]/)
+  })
+
+  it('createApiKey enforces the per-org active-key cap before minting a new credential', () => {
+    const s = src()
+    expect(s).toContain('MAX_ACTIVE_KEYS_PER_ORG')
+    const fnStart = s.indexOf('export async function createApiKey')
+    const fnBody = s.slice(fnStart, fnStart + 1400)
+    // The count is org-scoped and excludes revoked keys, and the check runs
+    // before generateApiKey ever produces a plaintext.
+    expect(fnBody).toContain('isNull(apiKeys.revokedAt)')
+    const capCheckIdx = fnBody.indexOf('MAX_ACTIVE_KEYS_PER_ORG')
+    const generateIdx = fnBody.indexOf('generateApiKey()')
+    expect(capCheckIdx).toBeGreaterThan(-1)
+    expect(generateIdx).toBeGreaterThan(capCheckIdx)
   })
 
   it('revokeApiKey scopes the update by orgId in addition to keyId (IDOR guard)', () => {
@@ -216,6 +292,15 @@ describe('lib/db/queries/api-keys: org-scoped key lifecycle', () => {
     const fnBody = s.slice(fnStart, fnStart + 800)
     expect(fnBody).toContain('lastUsedAt: new Date().toISOString()')
   })
+
+  it('createApiKey accepts an optional expiresInDays and writes a computed expiresAt', () => {
+    const s = src()
+    const fnStart = s.indexOf('export async function createApiKey')
+    const fnBody = s.slice(fnStart, fnStart + 700)
+    expect(fnBody).toContain('expiresInDays?: number | null')
+    expect(fnBody).toMatch(/expiresInDays\s*\?\s*new Date\(Date\.now\(\)/)
+    expect(fnBody).toContain('expiresAt')
+  })
 })
 
 describe('schema: api_keys table', () => {
@@ -231,6 +316,23 @@ describe('schema: api_keys table', () => {
     const sql = readSrc('drizzle/0015_api_keys.sql')
     expect(sql).toMatch(/key_hash TEXT NOT NULL UNIQUE/)
     expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS idx_api_keys_org ON api_keys \(org_id\)/)
+    expect(sql).toMatch(/REFERENCES orgs\(id\)/)
+  })
+})
+
+describe('schema: api_generations table (generate_answer usage metering)', () => {
+  it('defines the api_generations table with an org-scoped high_confidence flag', async () => {
+    const { apiGenerations } = await import('../../lib/db/schema')
+    const cols = apiGenerations as unknown as Record<string, unknown>
+    for (const col of ['orgId', 'highConfidence', 'createdAt']) {
+      expect(cols, col).toHaveProperty(col)
+    }
+  })
+
+  it('migration file creates api_generations with an org index', () => {
+    const sql = readSrc('drizzle/0016_api_generations.sql')
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS api_generations/)
+    expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS idx_api_generations_org ON api_generations \(org_id\)/)
     expect(sql).toMatch(/REFERENCES orgs\(id\)/)
   })
 })
@@ -265,18 +367,29 @@ describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
     expect(s).toContain("JsonRpcErrorCode.UNAUTHORIZED, 'Invalid or revoked API key'")
   })
 
-  it('caps the request body size before buffering — pre-auth memory-DoS guard', () => {
+  it('caps the request body size while streaming — pre-auth memory-DoS guard', () => {
     const s = src()
     expect(s).toContain('MAX_BODY_BYTES')
-    // Header check runs first, then the actual byte count is re-checked after
-    // reading (content-length can lie or be absent on chunked transfer).
+    // Header check runs first as a fast reject, then the body is read through
+    // readBodyCapped, which counts actual bytes as chunks arrive and aborts
+    // the read the moment the cap is crossed — req.text() would buffer the
+    // whole body before any check could run, and content-length can lie or be
+    // absent on chunked transfer.
     const headerCheckIdx = s.indexOf("req.headers.get('content-length')")
-    const rawReadIdx = s.indexOf('await req.text()')
-    const postReadCheckIdx = s.indexOf('raw.length > MAX_BODY_BYTES')
+    const cappedReadIdx = s.indexOf('await readBodyCapped(req, MAX_BODY_BYTES)')
     expect(headerCheckIdx).toBeGreaterThan(-1)
-    expect(rawReadIdx).toBeGreaterThan(headerCheckIdx)
-    expect(postReadCheckIdx).toBeGreaterThan(rawReadIdx)
+    expect(cappedReadIdx).toBeGreaterThan(headerCheckIdx)
+    expect(s).not.toContain('await req.text()')
+    const helperStart = s.indexOf('async function readBodyCapped')
+    const helperBody = s.slice(helperStart, helperStart + 800)
+    expect(helperBody).toContain('total += value.byteLength')
+    expect(helperBody).toContain('reader.cancel()')
     expect(s).toContain('{ status: 413 }')
+  })
+
+  it('rejects JSON that is not a JSON-RPC object (null, arrays, primitives) instead of throwing', () => {
+    const s = src()
+    expect(s).toContain("typeof body !== 'object' || body === null || Array.isArray(body)")
   })
 
   it('rejects malformed keys via isValidApiKeyFormat before hashing or hitting the DB', () => {
@@ -296,6 +409,16 @@ describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
     const toolsListIdx = s.indexOf("body.method === 'tools/list'")
     expect(limitIdx).toBeGreaterThan(-1)
     expect(limitIdx).toBeLessThan(toolsListIdx)
+  })
+
+  it('applies a per-IP rate limit before any auth check, so unauthenticated traffic cannot hammer the route unthrottled', () => {
+    const s = src()
+    const ipLimitIdx = s.indexOf('rateLimit(`mcp-ip:${ip}`')
+    const bodySizeCheckIdx = s.indexOf('contentLength > MAX_BODY_BYTES')
+    const authCheckIdx = s.indexOf('if (!bearerKey)')
+    expect(ipLimitIdx).toBeGreaterThan(-1)
+    expect(ipLimitIdx).toBeLessThan(bodySizeCheckIdx)
+    expect(ipLimitIdx).toBeLessThan(authCheckIdx)
   })
 
   it('rejects tools/call for a tool name not present in MCP_TOOLS before invoking it', () => {

@@ -37,4 +37,9 @@ COPY --chown=app:app --from=build /app ./
 USER app
 
 EXPOSE 3000
+# Probes the app's health endpoint. The bot container reuses this image with a
+# command override and serves no HTTP — compose disables the check for it
+# (healthcheck: disable) rather than this image skipping it for everyone.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1
 CMD ["pnpm", "start"]

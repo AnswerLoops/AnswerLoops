@@ -16,14 +16,58 @@ const PROTOCOL_VERSION = '2024-11-05'
 const RATE_LIMIT_MAX = 60
 const RATE_LIMIT_WINDOW_MS = 60_000
 
+// Per-IP limit, checked before any key is resolved. The per-org limit above
+// only kicks in once a key resolves — unauthenticated/malformed-key traffic
+// was otherwise unthrottled, paying only for a body-size check and (for a
+// well-formed-but-wrong key) a hash + one indexed lookup. Generous ceiling:
+// one IP can legitimately front many orgs' MCP clients behind NAT/a shared
+// gateway, so this exists to stop a single scanner from hammering the route,
+// not to rate-limit real traffic.
+const IP_RATE_LIMIT_MAX = 300
+const IP_RATE_LIMIT_WINDOW_MS = 60_000
+
 // Largest legitimate payload is create_ticket's 4000-char content plus JSON
-// envelope — 64KB is generous headroom. Enforced before the body is buffered,
+// envelope — 64KB is generous headroom. Enforced while the body streams in,
 // because this path runs before auth: without it, an unauthenticated client
 // can make the server buffer arbitrarily large bodies (same posture as the
 // email ingest route's MAX_BODY_BYTES).
 const MAX_BODY_BYTES = 64 * 1024
 
+/**
+ * Reads the request body while counting actual bytes, aborting as soon as the
+ * cap is crossed. `req.text()` would buffer the entire body before any length
+ * check could run — and a string `.length` check counts UTF-16 code units, not
+ * bytes — so neither enforces the cap against a client that omits or lies
+ * about content-length. Returns null when the cap is exceeded.
+ */
+async function readBodyCapped(req: NextRequest, maxBytes: number): Promise<string | null> {
+  const reader = req.body?.getReader()
+  if (!reader) return ''
+  const chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > maxBytes) {
+      await reader.cancel()
+      return null
+    }
+    chunks.push(value)
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
 export async function POST(req: NextRequest) {
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown'
+  const ipLimit = rateLimit(`mcp-ip:${ip}`, IP_RATE_LIMIT_MAX, IP_RATE_LIMIT_WINDOW_MS)
+  if (!ipLimit.ok) {
+    return Response.json(rpcError(null, JsonRpcErrorCode.INTERNAL_ERROR, 'Rate limit exceeded'), { status: 429 })
+  }
+
   const contentLength = Number(req.headers.get('content-length') ?? 0)
   if (contentLength > MAX_BODY_BYTES) {
     return Response.json(rpcError(null, JsonRpcErrorCode.INVALID_REQUEST, 'Request body too large'), { status: 413 })
@@ -32,17 +76,25 @@ export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization') ?? ''
   const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
 
+  // content-length can lie (or be absent on chunked transfer) — enforce the
+  // cap on actual bytes as the body streams in.
+  const raw = await readBodyCapped(req, MAX_BODY_BYTES)
+  if (raw === null) {
+    return Response.json(rpcError(null, JsonRpcErrorCode.INVALID_REQUEST, 'Request body too large'), { status: 413 })
+  }
+
   let body: JsonRpcRequest
   try {
-    // content-length can lie (or be absent on chunked transfer) — re-check the
-    // actual byte count after reading, before the JSON parse.
-    const raw = await req.text()
-    if (raw.length > MAX_BODY_BYTES) {
-      return Response.json(rpcError(null, JsonRpcErrorCode.INVALID_REQUEST, 'Request body too large'), { status: 413 })
-    }
     body = JSON.parse(raw) as JsonRpcRequest
   } catch {
     return Response.json(rpcError(null, JsonRpcErrorCode.PARSE_ERROR, 'Invalid JSON'), { status: 400 })
+  }
+
+  // Valid JSON isn't necessarily a JSON-RPC envelope: "null" parses to null
+  // (which would throw on the .id access below), and arrays/primitives aren't
+  // requests we support either.
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return Response.json(rpcError(null, JsonRpcErrorCode.INVALID_REQUEST, 'Invalid JSON-RPC 2.0 request'), { status: 400 })
   }
 
   const id = body.id ?? null

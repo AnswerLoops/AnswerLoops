@@ -7,6 +7,7 @@ import { getTickets } from '@/lib/db/queries/tickets'
 import { processCommunityMessage } from '@/lib/ingest/pipeline'
 import { assessAnswer, shouldAutoDeflect } from '@/lib/ai/assess'
 import { checkDeflectionLimit } from '@/lib/billing/usage'
+import { recordApiGeneration } from '@/lib/db/queries/api-generations'
 import { getKBContext } from '@/lib/db/queries/kb'
 import { logger } from '@/lib/logger'
 import type { McpToolDefinition, McpToolResult } from './protocol'
@@ -32,6 +33,29 @@ function errorResult(message: string): McpToolResult {
   return { content: [{ type: 'text', text: message }], isError: true }
 }
 
+/**
+ * Clamps a caller-supplied limit to [1, MAX_RESULTS]. Anything non-numeric,
+ * fractional-weird, zero, or negative falls back to the default — a negative
+ * value would otherwise flow into SQL LIMIT and throw.
+ */
+function clampLimit(value: unknown, defaultLimit: number): number {
+  const n = Math.floor(Number(value))
+  if (!Number.isFinite(n) || n < 1) return defaultLimit
+  return Math.min(n, MAX_RESULTS)
+}
+
+/**
+ * Returns the value if it's one of the allowed enum members, undefined if the
+ * caller omitted it, and null if they sent something invalid. The DB layer
+ * parameterizes everything so an arbitrary string is not injectable, but
+ * silently filtering on a nonsense value returns misleading empty results —
+ * reject it instead.
+ */
+function parseEnumArg<T extends string>(value: unknown, allowed: readonly T[]): T | undefined | null {
+  if (value === undefined) return undefined
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value) ? (value as T) : null
+}
+
 // ── search_kb ────────────────────────────────────────────────────────────
 
 const searchKbDef: McpToolDefinition = {
@@ -51,7 +75,7 @@ async function searchKb(orgId: number, args: Record<string, unknown>): Promise<M
   const query = typeof args.query === 'string' ? args.query.trim() : ''
   if (!query) return errorResult('query is required')
   if (query.length > MAX_QUERY_LEN) return errorResult(`query must be ${MAX_QUERY_LEN} characters or fewer`)
-  const limit = Math.min(Number(args.limit) || 5, MAX_RESULTS)
+  const limit = clampLimit(args.limit, 5)
 
   const vector = await embedText(query, orgId)
   const results = await searchArticles(vector, limit, orgId)
@@ -95,17 +119,20 @@ const getTicketsDef: McpToolDefinition = {
   },
 }
 
+const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const
+const PRIORITIES = ['critical', 'high', 'medium', 'low'] as const
+const CATEGORIES = ['bug', 'feature_request', 'documentation', 'how_to', 'general_question'] as const
+
 async function getTicketsTool(orgId: number, args: Record<string, unknown>): Promise<McpToolResult> {
-  const limit = Math.min(Number(args.limit) || 10, MAX_RESULTS)
-  const tickets = await getTickets(
-    {
-      status: args.status as TicketStatus | undefined,
-      priority: args.priority as Priority | undefined,
-      category: args.category as TicketCategory | undefined,
-    },
-    orgId,
-    limit
-  )
+  const limit = clampLimit(args.limit, 10)
+  const status = parseEnumArg<TicketStatus>(args.status, TICKET_STATUSES)
+  const priority = parseEnumArg<Priority>(args.priority, PRIORITIES)
+  const category = parseEnumArg<TicketCategory>(args.category, CATEGORIES)
+  if (status === null) return errorResult(`status must be one of: ${TICKET_STATUSES.join(', ')}`)
+  if (priority === null) return errorResult(`priority must be one of: ${PRIORITIES.join(', ')}`)
+  if (category === null) return errorResult(`category must be one of: ${CATEGORIES.join(', ')}`)
+
+  const tickets = await getTickets({ status, priority, category }, orgId, limit)
   return textResult(
     tickets.map((t) => ({
       id: t.id,
@@ -129,10 +156,16 @@ const createTicketDef: McpToolDefinition = {
     properties: {
       content: { type: 'string', description: "The user's question or issue, verbatim" },
       authorName: { type: 'string', description: 'Name/identifier of the end user this ticket is on behalf of (optional)' },
+      idempotencyKey: {
+        type: 'string',
+        description: 'Optional caller-supplied key (e.g. a UUID). Retrying the same call with the same key returns the original ticket instead of opening a duplicate — use this if your client retries on timeout/network error.',
+      },
     },
     required: ['content'],
   },
 }
+
+const MAX_IDEMPOTENCY_KEY_LEN = 200
 
 async function createTicketTool(orgId: number, args: Record<string, unknown>): Promise<McpToolResult> {
   const content = typeof args.content === 'string' ? args.content.trim() : ''
@@ -140,7 +173,19 @@ async function createTicketTool(orgId: number, args: Record<string, unknown>): P
   if (content.length > 4000) return errorResult('content must be 4000 characters or fewer')
   const authorName = typeof args.authorName === 'string' && args.authorName.trim() ? args.authorName.trim() : 'MCP agent'
 
-  const messageId = `mcp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const idempotencyKey = typeof args.idempotencyKey === 'string' ? args.idempotencyKey.trim() : ''
+  if (idempotencyKey.length > MAX_IDEMPOTENCY_KEY_LEN) {
+    return errorResult(`idempotencyKey must be ${MAX_IDEMPOTENCY_KEY_LEN} characters or fewer`)
+  }
+  // The pipeline's dedup gate is keyed on messageId (getTicketByDiscordMessageId).
+  // Without a caller-supplied key, every retry mints a fresh random id and the
+  // gate can never fire — an agent retrying on timeout opens duplicate tickets
+  // and pays for duplicate AI triage. Deriving messageId from the caller's key
+  // (namespaced by org, so orgs can't collide with each other's keys) makes
+  // retries land on the same ticket instead.
+  const messageId = idempotencyKey
+    ? `mcp-${orgId}-${idempotencyKey}`
+    : `mcp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const result = await processCommunityMessage(
     {
       messageId,
@@ -196,11 +241,22 @@ async function generateAnswer(orgId: number, args: Record<string, unknown>): Pro
     return { confidence: 0, answered_fully: false, reasoning: 'Assessment failed.' }
   })
 
+  const highConfidence = shouldAutoDeflect(assessment)
+  // This tool never creates a ticket/ai_assessments row like every other
+  // channel does, so without this write, high-confidence generations would
+  // never count toward the org's deflection limit — unmetered LLM spend.
+  // Only high-confidence calls count, mirroring auto_deflected semantics on
+  // tickets; a low-confidence generation still cost the LLM call but wasn't
+  // a "deflection" any more than a ticket routed to human review is.
+  await recordApiGeneration(orgId, highConfidence).catch((err) => {
+    logger.error('recordApiGeneration failed', { module: MOD, orgId, error: err })
+  })
+
   return textResult({
     answer: text,
     confidence: Math.round(assessment.confidence * 100),
     answered_fully: assessment.answered_fully,
-    high_confidence: shouldAutoDeflect(assessment),
+    high_confidence: highConfidence,
   })
 }
 

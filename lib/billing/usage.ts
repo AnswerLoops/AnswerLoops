@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { getDb } from '@/lib/db/drizzle'
 import { getSubscription } from '@/lib/db/queries/billing'
+import { getMonthlyApiGenerations } from '@/lib/db/queries/api-generations'
 import { getPlan, isOverLimit } from './plans'
 
 export async function getMonthlyDeflections(orgId: number): Promise<number> {
@@ -9,16 +10,21 @@ export async function getMonthlyDeflections(orgId: number): Promise<number> {
   periodStart.setDate(1)
   periodStart.setHours(0, 0, 0, 0)
 
-  const [row] = await db.execute(sql`
-    SELECT COUNT(*)::int AS n
-    FROM ai_assessments a
-    JOIN tickets t ON t.id = a.ticket_id
-    WHERE t.org_id = ${orgId}
-      AND a.auto_deflected = 1
-      AND t.created_at >= ${periodStart.toISOString()}
-  `) as unknown as [{ n: number }]
+  const [[row], apiGenerations] = await Promise.all([
+    db.execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM ai_assessments a
+      JOIN tickets t ON t.id = a.ticket_id
+      WHERE t.org_id = ${orgId}
+        AND a.auto_deflected = 1
+        AND t.created_at >= ${periodStart.toISOString()}
+    `) as unknown as [{ n: number }],
+    // generate_answer never creates a ticket, so its high-confidence calls
+    // are tracked separately and folded into the same monthly count.
+    getMonthlyApiGenerations(orgId, periodStart),
+  ])
 
-  return Number(row?.n ?? 0)
+  return Number(row?.n ?? 0) + apiGenerations
 }
 
 export async function checkDeflectionLimit(orgId: number): Promise<{
