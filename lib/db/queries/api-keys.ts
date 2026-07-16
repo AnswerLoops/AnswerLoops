@@ -27,12 +27,22 @@ function toApiKey(row: typeof apiKeys.$inferSelect): ApiKey {
   }
 }
 
-/** Creates a key and returns the plaintext once — never retrievable again after this call. */
-export async function createApiKey(orgId: number, name: string): Promise<{ plaintextKey: string; record: ApiKey }> {
+/**
+ * Creates a key and returns the plaintext once — never retrievable again after this call.
+ * expiresInDays is optional; omit (or pass undefined/null) for a key that never expires.
+ */
+export async function createApiKey(
+  orgId: number,
+  name: string,
+  expiresInDays?: number | null
+): Promise<{ plaintextKey: string; record: ApiKey }> {
   const { key, hash, prefix } = generateApiKey()
+  const expiresAt = expiresInDays
+    ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
+    : null
   const [row] = await getDb()
     .insert(apiKeys)
-    .values({ orgId, keyHash: hash, keyPrefix: prefix, name })
+    .values({ orgId, keyHash: hash, keyPrefix: prefix, name, expiresAt })
     .returning()
   return { plaintextKey: key, record: toApiKey(row) }
 }

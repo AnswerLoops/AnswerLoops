@@ -7,6 +7,7 @@ import { getTickets } from '@/lib/db/queries/tickets'
 import { processCommunityMessage } from '@/lib/ingest/pipeline'
 import { assessAnswer, shouldAutoDeflect } from '@/lib/ai/assess'
 import { checkDeflectionLimit } from '@/lib/billing/usage'
+import { recordApiGeneration } from '@/lib/db/queries/api-generations'
 import { getKBContext } from '@/lib/db/queries/kb'
 import { logger } from '@/lib/logger'
 import type { McpToolDefinition, McpToolResult } from './protocol'
@@ -129,10 +130,16 @@ const createTicketDef: McpToolDefinition = {
     properties: {
       content: { type: 'string', description: "The user's question or issue, verbatim" },
       authorName: { type: 'string', description: 'Name/identifier of the end user this ticket is on behalf of (optional)' },
+      idempotencyKey: {
+        type: 'string',
+        description: 'Optional caller-supplied key (e.g. a UUID). Retrying the same call with the same key returns the original ticket instead of opening a duplicate — use this if your client retries on timeout/network error.',
+      },
     },
     required: ['content'],
   },
 }
+
+const MAX_IDEMPOTENCY_KEY_LEN = 200
 
 async function createTicketTool(orgId: number, args: Record<string, unknown>): Promise<McpToolResult> {
   const content = typeof args.content === 'string' ? args.content.trim() : ''
@@ -140,7 +147,19 @@ async function createTicketTool(orgId: number, args: Record<string, unknown>): P
   if (content.length > 4000) return errorResult('content must be 4000 characters or fewer')
   const authorName = typeof args.authorName === 'string' && args.authorName.trim() ? args.authorName.trim() : 'MCP agent'
 
-  const messageId = `mcp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const idempotencyKey = typeof args.idempotencyKey === 'string' ? args.idempotencyKey.trim() : ''
+  if (idempotencyKey.length > MAX_IDEMPOTENCY_KEY_LEN) {
+    return errorResult(`idempotencyKey must be ${MAX_IDEMPOTENCY_KEY_LEN} characters or fewer`)
+  }
+  // The pipeline's dedup gate is keyed on messageId (getTicketByDiscordMessageId).
+  // Without a caller-supplied key, every retry mints a fresh random id and the
+  // gate can never fire — an agent retrying on timeout opens duplicate tickets
+  // and pays for duplicate AI triage. Deriving messageId from the caller's key
+  // (namespaced by org, so orgs can't collide with each other's keys) makes
+  // retries land on the same ticket instead.
+  const messageId = idempotencyKey
+    ? `mcp-${orgId}-${idempotencyKey}`
+    : `mcp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const result = await processCommunityMessage(
     {
       messageId,
@@ -196,11 +215,22 @@ async function generateAnswer(orgId: number, args: Record<string, unknown>): Pro
     return { confidence: 0, answered_fully: false, reasoning: 'Assessment failed.' }
   })
 
+  const highConfidence = shouldAutoDeflect(assessment)
+  // This tool never creates a ticket/ai_assessments row like every other
+  // channel does, so without this write, high-confidence generations would
+  // never count toward the org's deflection limit — unmetered LLM spend.
+  // Only high-confidence calls count, mirroring auto_deflected semantics on
+  // tickets; a low-confidence generation still cost the LLM call but wasn't
+  // a "deflection" any more than a ticket routed to human review is.
+  await recordApiGeneration(orgId, highConfidence).catch((err) => {
+    logger.error('recordApiGeneration failed', { module: MOD, orgId, error: err })
+  })
+
   return textResult({
     answer: text,
     confidence: Math.round(assessment.confidence * 100),
     answered_fully: assessment.answered_fully,
-    high_confidence: shouldAutoDeflect(assessment),
+    high_confidence: highConfidence,
   })
 }
 

@@ -12,7 +12,7 @@ AnswerLoops ships an [MCP](https://modelcontextprotocol.io) server so any MCP-co
 ## Setup
 
 1. Go to **Settings → API Keys**
-2. Click **Create key**, give it a name (e.g. "Cursor" or "Support bot")
+2. Click **Create key**, give it a name (e.g. "Cursor" or "Support bot") and optionally pick an expiry (30/90/365 days, or never)
 3. Copy the plaintext key shown — it's only displayed once and cannot be recovered later
 4. Paste the generated config into your MCP client's config file
 
@@ -37,7 +37,7 @@ Streamable HTTP, JSON-RPC 2.0, single endpoint: `POST /api/mcp`.
 
 - `initialize` and `notifications/initialized` don't require auth (standard MCP handshake)
 - Every other method requires `Authorization: Bearer <key>` — the key resolves to an organization, and every tool call is scoped to that org's data only
-- Rate limited per organization (shared across all of that org's keys): 60 requests/minute
+- Rate limited per organization (shared across all of that org's keys): 60 requests/minute, plus a generous per-IP limit (300/minute) that applies before a key is even resolved
 - Request bodies are capped at 64KB — larger requests get a 413 before the body is read
 
 ## Tools
@@ -73,10 +73,12 @@ All filters are optional. Returns up to `limit` (max 20) tickets, most recent fi
 ### create_ticket
 
 ```json
-{ "name": "create_ticket", "arguments": { "content": "Users report webhook retries are duplicated", "authorName": "Slack bot" } }
+{ "name": "create_ticket", "arguments": { "content": "Users report webhook retries are duplicated", "authorName": "Slack bot", "idempotencyKey": "a1b2c3d4" } }
 ```
 
 `content` is required (max 4000 characters). The ticket is tagged `source_platform: "mcp"` and runs through the same category/priority classification and auto-draft pipeline as a Discord or Slack message — it may get auto-answered if confidence is high, otherwise it queues for human review in the dashboard. There's no chat channel to post a reply back into, so replies are saved on the ticket for the calling agent to read back via `get_tickets`.
+
+`idempotencyKey` is optional — pass a stable identifier (a UUID, a hash of the content) if your client retries on timeout or network error. Retrying with the same key returns the original ticket (`duplicate: true`) instead of opening a second one and re-running AI triage a second time.
 
 ### generate_answer
 
@@ -84,7 +86,7 @@ All filters are optional. Returns up to `limit` (max 20) tickets, most recent fi
 { "name": "generate_answer", "arguments": { "question": "What's the rate limit on the widget API?" } }
 ```
 
-`question` is capped at 2000 characters. Returns `{ answer, confidence, answered_fully, high_confidence }`. This counts against the organization's monthly deflection limit — if the limit is reached, the tool returns an error instead of generating for free, matching the same metering every other channel is subject to.
+`question` is capped at 2000 characters. Returns `{ answer, confidence, answered_fully, high_confidence }`. This checks the organization's monthly deflection limit before generating — if the limit is reached, the tool returns an error instead of generating for free. Only high-confidence generations count against that limit afterward (the same standard a ticket has to clear to auto-deflect on any other channel) — a low-confidence answer still costs the call but isn't billed as a deflection.
 
 ## Security notes
 

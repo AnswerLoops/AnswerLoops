@@ -2012,6 +2012,17 @@ function ApiKeysSection() {
             className="flex-1 rounded border border-gray-200 px-3 py-1.5 text-sm"
             maxLength={100}
           />
+          <select
+            name="expiresInDays"
+            defaultValue=""
+            className="rounded border border-gray-200 px-2 py-1.5 text-sm text-gray-700"
+            title="Expiry"
+          >
+            <option value="">Never expires</option>
+            <option value="30">30 days</option>
+            <option value="90">90 days</option>
+            <option value="365">1 year</option>
+          </select>
           <Button type="submit" size="sm" disabled={creating || !newKeyName.trim()}>
             {creating ? 'Creating…' : 'Create key'}
           </Button>
@@ -2047,13 +2058,15 @@ function ApiKeysSection() {
         ) : (
           keys.map((k) => {
             const revoked = !!k.revoked_at
+            const expired = !revoked && !!k.expires_at && new Date(k.expires_at) < new Date()
             return (
-              <div key={k.id} className={`flex items-center justify-between px-4 py-3 ${revoked ? 'opacity-50' : ''}`}>
+              <div key={k.id} className={`flex items-center justify-between px-4 py-3 ${revoked || expired ? 'opacity-50' : ''}`}>
                 <div>
                   <p className="text-sm font-medium text-gray-900">{k.name}</p>
                   <p className="text-xs text-gray-400 font-mono">
                     {k.key_prefix}••••••••
-                    {revoked ? ' · revoked' : k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString()}` : ' · never used'}
+                    {revoked ? ' · revoked' : expired ? ' · expired' : k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString()}` : ' · never used'}
+                    {!revoked && !expired && k.expires_at ? ` · expires ${new Date(k.expires_at).toLocaleDateString()}` : ''}
                   </p>
                 </div>
                 {!revoked && (

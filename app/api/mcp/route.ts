@@ -16,6 +16,16 @@ const PROTOCOL_VERSION = '2024-11-05'
 const RATE_LIMIT_MAX = 60
 const RATE_LIMIT_WINDOW_MS = 60_000
 
+// Per-IP limit, checked before any key is resolved. The per-org limit above
+// only kicks in once a key resolves — unauthenticated/malformed-key traffic
+// was otherwise unthrottled, paying only for a body-size check and (for a
+// well-formed-but-wrong key) a hash + one indexed lookup. Generous ceiling:
+// one IP can legitimately front many orgs' MCP clients behind NAT/a shared
+// gateway, so this exists to stop a single scanner from hammering the route,
+// not to rate-limit real traffic.
+const IP_RATE_LIMIT_MAX = 300
+const IP_RATE_LIMIT_WINDOW_MS = 60_000
+
 // Largest legitimate payload is create_ticket's 4000-char content plus JSON
 // envelope — 64KB is generous headroom. Enforced before the body is buffered,
 // because this path runs before auth: without it, an unauthenticated client
@@ -24,6 +34,15 @@ const RATE_LIMIT_WINDOW_MS = 60_000
 const MAX_BODY_BYTES = 64 * 1024
 
 export async function POST(req: NextRequest) {
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown'
+  const ipLimit = rateLimit(`mcp-ip:${ip}`, IP_RATE_LIMIT_MAX, IP_RATE_LIMIT_WINDOW_MS)
+  if (!ipLimit.ok) {
+    return Response.json(rpcError(null, JsonRpcErrorCode.INTERNAL_ERROR, 'Rate limit exceeded'), { status: 429 })
+  }
+
   const contentLength = Number(req.headers.get('content-length') ?? 0)
   if (contentLength > MAX_BODY_BYTES) {
     return Response.json(rpcError(null, JsonRpcErrorCode.INVALID_REQUEST, 'Request body too large'), { status: 413 })
