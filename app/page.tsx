@@ -1,79 +1,11 @@
 import Link from 'next/link'
 import { auth } from '@/auth'
 import { ORDERED_PLANS } from '@/lib/billing/plans'
-import { LogoMark, Logo } from '@/components/logo'
 import { AnimatedChat } from '@/components/animated-chat'
 import { WaitlistForm } from '@/components/waitlist-form'
-import { MobileDrawer } from '@/components/ui/mobile-drawer'
+import { Nav, Footer, GithubIcon, GITHUB_URL } from '@/components/marketing/chrome'
 
 export const dynamic = 'force-dynamic'
-
-const GITHUB_URL = 'https://github.com/NathanTarbert/community-platform'
-
-const GithubIcon = ({ className = 'h-4 w-4' }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.744 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
-  </svg>
-)
-
-// ── Nav ───────────────────────────────────────────────────────────────────────
-
-function NavWordmark() {
-  return (
-    <span className="flex items-center gap-2.5">
-      <LogoMark size={30} />
-      <span className="text-lg font-semibold tracking-tight">
-        <span className="text-white">answer</span>
-        <span className="bg-gradient-to-r from-brand-400 to-indigo-400 bg-clip-text text-transparent">Loops</span>
-      </span>
-    </span>
-  )
-}
-
-function Nav({ loggedIn }: { loggedIn: boolean }) {
-  return (
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-ink-950/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-        <div className="flex items-center gap-8">
-          <Link href="/"><NavWordmark /></Link>
-          <nav className="hidden md:flex items-center gap-6">
-            <Link href="#features" className="text-sm text-white/60 hover:text-white transition-colors">Features</Link>
-            <Link href="#how-it-works" className="text-sm text-white/60 hover:text-white transition-colors">How it works</Link>
-            <Link href="#pricing" className="text-sm text-white/60 hover:text-white transition-colors">Pricing</Link>
-            <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="text-sm text-white/60 hover:text-white transition-colors">Docs</a>
-          </nav>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors">
-            <GithubIcon />
-            GitHub
-          </Link>
-          {loggedIn ? (
-            <Link href="/dashboard" className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-gradient-to-r from-brand-600 to-brand-500 px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white shadow-sm shadow-brand-600/30 hover:from-brand-500 hover:to-brand-400 transition-colors">
-              Go to dashboard →
-            </Link>
-          ) : (
-            <span className="whitespace-nowrap rounded-full border border-accent/30 bg-accent/10 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold text-accent">
-              Coming soon
-            </span>
-          )}
-          <MobileDrawer triggerLabel="Open navigation" triggerClassName="md:hidden">
-            <nav className="flex flex-col p-4 gap-1">
-              <Link href="#features" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Features</Link>
-              <Link href="#how-it-works" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">How it works</Link>
-              <Link href="#pricing" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Pricing</Link>
-              <a href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Docs</a>
-              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">
-                <GithubIcon />
-                GitHub
-              </a>
-            </nav>
-          </MobileDrawer>
-        </div>
-      </div>
-    </header>
-  )
-}
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
@@ -566,6 +498,60 @@ function Pricing() {
   )
 }
 
+// ── FAQ ───────────────────────────────────────────────────────────────────────
+// Copy phrased the way people actually ask an AI assistant ("what is X",
+// "how does X do Y"), not how a marketing team titles a section — this is
+// the GEO content Perplexity/ChatGPT-with-search retrieve and cite directly.
+// FAQ_ITEMS also feeds the FAQPage JSON-LD in StructuredData below, so the
+// structured data always mirrors what's actually visible on the page.
+
+const FAQ_ITEMS = [
+  {
+    q: 'What is AnswerLoops?',
+    a: 'AnswerLoops is an AI support platform for developer communities. It watches Discord, Slack, GitHub Issues/Discussions, Telegram, email, and your website chat widget, answers repeat questions automatically from your knowledge base, and routes anything it isn\'t confident about to a human with an AI-drafted reply ready to edit.',
+  },
+  {
+    q: 'How does AnswerLoops decide when to auto-answer vs. escalate to a human?',
+    a: 'Every drafted answer goes through a second AI pass that grades its own confidence. Only answers that clear a configurable threshold post automatically — everything else queues for a human, with the AI\'s draft attached so staff aren\'t starting from scratch.',
+  },
+  {
+    q: 'Can I use my own AI provider with AnswerLoops?',
+    a: 'Yes. Each organization configures its own key for OpenAI, Anthropic, Google Gemini, Groq, Mistral, or any OpenAI-compatible endpoint (including local models via Ollama). There\'s no platform AI markup — you pay your provider directly.',
+  },
+  {
+    q: 'Is AnswerLoops open source?',
+    a: 'The core platform is AGPL-3.0 licensed. Clone the repo and run docker compose up to self-host on your own infrastructure with your data never leaving your servers. A hosted version with tiered plans is also available if you\'d rather not run it yourself.',
+  },
+  {
+    q: 'Does AnswerLoops work with AI coding agents like Claude Code or Cursor?',
+    a: 'Yes — AnswerLoops ships an MCP (Model Context Protocol) server, so any MCP-compatible agent can search your knowledge base, read tickets, open new ones, and generate grounded answers directly, using the same pipeline as every other support channel.',
+  },
+  {
+    q: 'How is AnswerLoops different from Intercom or Chatbase?',
+    a: 'Intercom and Chatbase are built support/chatbot tools with AI added on top. AnswerLoops is AI-first: the confidence-gated auto-answer pipeline is the product, not a feature bolted onto a human-first inbox. It\'s also the only one of the three that\'s fully open source and self-hostable. See the comparison pages linked in the footer for a feature-by-feature breakdown.',
+  },
+] as const
+
+function FAQ() {
+  return (
+    <section id="faq" className="bg-gray-50 py-24">
+      <div className="mx-auto max-w-3xl px-6">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl font-bold text-gray-900">Frequently asked questions</h2>
+        </div>
+        <div className="flex flex-col gap-4">
+          {FAQ_ITEMS.map((item) => (
+            <div key={item.q} className="rounded-2xl border border-gray-100 bg-white p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">{item.q}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">{item.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ── CTA ───────────────────────────────────────────────────────────────────────
 
 function CTA() {
@@ -580,57 +566,6 @@ function CTA() {
         </div>
       </div>
     </section>
-  )
-}
-
-// ── Footer ────────────────────────────────────────────────────────────────────
-
-function Footer() {
-  return (
-    <footer className="border-t border-gray-100 bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="flex flex-col md:flex-row items-start justify-between gap-8">
-          <div>
-            <div className="mb-3">
-              <Logo width={90} />
-            </div>
-            <p className="text-xs text-gray-400 max-w-xs">AI-powered support automation for developer communities. Open source, self-hostable.</p>
-            <div className="mt-4 flex items-center gap-1.5 text-xs text-gray-400">
-              <GithubIcon className="h-3 w-3" />
-              <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 transition-colors">AGPL-3.0 — view source</Link>
-            </div>
-          </div>
-          <div className="flex gap-12">
-            <div>
-              <div className="text-xs font-semibold text-gray-700 uppercase tracking-widest mb-3">Product</div>
-              <div className="flex flex-col gap-2">
-                <Link href="#features" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Features</Link>
-                <Link href="#how-it-works" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">How it works</Link>
-                <Link href="#pricing" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Pricing</Link>
-              </div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-gray-700 uppercase tracking-widest mb-3">Open source</div>
-              <div className="flex flex-col gap-2">
-                <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">GitHub</Link>
-                <Link href={`${GITHUB_URL}/blob/main/docs/ARCHITECTURE.md`} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Docs</Link>
-                <Link href={`${GITHUB_URL}/issues`} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Issues</Link>
-              </div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-gray-700 uppercase tracking-widest mb-3">Product</div>
-              <div className="flex flex-col gap-2">
-                <span className="text-sm text-gray-400">Coming soon</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="mt-10 border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-gray-400">© 2026 AnswerLoops. AGPL-3.0 licensed.</p>
-          <p className="text-xs text-gray-400">Built in public · No VC money · Self-hostable</p>
-        </div>
-      </div>
-    </footer>
   )
 }
 
@@ -675,12 +610,36 @@ function StructuredData() {
     ],
   }
 
+  // FAQPage schema mirrors the visible FAQ section below (FAQ_ITEMS) —
+  // required to keep the markup honest per Google's structured-data
+  // guidance, which is why this was deferred in the first GEO pass until
+  // an actual FAQ section existed on the page.
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQ_ITEMS.map((item) => ({
+      '@type': 'Question',
+      name: item.q,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.a,
+      },
+    })),
+  }
+
   return (
-    <script
-      type="application/ld+json"
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+    </>
   )
 }
 
@@ -702,6 +661,7 @@ export default async function LandingPage() {
       <Enterprise />
       <SelfHostCallout />
       <Pricing />
+      <FAQ />
       <CTA />
       <Footer />
     </div>
