@@ -27,6 +27,10 @@ is scoped to the caller's organization:
   Server](/integrations/mcp) for the tool surface. `GET /api/api-keys` and the
   create/revoke actions behind it are session routes like the rest of the
   dashboard.
+- **Agent API** (`GET/POST /api/agent/*`) is the REST counterpart to the MCP
+  server — same `Authorization: Bearer <key>` auth, same api_keys table, same
+  org resolution, independent rate-limit quota. See [Agent
+  API](/integrations/agent-api) for the endpoint list and OpenAPI spec.
 
 <Info>
   A full endpoint-by-endpoint reference is being written. Check back soon or
