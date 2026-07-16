@@ -634,6 +634,56 @@ function Footer() {
   )
 }
 
+// ── Structured data ─────────────────────────────────────────────────────────
+// Product + Offer JSON-LD so AI search engines (Perplexity, Bing Copilot,
+// Gemini) can extract pricing and feature info accurately instead of
+// guessing from prose. Mirrors ORDERED_PLANS — kept in sync manually since
+// this is server-rendered from the same source of truth, not duplicated data.
+
+function StructuredData() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'AnswerLoops',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    description: 'AI community support platform that auto-answers repeat Discord, Slack, GitHub, Telegram, and email questions from your knowledge base, escalating only the hard ones to a human.',
+    url: 'https://answerloops.com',
+    offers: [
+      {
+        '@type': 'Offer',
+        name: 'Self-hosted',
+        price: '0',
+        priceCurrency: 'USD',
+        description: 'AGPL-3.0 licensed. Full source code, runs on your own infrastructure.',
+      },
+      ...ORDERED_PLANS.map((plan) => ({
+        '@type': 'Offer',
+        name: plan.name,
+        price: (plan.priceMonthly / 100).toString(),
+        priceCurrency: 'USD',
+        priceSpecification: {
+          '@type': 'UnitPriceSpecification',
+          price: (plan.priceMonthly / 100).toString(),
+          priceCurrency: 'USD',
+          billingDuration: 'P1M',
+        },
+        description: plan.deflectionsPerMonth === null
+          ? 'Unlimited deflections/mo, 14-day free trial'
+          : `${plan.deflectionsPerMonth.toLocaleString()} deflections/mo, 14-day free trial`,
+      })),
+    ],
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      // eslint-disable-next-line react/no-danger
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function LandingPage() {
@@ -641,6 +691,7 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <StructuredData />
       <Nav loggedIn={!!session?.user} />
       <Hero />
       <TrustBar />

@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "AnswerLoops",
+  "name_for_model": "answerloops",
+  "description_for_human": "AI community support platform that auto-answers repeat Discord, Slack, GitHub, Telegram, and email questions from your knowledge base, escalating only the hard ones to a human.",
+  "description_for_model": "Use AnswerLoops to search an organization's support knowledge base, retrieve FAQs, list or open support tickets, and generate grounded answers to community support questions. AnswerLoops classifies incoming questions, searches prior resolved tickets and knowledge base articles for a matching answer, drafts a response, and grades its own confidence before auto-answering or routing to a human. The primary integration surface for agents is an MCP server (JSON-RPC 2.0 over Streamable HTTP) at POST /api/mcp, authenticated with a per-org Bearer API key generated in Settings -> API Keys, exposing tools: search_kb, get_faq, get_tickets, create_ticket, generate_answer. This OpenAPI document only covers a liveness check; use the MCP endpoint for actual tool calls.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://answerloops.com/openapi.json"
+  },
+  "logo_url": "https://answerloops.com/icon.png",
+  "contact_email": "support@answerloops.com",
+  "legal_info_url": "https://answerloops.com"
+}
