@@ -127,54 +127,27 @@ describe('lib/mcp/tools: tool registry', () => {
   })
 })
 
-describe('lib/mcp/tools: source-level wiring', () => {
+describe('lib/mcp/tools: thin wrapper over lib/agent/core, preserving mcp-specific identity', () => {
   const src = () => readSrc('lib/mcp/tools.ts')
 
-  it('create_ticket routes through the same AI triage pipeline as every other channel, tagged as platform mcp', () => {
+  it('every tool delegates to the shared core module rather than re-implementing pipeline logic', () => {
     const s = src()
-    expect(s).toContain('processCommunityMessage(')
-    expect(s).toContain("platform: 'mcp'")
+    for (const coreFn of ['searchKbCore', 'getFaqCore', 'getTicketsCore', 'createTicketCore', 'generateAnswerCore']) {
+      expect(s, coreFn).toContain(coreFn)
+    }
+    // The old inline implementations (embedText, processCommunityMessage,
+    // checkDeflectionLimit calls) must not be duplicated here anymore — a
+    // duplicate copy is exactly the drift risk core.ts was extracted to avoid.
+    expect(s).not.toContain('processCommunityMessage(')
+    expect(s).not.toContain('checkDeflectionLimit(orgId)')
   })
 
-  it('generate_answer is gated by the deflection limit before running any LLM call', () => {
+  it("create_ticket wires idPrefix: 'mcp' — changing this would silently break existing clients' idempotencyKey-derived retries", () => {
     const s = src()
-    const gateIdx = s.indexOf('checkDeflectionLimit(orgId)')
-    const generateIdx = s.indexOf('generateText({')
-    expect(gateIdx).toBeGreaterThan(-1)
-    expect(generateIdx).toBeGreaterThan(gateIdx)
-  })
-
-  it('caps all list-returning tools at MAX_RESULTS to avoid a full-dataset exfil in one call', () => {
-    const s = src()
-    expect(s).toContain('const MAX_RESULTS = 20')
-    // Both list tools go through clampLimit, which enforces the ceiling (and
-    // rejects negative/NaN values that would otherwise reach SQL LIMIT).
-    expect(s).toContain('clampLimit(args.limit, 5)')
-    expect(s).toContain('clampLimit(args.limit, 10)')
-    const clampStart = s.indexOf('function clampLimit')
-    const clampBody = s.slice(clampStart, clampStart + 300)
-    expect(clampBody).toContain('Math.min(n, MAX_RESULTS)')
-    expect(clampBody).toContain('n < 1')
-  })
-
-  it('get_tickets passes limit down to the query layer instead of pulling the full org table into memory', () => {
-    const s = src()
-    const fnStart = s.indexOf('async function getTicketsTool')
-    const fnBody = s.slice(fnStart, fnStart + 1000)
-    expect(fnBody).toMatch(/getTickets\(\s*\{[\s\S]*?\},\s*orgId,\s*limit\s*\)/)
-    expect(fnBody).not.toContain('.slice(0, limit)')
-  })
-
-  it('get_tickets validates enum filters instead of casting caller input straight into the query', () => {
-    const s = src()
-    const fnStart = s.indexOf('async function getTicketsTool')
-    const fnBody = s.slice(fnStart, fnStart + 1000)
-    expect(fnBody).toContain('parseEnumArg<TicketStatus>(args.status, TICKET_STATUSES)')
-    expect(fnBody).toContain('parseEnumArg<Priority>(args.priority, PRIORITIES)')
-    expect(fnBody).toContain('parseEnumArg<TicketCategory>(args.category, CATEGORIES)')
-    // Invalid values are rejected with an error, not silently filtered on.
-    expect(fnBody).toContain('status === null')
-    expect(fnBody).not.toContain('args.status as TicketStatus')
+    const fnStart = s.indexOf('async function createTicketTool')
+    const fnBody = s.slice(fnStart, fnStart + 500)
+    expect(fnBody).toContain("idPrefix: 'mcp'")
+    expect(fnBody).toContain("defaultAuthorName: 'MCP agent'")
   })
 
   it('callMcpTool catches thrown errors from any tool instead of letting them 500 the route', () => {
@@ -186,20 +159,77 @@ describe('lib/mcp/tools: source-level wiring', () => {
     expect(dispatchBody).toContain("errorResult('Internal error running tool')")
   })
 
-  it('create_ticket derives a deterministic, org-namespaced messageId from idempotencyKey so retries hit the pipeline dedup gate', () => {
+  it('callMcpTool returns an isError result for an unknown tool name instead of throwing', async () => {
+    const result = await callMcpTool('not_a_real_tool', {}, 1)
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('Unknown tool')
+  })
+})
+
+describe('lib/agent/core: shared business logic behind both the MCP server and the REST Agent API', () => {
+  const src = () => readSrc('lib/agent/core.ts')
+
+  it('createTicketCore routes through the same AI triage pipeline as every other channel, tagged as platform mcp', () => {
     const s = src()
-    const fnStart = s.indexOf('async function createTicketTool')
-    const fnBody = s.slice(fnStart, fnStart + 1500)
-    expect(fnBody).toContain('const idempotencyKey =')
-    expect(fnBody).toMatch(/`mcp-\$\{orgId\}-\$\{idempotencyKey\}`/)
-    // Without a key it must still fall back to the old random-id behavior —
-    // idempotency is opt-in, not a breaking change for existing callers.
-    expect(fnBody).toContain("Math.random().toString(36)")
+    expect(s).toContain('processCommunityMessage(')
+    expect(s).toContain("platform: 'mcp'")
   })
 
-  it('generate_answer records every call via recordApiGeneration so high-confidence generations count against the deflection limit', () => {
+  it('generateAnswerCore is gated by the deflection limit before running any LLM call', () => {
     const s = src()
-    const fnStart = s.indexOf('async function generateAnswer')
+    const gateIdx = s.indexOf('checkDeflectionLimit(orgId)')
+    const generateIdx = s.indexOf('generateText({')
+    expect(gateIdx).toBeGreaterThan(-1)
+    expect(generateIdx).toBeGreaterThan(gateIdx)
+  })
+
+  it('caps all list-returning functions at MAX_RESULTS to avoid a full-dataset exfil in one call', () => {
+    const s = src()
+    expect(s).toContain('export const MAX_RESULTS = 20')
+    expect(s).toContain('clampLimit(args.limit, 5)')
+    expect(s).toContain('clampLimit(args.limit, 10)')
+    const clampStart = s.indexOf('export function clampLimit')
+    const clampBody = s.slice(clampStart, clampStart + 300)
+    expect(clampBody).toContain('Math.min(n, MAX_RESULTS)')
+    expect(clampBody).toContain('n < 1')
+  })
+
+  it('getTicketsCore passes limit down to the query layer instead of pulling the full org table into memory', () => {
+    const s = src()
+    const fnStart = s.indexOf('export async function getTicketsCore')
+    const fnBody = s.slice(fnStart, fnStart + 1000)
+    expect(fnBody).toMatch(/getTickets\(\s*\{[\s\S]*?\},\s*orgId,\s*limit\s*\)/)
+    expect(fnBody).not.toContain('.slice(0, limit)')
+  })
+
+  it('getTicketsCore validates enum filters instead of casting caller input straight into the query', () => {
+    const s = src()
+    const fnStart = s.indexOf('export async function getTicketsCore')
+    const fnBody = s.slice(fnStart, fnStart + 1000)
+    expect(fnBody).toContain('parseEnumArg<TicketStatus>(args.status, TICKET_STATUSES)')
+    expect(fnBody).toContain('parseEnumArg<Priority>(args.priority, PRIORITIES)')
+    expect(fnBody).toContain('parseEnumArg<TicketCategory>(args.category, CATEGORIES)')
+    // Invalid values are rejected with an error, not silently filtered on.
+    expect(fnBody).toContain('status === null')
+    expect(fnBody).not.toContain('args.status as TicketStatus')
+  })
+
+  it("createTicketCore's messageId prefix is caller-supplied (opts.idPrefix), not hardcoded — so the MCP and REST surfaces can share this logic without colliding or drifting from each other's existing behavior", () => {
+    const s = src()
+    const fnStart = s.indexOf('export async function createTicketCore')
+    const fnBody = s.slice(fnStart, fnStart + 1500)
+    expect(fnBody).toContain('const idempotencyKey =')
+    expect(fnBody).toMatch(/`\$\{opts\.idPrefix\}-\$\{orgId\}-\$\{idempotencyKey\}`/)
+    // Without a key it must still fall back to the old random-id behavior —
+    // idempotency is opt-in, not a breaking change for existing callers.
+    expect(fnBody).toContain('Math.random().toString(36)')
+    expect(fnBody).not.toMatch(/`mcp-/)
+    expect(fnBody).not.toMatch(/`agent-/)
+  })
+
+  it('generateAnswerCore records every call via recordApiGeneration so high-confidence generations count against the deflection limit', () => {
+    const s = src()
+    const fnStart = s.indexOf('export async function generateAnswerCore')
     const fnBody = s.slice(fnStart, fnStart + 2300)
     const highConfidenceIdx = fnBody.indexOf('shouldAutoDeflect(assessment)')
     const recordIdx = fnBody.indexOf('recordApiGeneration(orgId, highConfidence)')
@@ -370,6 +400,7 @@ describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
   it('caps the request body size while streaming — pre-auth memory-DoS guard', () => {
     const s = src()
     expect(s).toContain('MAX_BODY_BYTES')
+    expect(s).toContain("import { readBodyCapped } from '@/lib/http/read-body-capped'")
     // Header check runs first as a fast reject, then the body is read through
     // readBodyCapped, which counts actual bytes as chunks arrive and aborts
     // the read the moment the cap is crossed — req.text() would buffer the
@@ -380,10 +411,9 @@ describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
     expect(headerCheckIdx).toBeGreaterThan(-1)
     expect(cappedReadIdx).toBeGreaterThan(headerCheckIdx)
     expect(s).not.toContain('await req.text()')
-    const helperStart = s.indexOf('async function readBodyCapped')
-    const helperBody = s.slice(helperStart, helperStart + 800)
-    expect(helperBody).toContain('total += value.byteLength')
-    expect(helperBody).toContain('reader.cancel()')
+    const helperSrc = readSrc('lib/http/read-body-capped.ts')
+    expect(helperSrc).toContain('total += value.byteLength')
+    expect(helperSrc).toContain('reader.cancel()')
     expect(s).toContain('{ status: 413 }')
   })
 

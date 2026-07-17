@@ -78,6 +78,7 @@
           "integrations/slack",
           "integrations/github",
           "integrations/mcp",
+          "integrations/agent-api",
           "integrations/openai",
           "integrations/anthropic",
           "integrations/google-gemini",

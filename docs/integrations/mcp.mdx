@@ -9,6 +9,8 @@ AnswerLoops ships an [MCP](https://modelcontextprotocol.io) server so any MCP-co
   This is what makes AnswerLoops agent-first: the tools below aren't a separate integration bolted on top, they call the exact same triage/answer pipeline every other channel uses, including deflection-limit metering and org-scoped data isolation.
 </Tip>
 
+Not using an MCP-native client? The [Agent API](/integrations/agent-api) exposes the same operations as plain REST + OpenAPI, for frameworks like LangChain or AutoGen that don't speak MCP's JSON-RPC transport. Same API key works for both.
+
 ## Setup
 
 1. Go to **Settings → API Keys**
