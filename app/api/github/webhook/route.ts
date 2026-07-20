@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { getRepoByOwnerAndName } from '@/lib/db/queries/github'
 import { processCommunityMessage } from '@/lib/ingest/pipeline'
-import { syncRepoToKB } from '@/lib/github/kb-sync'
+import { syncRepoToKB, syncSingleDiscussionToKB } from '@/lib/github/kb-sync'
 import { getInstallationOctokitById } from '@/lib/github/app'
 import { logger } from '@/lib/logger'
 
@@ -64,8 +64,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // ── Ticket events ─────────────────────────────────────────────────────────
   const action = payload.action as string | undefined
+
+  // ── Discussion answered/unanswered → KB sync ────────────────────────────
+  // Independent of ticket ingestion: a discussion can be a KB source even if
+  // `monitored_events` excludes discussions from ticket creation.
+  if (event === 'discussion' && (action === 'answered' || action === 'unanswered') && dbRepo.kb_enabled === 1) {
+    const discussion = payload.discussion as { number: number }
+    try {
+      await syncSingleDiscussionToKB(owner, repoName, actualOrgId, discussion.number)
+      logger.info('github discussion kb sync', { module: MOD, owner, repo: repoName, number: discussion.number, action })
+    } catch (err) {
+      logger.error('github discussion kb sync failed', { module: MOD, error: err })
+    }
+    return NextResponse.json({ ok: true })
+  }
+
+  // ── Ticket events ─────────────────────────────────────────────────────────
   const monitored = dbRepo.monitored_events
 
   if (event === 'issues' && (action === 'opened' || action === 'reopened')) {

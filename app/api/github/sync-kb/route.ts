@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { getRepoById } from '@/lib/db/queries/github'
-import { syncRepoToKB } from '@/lib/github/kb-sync'
+import { syncRepoToKB, syncDiscussionsToKB } from '@/lib/github/kb-sync'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -15,6 +15,9 @@ export async function GET(req: NextRequest) {
   const repo = await getRepoById(repoId, orgId)
   if (!repo) return NextResponse.json({ error: 'Repo not found' }, { status: 404 })
 
-  const synced = await syncRepoToKB(repo.id, repo.owner, repo.repo, repo.installation_id, orgId)
-  return NextResponse.json({ synced })
+  // Sequential: both paths read-modify-write the repo's kbChunkCount, so
+  // running them concurrently would race and drop one side's count.
+  const docsSynced = await syncRepoToKB(repo.id, repo.owner, repo.repo, repo.installation_id, orgId)
+  const discussionsSynced = await syncDiscussionsToKB(repo.id, repo.owner, repo.repo, repo.installation_id, orgId)
+  return NextResponse.json({ synced: docsSynced + discussionsSynced, docsSynced, discussionsSynced })
 }
