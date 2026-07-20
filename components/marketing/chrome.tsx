@@ -102,7 +102,7 @@ export function Footer() {
               <div className="text-xs font-semibold text-gray-700 uppercase tracking-widest mb-3">Open source</div>
               <div className="flex flex-col gap-2">
                 <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">GitHub</Link>
-                <Link href={`${GITHUB_URL}/blob/main/docs/ARCHITECTURE.md`} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Docs</Link>
+                <Link href="https://docs.answerloops.com" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Docs</Link>
                 <Link href={`${GITHUB_URL}/issues`} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Issues</Link>
               </div>
             </div>

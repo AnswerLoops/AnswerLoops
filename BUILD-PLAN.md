@@ -223,7 +223,7 @@ Unchanged from prior draft, summarized: org on the gated plan verifies their own
 20. ~~**T2-3 CSAT scoring.**~~ ✅ Done — PR #46.
 21. **T2-4 Discord slash commands** — `/ask` + `/summarize` via Discord Interactions API.
 22. ~~**T2-5 Simulation / dry-run mode**~~ ✅ Done — replay last N tickets through AI pipeline, no writes. `/simulation` page with model/threshold picker and per-ticket confidence + deflect comparison.
-23. ~~**Mintlify docs scaffold**~~ ✅ Done (PR #51) — 44 pages in `/docs`; live at `answerloops.mintlify.app`; covers self-hosting, product guide, integrations, reference.
+23. ~~**Mintlify docs scaffold**~~ ✅ Done (PR #51) — 44 pages in `/docs`; live at `docs.answerloops.com`; covers self-hosting, product guide, integrations, reference.
 24. **Tier 3 gaps** — Telegram, auto-retrain, outbound campaigns, email channel, custom automations.
 25. ~~**Multi-tenant isolation hardening.**~~ ✅ Done — `fix/tenant-isolation`. Org scoping enforced across GitHub repo queries/tools, push notifications, related-ticket links, SLA breach checks, and ticket lookups; IDOR fixes on repo delete and ticket routes/actions; `tests/unit/tenant-isolation.test.ts` + `tests/unit/tenant-isolation-regressions.test.ts` pin every fix.
 26. ~~**KB-only agent mode.**~~ ✅ Done — `feat/kb-grounded-agent`. Agent no longer skips orgs with zero GitHub repos; runs without code-search tools, grounded on KB context + prior resolved answers, with a no-hallucination instruction. Confidence reviewer still gates auto-deflection. `tests/unit/kb-only-agent.test.ts`.
