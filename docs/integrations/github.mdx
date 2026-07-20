@@ -1,14 +1,15 @@
 ---
 title: GitHub
-description: Ingest GitHub Issues and Discussions as tickets, and sync repo markdown into the Knowledge Base.
+description: Ingest GitHub Issues and Discussions as tickets, and sync repo markdown and answered Discussions into the Knowledge Base.
 ---
 
 ## Overview
 
-The GitHub integration does two things:
+The GitHub integration does three things:
 
 1. **Ticket ingest** — new Issues and Discussions become tickets in AnswerLoops. AI drafts a reply and posts it back as a GitHub comment when confidence is high enough.
-2. **KB sync** — markdown files in a repo are embedded into the Knowledge Base. Syncs automatically on every push (when enabled) or manually via **Sync now**.
+2. **Markdown KB sync** — markdown files in a repo are embedded into the Knowledge Base. Syncs automatically on every push (when enabled) or manually via **Sync now**.
+3. **Discussions KB sync** — answered GitHub Discussions become first-class KB articles: the discussion title is the question, the accepted answer is the answer, attributed to the answering user. A discussion syncs the moment it's marked answered, and un-marking an answer removes the article. **Sync now** also backfills every already-answered discussion in the repo.
 
 ## Prerequisites
 
@@ -38,6 +39,8 @@ Under **Subscribe to events**, tick:
 
 - Issues
 - Issue comments
+- Discussions
+- Discussion comments
 - Push (for automatic KB sync on push)
 
 Save the app. Note the **App ID** and your **App slug** (the URL-safe name).
@@ -71,10 +74,10 @@ In your AnswerLoops dashboard, go to **Settings → GitHub → Connect GitHub**.
 
 Each connected repo has two controls:
 
-- **Monitored events** — choose Issues, Discussions, Both, or None
+- **Monitored events** — choose Issues, Discussions, Both, or None. This governs *ticket ingest* only.
 - **Knowledge Base source** — toggle KB sync on/off; **Sync now** triggers an immediate sync
 
-When KB sync is enabled, every push to the default branch re-embeds all `.md` and `.mdx` files automatically.
+When KB sync is enabled: every push to the default branch re-embeds all `.md` and `.mdx` files automatically, and every discussion marked as answered syncs into the KB immediately (independent of **Monitored events** — a repo can feed the KB from Discussions even if ticket ingest is set to `Issues` or `None`). **Sync now** re-syncs both markdown files and the full set of currently-answered discussions.
 
 ## Troubleshooting
 
@@ -99,5 +102,12 @@ When KB sync is enabled, every push to the default branch re-embeds all `.md` an
     - Confirm the repo contains `.md` or `.mdx` files outside `node_modules`, `vendor`, or test directories
     - Check that an AI provider is configured in Settings → AI Model (embeddings require an API key)
     - Check Railway/server logs for embedding errors
+  </Accordion>
+
+  <Accordion title="Answered Discussions not appearing in the KB">
+    - Confirm **Knowledge Base source** is toggled on for the repo — Discussions sync follows this flag, not **Monitored events**
+    - The GitHub App must have **Discussions** ticked under **Subscribe to events**; without it, no `discussion` webhook fires when an answer is marked
+    - GitHub only sends the `answered` action when a maintainer explicitly marks a comment as the answer — discussions with replies but no accepted answer are intentionally excluded
+    - Run **Sync now** to backfill discussions answered before the integration was connected
   </Accordion>
 </AccordionGroup>

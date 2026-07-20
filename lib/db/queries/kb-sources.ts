@@ -51,6 +51,23 @@ export async function getKBSourceByFilename(orgId: number, filename: string): Pr
   return row ? toSource(row) : null
 }
 
+export async function getOrCreateKBSource(input: {
+  orgId: number
+  filename: string
+  fileType: string
+}): Promise<KBSource> {
+  const existing = await getKBSourceByFilename(input.orgId, input.filename)
+  if (existing) return existing
+  return createKBSource({ ...input, sizeBytes: 0 })
+}
+
+export async function incrementKBSourceChunkCount(id: number, delta: number): Promise<void> {
+  await getDb()
+    .update(kbSources)
+    .set({ chunkCount: sql`${kbSources.chunkCount} + ${delta}`, updatedAt: new Date().toISOString() })
+    .where(eq(kbSources.id, id))
+}
+
 export async function listKBSources(orgId: number): Promise<KBSource[]> {
   const rows = await getDb()
     .select()

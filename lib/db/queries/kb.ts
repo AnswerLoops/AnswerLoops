@@ -168,6 +168,59 @@ export async function createArticleFromSource(
   return toArticle(row)
 }
 
+export async function countArticlesForSource(sourceId: number, orgId: number): Promise<number> {
+  const [row] = await getDb()
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(kbArticles)
+    .where(and(eq(kbArticles.sourceId, sourceId), eq(kbArticles.orgId, orgId)))
+  return row?.n ?? 0
+}
+
+export async function getArticleBySourceAndPage(sourceId: number, sourcePage: number, orgId: number): Promise<KBArticle | null> {
+  const [row] = await getDb()
+    .select()
+    .from(kbArticles)
+    .where(and(eq(kbArticles.sourceId, sourceId), eq(kbArticles.sourcePage, sourcePage), eq(kbArticles.orgId, orgId)))
+    .limit(1)
+  return row ? toArticle(row) : null
+}
+
+export async function upsertArticleFromSource(
+  input: {
+    question: string
+    answer: string
+    embedding: number[]
+    model: string
+    sourceId: number
+    sourcePage: number
+  },
+  orgId: number
+): Promise<KBArticle> {
+  const existing = await getArticleBySourceAndPage(input.sourceId, input.sourcePage, orgId)
+  if (existing) {
+    const [row] = await getDb()
+      .update(kbArticles)
+      .set({
+        question: input.question,
+        answer: input.answer,
+        embedding: JSON.stringify(input.embedding),
+        model: input.model,
+        published: 1,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(kbArticles.id, existing.id))
+      .returning()
+    return toArticle(row)
+  }
+  return createArticleFromSource(input, orgId)
+}
+
+export async function deleteArticleBySourceAndPage(sourceId: number, sourcePage: number, orgId: number): Promise<void> {
+  await getDb()
+    .delete(kbArticles)
+    .where(and(eq(kbArticles.sourceId, sourceId), eq(kbArticles.sourcePage, sourcePage), eq(kbArticles.orgId, orgId)))
+}
+
 export async function deleteArticle(id: number, orgId: number): Promise<void> {
   await getDb()
     .delete(kbArticles)
