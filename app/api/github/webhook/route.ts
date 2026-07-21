@@ -85,7 +85,8 @@ export async function POST(req: NextRequest) {
 
   if (event === 'issues' && (action === 'opened' || action === 'reopened')) {
     if (monitored !== 'issues' && monitored !== 'both') return NextResponse.json({ ok: true })
-    const issue = payload.issue as { number: number; title: string; body: string | null; user: { login: string; id: number } }
+    const issue = payload.issue as { number: number; title: string; body: string | null; user: { login: string; id: number; type?: string } }
+    if (issue.user.type === 'Bot') return NextResponse.json({ ok: true })
     await handleTicket({
       messageId: `github-issue-${owner}-${repoName}-${issue.number}`,
       content: `${issue.title}\n\n${issue.body ?? ''}`.trim(),
@@ -102,7 +103,8 @@ export async function POST(req: NextRequest) {
     if (monitored !== 'issues' && monitored !== 'both') return NextResponse.json({ ok: true })
     const issue = payload.issue as { number: number; state: string }
     if (issue.state !== 'open') return NextResponse.json({ ok: true })
-    const comment = payload.comment as { id: number; body: string; user: { login: string; id: number } }
+    const comment = payload.comment as { id: number; body: string; user: { login: string; id: number; type?: string } }
+    if (comment.user.type === 'Bot') return NextResponse.json({ ok: true })
     await handleTicket({
       messageId: `github-issue-comment-${owner}-${repoName}-${comment.id}`,
       content: comment.body,
@@ -117,7 +119,8 @@ export async function POST(req: NextRequest) {
     })
   } else if (event === 'discussion' && action === 'created') {
     if (monitored !== 'discussions' && monitored !== 'both') return NextResponse.json({ ok: true })
-    const discussion = payload.discussion as { number: number; title: string; body: string | null; user: { login: string; id: number } }
+    const discussion = payload.discussion as { number: number; title: string; body: string | null; user: { login: string; id: number; type?: string } }
+    if (discussion.user.type === 'Bot') return NextResponse.json({ ok: true })
     await handleTicket({
       messageId: `github-discussion-${owner}-${repoName}-${discussion.number}`,
       content: `${discussion.title}\n\n${discussion.body ?? ''}`.trim(),
@@ -129,7 +132,8 @@ export async function POST(req: NextRequest) {
     })
   } else if (event === 'discussion_comment' && action === 'created') {
     if (monitored !== 'discussions' && monitored !== 'both') return NextResponse.json({ ok: true })
-    const comment = payload.comment as { id: number; body: string; user: { login: string; id: number } }
+    const comment = payload.comment as { id: number; body: string; user: { login: string; id: number; type?: string } }
+    if (comment.user.type === 'Bot') return NextResponse.json({ ok: true })
     await handleTicket({
       messageId: `github-discussion-comment-${owner}-${repoName}-${comment.id}`,
       content: comment.body,
