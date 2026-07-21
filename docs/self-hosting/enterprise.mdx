@@ -5,7 +5,7 @@ description: How AnswerLoops works in environments with strict security policies
 
 AnswerLoops is designed to work inside enterprise security perimeters without requiring firewall exceptions or admin approval from your IT team.
 
-## The two concerns — and how we address them
+## The two concerns that usually block a rollout
 
 ### 1. "We can't expose an inbound webhook endpoint"
 
@@ -80,10 +80,10 @@ No inbound ports required in polling mode.
 
 Share this with your security team:
 
-- [ ] **No admin OAuth scopes** — only `channels:history`, `channels:read`, `chat:write`, `reactions:write`
-- [ ] **Outbound-only** — bot container initiates all connections; no inbound HTTP
-- [ ] **Encrypted secrets** — bot tokens and API keys stored with AES-256-GCM encryption at rest
-- [ ] **Self-hostable** — all data stays in your infrastructure
-- [ ] **No message content leaves your servers** — AI calls use your own API key, go direct to your AI provider
-- [ ] **Configurable poll interval** — `SLACK_POLL_INTERVAL_SECONDS` (default 60s)
-- [ ] **Cursor-based dedup** — no message processed twice; safe to run across restarts
+- [ ] **No admin OAuth scopes.** Only `channels:history`, `channels:read`, `chat:write`, `reactions:write`.
+- [ ] **Outbound-only.** The bot container initiates every connection; nothing listens for inbound HTTP.
+- [ ] **Encrypted secrets.** Bot tokens and API keys are stored with AES-256-GCM encryption at rest.
+- [ ] **Self-hostable.** All data stays in your infrastructure.
+- [ ] **No message content leaves your servers.** AI calls use your own API key and go direct to your AI provider.
+- [ ] **Configurable poll interval.** `SLACK_POLL_INTERVAL_SECONDS`, default 60s.
+- [ ] **Cursor-based dedup.** No message is ever processed twice — safe to run across restarts.

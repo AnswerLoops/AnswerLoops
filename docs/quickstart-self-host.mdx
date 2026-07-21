@@ -3,6 +3,10 @@ title: Self-Host Quickstart
 description: Run AnswerLoops on your own infrastructure with Docker.
 ---
 
+This is the path for teams that need their data to never leave their own servers — privacy-first companies, fintech, healthcare, or anyone who just doesn't want to hand support data to a third party. It's not a one-liner: you'll clone the repo, generate two secrets, register an OAuth app, and start the containers. Budget 15-20 minutes if this is your first time through it, most of which is waiting on an OAuth app to be created in another tab.
+
+If you'd rather skip all of this, the [cloud quickstart](/quickstart-cloud) gets you the same product with none of the infrastructure.
+
 ## Prerequisites
 
 - [Node.js 22+](https://nodejs.org)
@@ -48,6 +52,8 @@ OPENAI_API_KEY=<your-openai-api-key>
 See the full [environment variables reference](/reference/environment-variables) for all options.
 
 ## 3. Start with Docker
+
+Once your `.env.local` has real values (not the ones above), this one command does the rest:
 
 ```bash
 docker compose up --build

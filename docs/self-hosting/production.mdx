@@ -3,12 +3,26 @@ title: Production Deployment
 description: Deploy AnswerLoops to a production server.
 ---
 
+This assumes you've already worked through the [self-host quickstart](/quickstart-self-host) locally and know your setup works — production is the same app, just with real secrets, a real domain, and `docker-compose.prod.yml` instead of the dev compose file.
+
 ## Recommended stack
 
 - **Server**: Any Linux VPS (Ubuntu 22.04+)
 - **Reverse proxy**: Caddy (auto SSL) or nginx
 - **Process**: Docker Compose
 - **Database**: Docker Postgres with named volume, or managed Postgres (Neon, Supabase, Railway)
+
+## Get the code onto the server
+
+Clone the repo on your server the same way you did locally, then create a production `.env` (not `.env.local` — that's the dev-only file):
+
+```bash
+git clone https://github.com/AnswerLoops/AnswerLoops.git
+cd AnswerLoops
+cp .env.local.example .env
+```
+
+Fill in `.env` with your production values — the checklist below covers what has to be different from your dev setup.
 
 ## Environment checklist
 
@@ -51,9 +65,13 @@ server {
 
 ## Start in production
 
+Use `docker-compose.prod.yml`, not the plain `docker-compose.yml` from local dev — it builds the multi-stage production image and runs the bot in `bot:start` mode instead of the dev watch mode:
+
 ```bash
-docker compose -f docker-compose.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+Drizzle migrations run automatically against your production database on first start, same as local dev — no separate migration step.
 
 ## Health check
 
@@ -61,3 +79,7 @@ docker compose -f docker-compose.yml up -d --build
 curl https://app.yourdomain.com/api/health
 # → {"ok":true}
 ```
+
+## Alternative: Railway or another PaaS
+
+If you'd rather not manage a VPS, reverse proxy, and TLS certs yourself, push the repo to Railway (or Fly.io) — it builds straight from the Dockerfile, handles HTTPS automatically, and you skip the Caddy/nginx section above entirely. You'll still need to set the same environment variables, and a managed Postgres (Neon, Railway's own Postgres) instead of the Docker-volume one.

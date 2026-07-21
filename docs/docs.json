@@ -2,11 +2,25 @@
   "$schema": "https://mintlify.com/schema.json",
   "theme": "mint",
   "name": "AnswerLoops",
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.ico",
+  "logo": {
+    "light": "/logo/logo.png",
+    "dark": "/logo/logo.png"
+  },
   "colors": {
-    "primary": "#C9603A",
-    "light": "#E8956B",
-    "dark": "#7A3218"
+    "primary": "#2563eb",
+    "light": "#60a5fa",
+    "dark": "#1e3a8a"
+  },
+  "font": {
+    "headings": { "family": "Geist" },
+    "body": { "family": "Geist" }
+  },
+  "background": {
+    "style": "gradient"
+  },
+  "topbar": {
+    "style": "gradient"
   },
   "topbarLinks": [
     { "name": "Dashboard", "url": "https://app.answerloops.com" }

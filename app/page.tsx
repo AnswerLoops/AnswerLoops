@@ -32,7 +32,7 @@ const HERO_PILLS = [
         <path d="M13 10V3L4 14h7v7l9-11h-7z" />
       </svg>
     ),
-    label: 'Auto-answers the easy 90%',
+    label: 'Auto-answers when confident',
   },
   {
     icon: (
@@ -40,7 +40,7 @@ const HERO_PILLS = [
         <path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-4a4 4 0 10-4-4 4 4 0 004 4zm6 4a4 4 0 10-4-4" />
       </svg>
     ),
-    label: 'Escalate the hard 10%',
+    label: 'Escalates what it\'s unsure about',
   },
 ]
 
@@ -64,7 +64,7 @@ function Hero() {
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-base text-white/60 leading-relaxed">
-            Connect Discord or Slack. AnswerLoops triages every question with AI, answers from your own docs and resolved tickets, and auto-posts replies — so your team handles only the hard 10%.
+            Connect Discord or Slack. AnswerLoops triages every question with AI, answers from your own docs and resolved tickets, and auto-posts replies when it&apos;s confident — so your team only sees the questions it isn&apos;t sure about.
           </p>
           <div className="mt-8 mx-auto max-w-lg">
             <WaitlistForm dark />
@@ -109,10 +109,10 @@ function TrustBar() {
 
 function Stats() {
   const items = [
-    { stat: '80%+', label: 'questions auto-answered after 30 days' },
-    { stat: '< 5 min', label: 'to first AI reply after setup' },
-    { stat: '6 LLMs', label: 'supported — bring your own key' },
-    { stat: '1 command', label: 'to self-host on your own infra' },
+    { stat: '2-pass review', label: 'a second model grades every answer before it posts' },
+    { stat: '5 providers', label: 'plus any OpenAI-compatible endpoint — bring your own key' },
+    { stat: '6 channels', label: 'Discord, Slack, GitHub, Telegram, Email, and your website' },
+    { stat: 'AGPL-3.0', label: 'self-host on your own infra, free forever' },
   ]
   return (
     <section className="bg-white py-16">
@@ -154,7 +154,7 @@ function HowItWorks() {
       n: '04',
       title: 'Gets smarter every week',
       body: 'Community 👍/👎 feedback prunes bad answers. Resolved tickets promote into the knowledge base.',
-      detail: 'The deflection rate climbs without anyone retraining anything. Value compounds over time.',
+      detail: 'No retraining step — the next matching question just has a better answer to pull from.',
     },
   ]
   return (
@@ -162,7 +162,7 @@ function HowItWorks() {
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold text-ink-900">From setup to self-improving in minutes</h2>
-          <p className="mt-3 text-ink-500 max-w-xl mx-auto">The whole pipeline ships on day one — nothing to assemble, no ML team required.</p>
+          <p className="mt-3 text-ink-500 max-w-xl mx-auto">Connect a channel and the AI pipeline is already running — classification, retrieval, and confidence grading ship together, not as separate add-ons.</p>
         </div>
         <div className="grid sm:grid-cols-2 gap-6">
           {steps.map((s) => (
@@ -261,7 +261,7 @@ function Features() {
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold text-gray-900">Everything your support team needs</h2>
-          <p className="mt-3 text-gray-500">No stitching tools together. No prompt engineering. Ship in an afternoon.</p>
+          <p className="mt-3 text-gray-500">One pipeline, not a stack of tools you have to wire together yourself.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {features.map((f) => (
@@ -271,60 +271,6 @@ function Features() {
               </div>
               <h3 className="text-sm font-semibold text-gray-900 mb-1.5">{f.title}</h3>
               <p className="text-sm text-gray-500 leading-relaxed">{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Testimonials ──────────────────────────────────────────────────────────────
-
-function Testimonials() {
-  const quotes = [
-    {
-      quote: "We went from spending 4 hours a day on repeat Discord questions to under 30 minutes. The AI just handles it.",
-      name: 'Jordan K.',
-      role: 'Developer Relations, open-source OSS project',
-      avatar: 'J',
-      color: 'bg-brand-600',
-    },
-    {
-      quote: "Self-hosting was a one-liner. Our legal team was thrilled — user data never leaves our VPC.",
-      name: 'Priya M.',
-      role: 'CTO, B2B SaaS startup',
-      avatar: 'P',
-      color: 'bg-emerald-500',
-    },
-    {
-      quote: "Deflection rate hit 74% in the first month without us doing anything. It just gets better on its own.",
-      name: 'Sam R.',
-      role: 'Community Lead, developer platform',
-      avatar: 'S',
-      color: 'bg-brand-800',
-    },
-  ]
-  return (
-    <section className="bg-gray-50 border-y border-gray-200 py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-gray-900">Loved by developer communities</h2>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-6">
-          {quotes.map((q) => (
-            <div key={q.name} className="rounded-2xl border border-gray-200 bg-white p-7 shadow-sm flex flex-col">
-              <svg className="h-6 w-6 text-brand-200 mb-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
-              </svg>
-              <p className="text-sm text-gray-600 leading-relaxed flex-1">{q.quote}</p>
-              <div className="mt-6 flex items-center gap-3">
-                <div className={`h-9 w-9 rounded-full ${q.color} flex items-center justify-center text-white text-sm font-bold`}>{q.avatar}</div>
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">{q.name}</div>
-                  <div className="text-xs text-gray-400">{q.role}</div>
-                </div>
-              </div>
             </div>
           ))}
         </div>
@@ -392,7 +338,7 @@ function SelfHostCallout() {
               <GithubIcon className="h-3 w-3" />
               Open source · AGPL-3.0
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">One command to self-host</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Self-host in three steps</h2>
             <p className="text-sm text-gray-500 leading-relaxed mb-4 max-w-lg">
               Clone the repo, add your env vars, run one command. Your community data stays on your servers — not ours. Privacy-first teams, fintech, and regulated industries choose this path.
             </p>
@@ -558,7 +504,7 @@ function CTA() {
   return (
     <section className="bg-black">
       <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-        <h2 className="text-3xl font-bold text-white">Your community deserves better than copy-paste answers.</h2>
+        <h2 className="text-3xl font-bold text-white">Stop answering the same question by hand.</h2>
         <p className="mt-4 text-gray-400 text-lg max-w-xl mx-auto">Be first in line when we open the doors.</p>
         <div className="mt-10 mx-auto max-w-lg">
           <WaitlistForm dark />
@@ -657,7 +603,6 @@ export default async function LandingPage() {
       <Stats />
       <HowItWorks />
       <Features />
-      <Testimonials />
       <Enterprise />
       <SelfHostCallout />
       <Pricing />
