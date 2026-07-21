@@ -126,7 +126,7 @@ export function SidebarNav() {
       </div>
       <div className="border-t border-border pt-3 mt-3">
         <a
-          href="https://docs.answerloops.com"
+          href="https://answerloops.mintlify.site"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-ink-500 hover:bg-gray-50 hover:text-ink-900 transition-colors"
