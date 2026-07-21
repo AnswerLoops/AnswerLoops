@@ -2000,7 +2000,7 @@ function ApiKeysSection() {
         <p className="text-xs text-gray-600">
           API keys let AI agents (Claude Code, Cursor, or any MCP-compatible client) call AnswerLoops directly —
           searching your knowledge base, checking tickets, and answering questions using your community&apos;s data,
-          scoped to this org. See <a href="/docs/integrations/mcp" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">the MCP docs</a> for setup.
+          scoped to this org. See <a href="https://docs.answerloops.com/integrations/mcp" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">the MCP docs</a> for setup.
         </p>
 
         <form action={createAction} className="flex gap-2">
