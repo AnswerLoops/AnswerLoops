@@ -29,4 +29,18 @@ describe('auth.ts PUBLIC_PATHS covers every self-authenticating API route', () =
     const covered = publicPaths.some((p) => route === p || route.startsWith(`${p}/`))
     expect(covered, `${route} is not covered by any PUBLIC_PATHS entry — the session-auth middleware will 401 it`).toBe(true)
   })
+
+  // Same root cause, different symptom: unauthenticated *page* routes (no
+  // session cookie at all, since visitors aren't logged in) 307-redirect to
+  // /login instead of 401ing. /vs/* and /pricing both shipped with this bug
+  // before being added here — /docs (the Mintlify reverse-proxy) repeated it.
+  const publicPageRoutes = [
+    '/vs', // comparison pages
+    '/docs', // Mintlify reverse-proxy (next.config.ts rewrites)
+  ]
+
+  it.each(publicPageRoutes)('%s is listed in (or covered by a prefix in) PUBLIC_PATHS', (route) => {
+    const covered = publicPaths.some((p) => route === p || route.startsWith(`${p}/`))
+    expect(covered, `${route} is not covered by any PUBLIC_PATHS entry — unauthenticated visitors get 307'd to /login before the page ever renders`).toBe(true)
+  })
 })

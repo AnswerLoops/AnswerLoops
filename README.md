@@ -6,7 +6,7 @@
 
 **Your community keeps asking the same question. Stop answering it by hand.**
 
-[Website](https://answerloops.com) · [Docs](https://docs.answerloops.com) · [Cloud](https://app.answerloops.com) · [Self-host](#self-host-in-5-minutes)
+[Website](https://answerloops.com) · [Docs](https://answerloops.com/docs) · [Cloud](https://app.answerloops.com) · [Self-host](#self-host-in-5-minutes)
 
 ![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue) ![Next.js 16](https://img.shields.io/badge/Next.js-16-black) ![Postgres](https://img.shields.io/badge/Postgres-Drizzle-336791) ![BYO LLM](https://img.shields.io/badge/LLM-bring%20your%20own-8A2BE2)
 
@@ -66,7 +66,7 @@ Questions arrive from Discord, Slack, GitHub Issues & Discussions, Telegram, ema
 | **AI deflection** | Confidence-gated auto-answers with a configurable threshold — never posts when unsure |
 | **Knowledge base** | URL crawl, file upload (PDF/DOCX/MD/TXT/CSV), GitHub repo sync, or promote resolved tickets |
 | **Bring-your-own-LLM** | OpenAI, Anthropic, Google Gemini, Groq, Mistral, or local Ollama |
-| **Agent-first API** | [MCP server](https://docs.answerloops.com/integrations/mcp) (JSON-RPC) **and** a [REST Agent API](https://docs.answerloops.com/integrations/agent-api) + OpenAPI spec — let AI agents search your KB, open tickets, and generate answers |
+| **Agent-first API** | [MCP server](https://answerloops.com/docs/integrations/mcp) (JSON-RPC) **and** a [REST Agent API](https://answerloops.com/docs/integrations/agent-api) + OpenAPI spec — let AI agents search your KB, open tickets, and generate answers |
 | **Simulation mode** | Dry-run the AI against your past tickets — zero replies sent, zero writes — before going live |
 | **Knowledge gaps** | Surfaces unanswered questions so you know which docs to write |
 | **Human escalation + CSAT** | Pings a support role on low confidence; sends satisfaction prompts back through the same channel |
@@ -106,7 +106,7 @@ That's it — Compose brings up the **app** (`http://localhost:3000`), the **bot
 > Use `docker compose down` to stop. **Never** `docker compose down -v` — the `-v` deletes the Postgres volume and all your data.
 
 > [!NOTE]
-> This project uses **Auth.js v5** — the env vars are `AUTH_URL` / `AUTH_SECRET`, not `NEXTAUTH_URL` / `NEXTAUTH_SECRET`. See the [full environment variable reference](https://docs.answerloops.com/reference/environment-variables) for every option.
+> This project uses **Auth.js v5** — the env vars are `AUTH_URL` / `AUTH_SECRET`, not `NEXTAUTH_URL` / `NEXTAUTH_SECRET`. See the [full environment variable reference](https://answerloops.com/docs/reference/environment-variables) for every option.
 
 Prefer not to run infrastructure? [**Cloud**](https://app.answerloops.com) gives you the same product with 1-click Discord OAuth and no setup.
 
@@ -137,7 +137,7 @@ pnpm build            # production build + typecheck
 
 ## Documentation
 
-Full docs live at **[docs.answerloops.com](https://docs.answerloops.com)** — self-hosting guides, per-channel integration setup, the product guide, and the API reference (MCP + REST).
+Full docs live at **[answerloops.com/docs](https://answerloops.com/docs)** — self-hosting guides, per-channel integration setup, the product guide, and the API reference (MCP + REST).
 
 ## License
 

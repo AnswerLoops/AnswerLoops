@@ -1,164 +1,37 @@
 ---
 title: Security Scanning
-description: How AnswerLoops scans for vulnerabilities, secrets, and code issues — pre-commit hooks, CI pipeline, and the /project:security-fix skill.
+description: What AnswerLoops does to ship secure releases, and what you should check when self-hosting.
 ---
 
-AnswerLoops ships with a four-layer security scanning pipeline that runs on every commit and every CI build.
+Every AnswerLoops release goes through automated dependency, secret, and code-level security scanning before it merges — you're deploying code that's already been checked. This page covers what that means for you as a self-hoster, and the security practices worth following in your own deployment.
 
-## Layers
+## What's already covered before you deploy
 
-| Layer | Tool | What it catches |
-|---|---|---|
-| **SCA** (Software Composition Analysis) | Trivy | Vulnerable dependencies in `pnpm-lock.yaml` |
-| **Secrets** | Trivy | API keys, tokens, credentials committed to source |
-| **Misconfiguration** | Trivy | Dockerfile issues, IaC misconfigurations |
-| **SAST** (Static Application Security Testing) | Semgrep | Code-level issues: insecure crypto, injection sinks, missing auth |
-| **GitHub Actions workflow audit** | Zizmor (CI only) | Script injection via untrusted `${{ github.event.* }}` interpolation, unpinned third-party actions, overly broad `permissions:`, credential persistence through artifacts, unsafe `pull_request_target` usage |
-| **Supply-chain trust** | pnpm trust policy (CI only) | Dependencies that lost provenance attestation relative to an earlier version |
+Every change to the codebase is scanned for known-vulnerable dependencies, leaked credentials, and common code-level security issues (injection, insecure crypto, missing auth checks) before it's merged. You don't need to run anything yourself to benefit from this — it's already reflected in the code you `git clone` or `docker pull`.
 
----
+## What you're responsible for in your own deployment
 
-## Pre-commit hook
+<Steps>
+  <Step title="Keep your deployment up to date">
+    Security fixes ship as regular releases. See [Upgrading](/self-hosting/upgrading) — pull the latest image or `git pull` + rebuild regularly rather than pinning to an old version indefinitely.
+  </Step>
+  <Step title="Set a real ENCRYPTION_KEY">
+    AI provider API keys and bot tokens are encrypted at rest using AES-256-GCM, keyed by `ENCRYPTION_KEY`. Without it set, secrets are stored in plaintext — see [Environment Variables](/self-hosting/environment-variables). Generate one with `openssl rand -hex 32` and never commit it to source control.
+  </Step>
+  <Step title="Set a real AUTH_SECRET">
+    Auth.js signs and encrypts session tokens with `AUTH_SECRET`. Generate a unique value per deployment — never reuse the example value from `.env.local.example`.
+  </Step>
+  <Step title="Run behind HTTPS">
+    Terminate TLS in front of AnswerLoops (Railway, Fly.io, and most PaaS providers do this automatically; if you're running raw Docker on your own box, put a reverse proxy like Caddy or nginx in front of it). OAuth callbacks and webhook signature checks assume the deployment is reachable over HTTPS.
+  </Step>
+  <Step title="Keep webhook secrets private">
+    `GITHUB_WEBHOOK_SECRET`, `SLACK_SIGNING_SECRET`, `RESEND_WEBHOOK_SECRET`, and `BOT_SECRET` all guard inbound webhook endpoints against forged requests. Treat them the same as API keys — never commit them, never log them.
+  </Step>
+  <Step title="Restrict database access">
+    Postgres should not be reachable from the public internet. If you're using Neon, Railway, or a managed provider, this is the default — if you're self-managing Postgres, firewall it to only the app and bot services.
+  </Step>
+</Steps>
 
-Every `git commit` runs four gates in order:
+## Reporting a vulnerability
 
-```
-1. pnpm test              — all unit tests must pass
-2. Trivy secrets          — blocks immediately + loud alert if a credential is found
-3. Trivy vuln + misconfig — blocks on CRITICAL/HIGH with available fix
-4. Semgrep SAST           — blocks on ERROR-severity code findings
-   (Trivy + Semgrep run in parallel)
-```
-
-Install the hook (already present in the repo, runs automatically after `git clone`):
-
-```bash
-chmod +x .git/hooks/pre-commit
-```
-
-To bypass in a genuine emergency only:
-
-```bash
-git commit --no-verify
-```
-
-<Warning>
-  `--no-verify` skips all security checks. Only use it if you are certain the
-  commit contains no secrets or vulnerabilities and you will run a full scan
-  immediately after.
-</Warning>
-
----
-
-## CI pipeline
-
-The `security.yml` GitHub Actions workflow runs on every push and pull request, and on a weekly schedule (Monday 06:00 UTC).
-
-### Jobs
-
-**`trivy`** — full filesystem scan (SCA + secrets + misconfig), fails on CRITICAL/HIGH.
-
-**`audit`** — `pnpm audit --audit-level=high`, catches advisories not yet in Trivy's DB.
-
-**`zizmor`** — audits every workflow in `.github/workflows/` for GitHub Actions-specific security issues (regular persona, matching the confidence bar of the other blocking gates — not `--pedantic`, which also flags code-smell-level items like missing concurrency groups). Every `actions/checkout` step in this repo sets `persist-credentials: false`, every job declares an explicit `permissions:` block, and every workflow has a `concurrency:` group — zizmor fails the build if any of that regresses.
-
-**`trust-policy`** — runs `pnpm install` with `trustPolicy: no-downgrade`. Fails on any
-dependency that has lost provenance attestation relative to an earlier published version
-(possible package takeover). Known exceptions are listed inline in the workflow file and
-reviewed on every dependency bump.
-
----
-
-## Secret violation protocol
-
-If any scanner finds a secret at any severity level:
-
-1. **Do not push the commit.**
-2. Identify the exact file and line from the scanner output.
-3. **Cycle the credential immediately** — assume it is compromised regardless of whether it was pushed.
-4. Remove the secret from the file:
-   ```bash
-   git reset HEAD~1       # undo the commit
-   # remove the secret from the file
-   git add . && git commit
-   ```
-5. If it was already pushed:
-   ```bash
-   # Rotate the credential first, then clean history
-   git push --force-with-lease
-   ```
-
-<Warning>
-  A credential that appeared in a commit — even briefly, even in a private repo —
-  should be treated as compromised. Rotation takes minutes. A breach can cost far more.
-</Warning>
-
----
-
-## Placeholder format
-
-All example credentials in docs, comments, and env files must use angle-bracket descriptors:
-
-```bash
-# ✅ Correct
-SLACK_CLIENT_SECRET=<your-client-secret>
-OPENAI_API_KEY=<your-openai-api-key>
-DATABASE_URL=<your-postgres-connection-string>
-
-# ❌ Wrong — scanners can't tell these are fake
-SLACK_CLIENT_SECRET=abcdef1234567890abcdef1234567890
-OPENAI_API_KEY=sk-test-fakefakefakefake
-```
-
----
-
-## /project:security-fix skill
-
-Invoke `/project:security-fix` to run the full scan → triage → fix → retest cycle:
-
-1. **Full scan** — Trivy (all scanners, all severities) + Semgrep (`--config=auto`) in parallel
-2. **Triage** — every finding classified as fix-now / track / false-positive before touching code
-3. **Fix** — root cause only; one logical fix per commit
-4. **`pnpm test` after each fix** — not just at the end; catches regressions immediately
-5. **Full rescan** — confirms clean before sign-off
-6. **Sign-off block** — documents every finding's disposition, test count, and scan result
-
-The skill enforces that every `# nosemgrep` suppression includes a written justification,
-and that secret findings trigger an immediate stop + user alert before any other work continues.
-
----
-
-## Suppressing false positives
-
-Use `# nosemgrep: <rule-id>` inline for single-line suppressions:
-
-```typescript
-console.error(`${prefix} ${message}`, error) // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
-```
-
-Use `.semgrepignore` for whole-file or directory exclusions:
-
-```
-# docs/ contains example placeholder values, not real credentials
-docs/
-```
-
-Every suppression — inline or in `.semgrepignore` — must include a comment explaining why the finding is safe to ignore.
-
----
-
-## Tuning severity thresholds
-
-The pre-commit hook blocks on:
-- **Trivy**: `CRITICAL,HIGH` with `--ignore-unfixed`
-- **Semgrep**: `ERROR` severity only
-
-To see all findings without blocking (useful for a full audit):
-
-```bash
-# All severities, no block
-trivy fs --scanners vuln,secret,misconfig --severity CRITICAL,HIGH,MEDIUM,LOW \
-  --skip-dirs .pnpm-store,node_modules/.cache .
-
-semgrep scan --config=auto --no-rewrite-rule-ids .
-```
+If you find a security issue in AnswerLoops itself, open an issue on [GitHub](https://github.com/NathanTarbert/community-platform/issues) or reach out through the contact info in the repo. Please don't include working exploit details in a public issue for anything that looks exploitable in a live deployment — flag it first so it can be triaged privately.

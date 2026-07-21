@@ -24,7 +24,9 @@ overrides:
   postcss: '>=8.5.10'   # CVE-2026-41305 — next/next-auth pin 8.4.31 transitively
   js-yaml: '>=4.3.0'   # GHSA-52cp-r559-cp3m — quadratic CPU via YAML merge-key chains, pulled in by eslint's @eslint/eslintrc
   # GHSA-3jxr-9vmj-r5cp — one advisory covers two separately-vulnerable brace-expansion
-  # lines in this tree; each parent is patched within its own major so neither gets
-  # force-bumped to a major it doesn't expect.
-  'minimatch@3>brace-expansion': '>=1.1.16'
-  'minimatch@^10>brace-expansion': '>=5.0.7'
+  # lines in this tree. Both rules must stay major-capped (^, not >=) — an open ">="
+  # range lets pnpm satisfy both overrides with a single shared 5.x version, which
+  # broke minimatch@3.1.5 (it calls a 1.x-only API on brace-expansion) and took
+  # ESLint down with it.
+  'minimatch@3>brace-expansion': '^1.1.16'
+  'minimatch@^10>brace-expansion': '^5.0.7'
