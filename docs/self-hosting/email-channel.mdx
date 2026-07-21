@@ -5,12 +5,12 @@ description: Route inbound support emails through the AnswerLoops AI pipeline.
 
 ## How it works
 
-AnswerLoops accepts inbound emails via a **webhook endpoint** — no IMAP polling, no persistent connection. The AI pipeline triages, embeds, and answers the email, then replies directly to the sender via Resend, preserving proper RFC 5322 threading (`Message-ID` / `In-Reply-To` / `References`) so replies land in the same conversation instead of forking a new one.
+Email doesn't poll an inbox. AnswerLoops accepts inbound mail through a webhook endpoint: the AI pipeline triages, embeds, and answers each message, then replies directly to the sender via Resend with proper RFC 5322 threading (`Message-ID` / `In-Reply-To` / `References`), so a customer's next reply lands in the same conversation instead of opening a new ticket.
 
 There are two ways to connect:
 
-- **Platform-hosted (recommended)** — one click, zero setup. AnswerLoops generates a dedicated inbox address on our infrastructure; you share that address (or forward an existing mailbox to it) and everything else — signature verification, spam/loop filtering, delivery-status tracking — is handled for you.
-- **Bring your own provider (advanced)** — point your own SendGrid/Mailgun/Postmark/Cloudflare account at our webhook using a shared secret, if you need a custom sending domain outside the platform-hosted address.
+- **Platform-hosted (recommended)** — one click, zero setup. AnswerLoops generates a dedicated inbox address on our infrastructure. Share that address, or forward an existing mailbox to it, and signature verification, spam/loop filtering, and delivery-status tracking are all handled for you.
+- **Bring your own provider (advanced)** — point your own SendGrid, Mailgun, Postmark, or Cloudflare account at our webhook with a shared secret. Use this only if you need a custom sending domain the platform-hosted address doesn't give you.
 
 ## Quickstart: platform-hosted (zero setup)
 
@@ -83,12 +83,14 @@ Send an email to your address. A ticket should appear in `/tickets` within a few
 
 ## Reliability
 
-- **Idempotent by construction** — every inbound email is keyed on its RFC `Message-ID`; a provider webhook retry is a no-op, never a duplicate ticket.
-- **Mail-loop guarded** — `Auto-Submitted`, `Precedence`, `X-Auto-Response-Suppress`, `List-Id`, and no-reply sender patterns are all detected and rejected before a reply is ever generated; a per-sender reply throttle is a backstop against anything that slips through.
-- **Spam-tolerant, fail-open** — provider spam signals are honored when present; absence of a signal never blocks a legitimate email.
-- **HTML fallback** — HTML-only emails are converted to plain text rather than silently dropped.
-- **Delivery-status visibility** — bounces, spam complaints, and delivery failures on outbound replies are tracked against the ticket and surfaced with a badge on the ticket detail page.
-- **Rate-limited per org** — a compromised or misbehaving upstream account can't burn one org's AI spend or flood the ticket queue for everyone else.
+A few things worth knowing about how the pipeline handles the messy realities of email:
+
+- **Idempotent by construction.** Every inbound email is keyed on its RFC `Message-ID`, so a provider webhook retry is a no-op, never a duplicate ticket.
+- **Mail-loop guarded.** `Auto-Submitted`, `Precedence`, `X-Auto-Response-Suppress`, `List-Id`, and no-reply sender patterns are all detected and rejected before a reply is ever generated. A per-sender reply throttle backstops anything that slips through.
+- **Spam-tolerant, fail-open.** Provider spam signals are honored when present, but their absence never blocks a legitimate email.
+- **HTML fallback.** HTML-only emails are converted to plain text rather than silently dropped.
+- **Delivery-status visibility.** Bounces, spam complaints, and delivery failures on outbound replies are tracked against the ticket and surfaced as a badge on the ticket detail page.
+- **Rate-limited per org.** A compromised or misbehaving upstream account can't burn one org's AI spend or flood the ticket queue for everyone else.
 
 ## Environment variables
 

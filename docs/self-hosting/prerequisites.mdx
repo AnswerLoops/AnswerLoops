@@ -3,6 +3,8 @@ title: Prerequisites
 description: What you need before running AnswerLoops on your own infrastructure.
 ---
 
+Gather these before you start the [self-host quickstart](/quickstart-self-host) — nothing below takes long to get, but bouncing between OAuth app dashboards mid-setup is the most common source of "why isn't this working."
+
 ## Required
 
 | Requirement | Version | Notes |
@@ -19,14 +21,16 @@ description: What you need before running AnswerLoops on your own infrastructure
 | GitHub **or** Google | OAuth login for your team | Yes |
 | OpenAI (or other AI provider) | AI deflection + KB embeddings | Pay per use |
 
-## Optional (but recommended for production)
+## Optional (add channels as you need them)
+
+You don't need all of these to get started — connect one channel first, confirm it works, then add the rest.
 
 | Service | Purpose |
 |---|---|
-| Stripe | Billing / plan enforcement |
 | Discord | Community bot integration |
 | Slack | Community bot integration |
-| GitHub App | Issue/PR ingestion |
+| GitHub App | Issue/Discussion ingestion + KB sync |
+| Stripe | Billing / plan enforcement (only relevant if you're running this as a paid product yourself) |
 
 ## Generating secrets
 
