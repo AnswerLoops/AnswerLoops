@@ -126,9 +126,7 @@ export function SidebarNav() {
       </div>
       <div className="border-t border-border pt-3 mt-3">
         <a
-          href="https://docs.answerloops.com"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/docs"
           className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-ink-500 hover:bg-gray-50 hover:text-ink-900 transition-colors"
         >
           <span className="text-ink-400">
