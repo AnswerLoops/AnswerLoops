@@ -32,7 +32,7 @@ export function Nav({ loggedIn }: { loggedIn: boolean }) {
             <Link href="/#features" className="text-sm text-white/60 hover:text-white transition-colors">Features</Link>
             <Link href="/#how-it-works" className="text-sm text-white/60 hover:text-white transition-colors">How it works</Link>
             <Link href="/#pricing" className="text-sm text-white/60 hover:text-white transition-colors">Pricing</Link>
-            <Link href="/docs" className="text-sm text-white/60 hover:text-white transition-colors">Docs</Link>
+            <a href="https://answerloops.mintlify.site" target="_blank" rel="noopener noreferrer" className="text-sm text-white/60 hover:text-white transition-colors">Docs</a>
           </nav>
         </div>
         <div className="flex items-center gap-3">
@@ -54,7 +54,7 @@ export function Nav({ loggedIn }: { loggedIn: boolean }) {
               <Link href="/#features" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Features</Link>
               <Link href="/#how-it-works" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">How it works</Link>
               <Link href="/#pricing" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Pricing</Link>
-              <Link href="/docs" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Docs</Link>
+              <a href="https://answerloops.mintlify.site" target="_blank" rel="noopener noreferrer" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Docs</a>
               <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">
                 <GithubIcon />
                 GitHub
@@ -102,7 +102,7 @@ export function Footer() {
               <div className="text-xs font-semibold text-gray-700 uppercase tracking-widest mb-3">Open source</div>
               <div className="flex flex-col gap-2">
                 <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">GitHub</Link>
-                <Link href="/docs" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Docs</Link>
+                <Link href="https://answerloops.mintlify.site" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Docs</Link>
                 <Link href={`${GITHUB_URL}/issues`} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Issues</Link>
               </div>
             </div>

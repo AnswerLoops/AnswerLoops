@@ -26,7 +26,7 @@ overrides:
   # GHSA-3jxr-9vmj-r5cp — one advisory covers two separately-vulnerable brace-expansion
   # lines in this tree. Both rules must stay major-capped (^, not >=) — an open ">="
   # range lets pnpm satisfy both overrides with a single shared 5.x version, which
-  # broke minimatch@3.1.5 (it calls a 1.x-only API on brace-expansion) and took
+  # breaks minimatch@3.1.5 (it calls a 1.x-only API on brace-expansion) and takes
   # ESLint down with it.
   'minimatch@3>brace-expansion': '^1.1.16'
   'minimatch@^10>brace-expansion': '^5.0.7'
