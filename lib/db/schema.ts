@@ -128,6 +128,25 @@ export const githubRepos = pgTable('github_repos', {
   ownerRepoUnique: uniqueIndex('github_repos_owner_repo_unique').on(t.owner, t.repo),
 }))
 
+// One row per Discord server an org has connected via the OAuth "Add to
+// Discord" flow. A guild can only belong to one org (unique on guildId) —
+// mirrors githubRepos: a child table keyed by orgId, not unique-per-org,
+// since an org can connect any number of servers.
+export const discordGuilds = pgTable('discord_guilds', {
+  id: serial('id').primaryKey(),
+  orgId: integer('org_id').notNull().references(() => orgs.id),
+  guildId: text('guild_id').notNull(),
+  guildName: text('guild_name'),
+  channelIds: text('channel_ids'),
+  escalationRoleId: text('escalation_role_id'),
+  enabled: integer('enabled').notNull().default(1),
+  createdAt: text('created_at').notNull().default(now),
+  updatedAt: text('updated_at').notNull().default(now),
+}, (t) => [
+  uniqueIndex('discord_guilds_guild_unique').on(t.guildId),
+  index('idx_discord_guilds_org').on(t.orgId),
+])
+
 export const faqSnapshots = pgTable('faq_snapshots', {
   id: serial('id').primaryKey(),
   orgId: integer('org_id').notNull().default(1).references(() => orgs.id),

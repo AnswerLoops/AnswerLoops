@@ -4,7 +4,7 @@ import { useActionState, useRef, useTransition } from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { updateSLAAction } from '@/app/actions/sla'
-import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveSlackChannelsAction, deleteSlackIntegrationAction, saveTelegramIntegrationAction, deleteTelegramIntegrationAction, saveEmailIntegrationAction, deleteEmailIntegrationAction, connectPlatformEmailAction } from '@/app/actions/integrations'
+import { saveDiscordIntegrationAction, deleteDiscordIntegrationAction, saveDiscordGuildChannelsAction, removeDiscordGuildAction, saveSlackChannelsAction, deleteSlackIntegrationAction, saveTelegramIntegrationAction, deleteTelegramIntegrationAction, saveEmailIntegrationAction, deleteEmailIntegrationAction, connectPlatformEmailAction } from '@/app/actions/integrations'
 import { sendInviteAction, revokeInviteAction, removeMemberAction, transferOwnershipAction } from '@/app/actions/invitations'
 import { getWidgetTokenAction, regenerateWidgetTokenAction } from '@/app/actions/widget'
 import { saveAIConfigAction, clearAIConfigAction } from '@/app/actions/ai-config'
@@ -37,6 +37,15 @@ interface DiscordIntegration {
   connected_guild_id: string | null
   escalation_role_id: string | null
   confidence_threshold: number | null
+  enabled: number
+}
+
+interface DiscordGuild {
+  id: number
+  guild_id: string
+  guild_name: string | null
+  channel_ids: string[]
+  escalation_role_id: string | null
   enabled: number
 }
 
@@ -105,16 +114,19 @@ function SLARow({ config }: { config: SLAConfig }) {
 }
 
 function DiscordIntegrationCard() {
+  // Legacy manual bot-token connection (self-hosters) — separate from and
+  // independent of the OAuth-connected guilds list below.
   const [integration, setIntegration] = useState<DiscordIntegration | null | undefined>(undefined)
-  const [editingChannels, setEditingChannels] = useState(false)
+  const [legacyEditing, setLegacyEditing] = useState(false)
+  // OAuth-connected servers — an org can have any number of these.
+  const [guilds, setGuilds] = useState<DiscordGuild[] | undefined>(undefined)
   const [inviting, setInviting] = useState(false)
-  const [channels, setChannels] = useState<{ id: string; name: string }[]>([])
   const { toastMessage, showToast } = useToast()
   const [, startDeleteTransition] = useTransition()
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const reloadIntegrations = useCallback(() => {
+  const reloadIntegration = useCallback(() => {
     return fetch('/api/integrations')
       .then((r) => r.json())
       .then((data: DiscordIntegration[]) => {
@@ -124,12 +136,21 @@ function DiscordIntegrationCard() {
       })
   }, [])
 
+  const reloadGuilds = useCallback(() => {
+    return fetch('/api/discord/guilds/connected')
+      .then((r) => r.json())
+      .then((data: DiscordGuild[]) => {
+        setGuilds(data)
+        return data
+      })
+  }, [])
+
   const [saveState, saveAction, savePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveDiscordIntegrationAction(prev, fd)
       if (!result?.error) {
-        await reloadIntegrations()
-        setEditingChannels(false)
+        await reloadIntegration()
+        setLegacyEditing(false)
         showToast('Discord settings updated')
       }
       return result
@@ -140,24 +161,24 @@ function DiscordIntegrationCard() {
   const [deleteState, deleteAction, deletePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await deleteDiscordIntegrationAction(prev, fd)
-      if (!result?.error) { setIntegration(null); setEditingChannels(false); setChannels([]) }
+      if (!result?.error) { setIntegration(null); setLegacyEditing(false) }
       return result
     },
     null
   )
 
   useEffect(() => {
-    reloadIntegrations()
-  }, [reloadIntegrations])
+    reloadIntegration()
+    reloadGuilds()
+  }, [reloadIntegration, reloadGuilds])
 
   // Handle redirect back from Discord OAuth
   useEffect(() => {
     const connected = searchParams.get('discord_connected')
     const error = searchParams.get('discord_error')
     if (connected === '1') {
-      reloadIntegrations().then(() => {
+      reloadGuilds().then(() => {
         showToast('Discord server connected! Select channels below.')
-        setEditingChannels(true)
       })
       // Remove params from URL without page reload
       const url = new URL(window.location.href)
@@ -165,24 +186,17 @@ function DiscordIntegrationCard() {
       url.searchParams.delete('guild_id')
       router.replace(url.pathname + url.search, { scroll: false })
     } else if (error) {
-      showToast(`Discord connection failed: ${error}`)
+      showToast(
+        error === 'guild_already_connected'
+          ? 'That Discord server is already connected to another AnswerLoops account.'
+          : `Discord connection failed: ${error}`
+      )
       const url = new URL(window.location.href)
       url.searchParams.delete('discord_error')
       router.replace(url.pathname + url.search, { scroll: false })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // When guild is connected and channels aren't loaded yet, fetch them
-  useEffect(() => {
-    if (!integration?.connected_guild_id || channels.length > 0) return
-    fetch(`/api/discord/guilds?guild_id=${integration.connected_guild_id}`)
-      .then((r) => r.json())
-      .then((data: { channels?: { id: string; name: string }[] }) => {
-        setChannels(data.channels ?? [])
-      })
-      .catch(() => null)
-  }, [integration?.connected_guild_id, channels.length])
 
   async function handleAddToDiscord() {
     setInviting(true)
@@ -201,10 +215,9 @@ function DiscordIntegrationCard() {
     }
   }
 
-  if (integration === undefined) return <p className="text-sm text-gray-400">Loading…</p>
+  if (integration === undefined || guilds === undefined) return <p className="text-sm text-gray-400">Loading…</p>
 
-  const connected = integration !== null && integration.enabled === 1
-  const isOAuthConnected = connected && !!integration.connected_guild_id
+  const legacyConnected = integration !== null && integration.enabled === 1
 
   return (
     <>
@@ -216,136 +229,47 @@ function DiscordIntegrationCard() {
             <div>
               <p className="text-sm font-medium text-gray-900">Discord</p>
               <p className="text-xs text-gray-500">
-                {isOAuthConnected
-                  ? `Server connected · ${integration.channel_ids.length} channel(s) monitored`
-                  : connected
-                  ? `Connected · ${integration.channel_ids.length} channel(s)`
+                {guilds.length > 0
+                  ? `${guilds.length} server${guilds.length === 1 ? '' : 's'} connected`
+                  : legacyConnected
+                  ? `Connected · ${integration!.channel_ids.length} channel(s)`
                   : 'Not connected'}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-              {connected ? 'Active' : 'Inactive'}
-            </span>
-            {isOAuthConnected && !editingChannels && (
-              <Button size="sm" variant="secondary" onClick={() => setEditingChannels(true)}>
-                Edit channels
-              </Button>
-            )}
-          </div>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${guilds.length > 0 || legacyConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+            {guilds.length > 0 || legacyConnected ? 'Active' : 'Inactive'}
+          </span>
         </div>
 
-        {/* One-click connect button — shown when not yet connected via OAuth */}
-        {!isOAuthConnected && !connected && (
-          <div className="rounded-lg bg-brand-50 border border-brand-100 p-4 space-y-3">
-            <p className="text-sm text-gray-700">
-              Add AnswerLoops to your Discord server with one click — no bot token or Developer Portal required.
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              disabled={inviting}
-              onClick={handleAddToDiscord}
-            >
-              {inviting ? 'Redirecting…' : 'Add AnswerLoops to Discord'}
-            </Button>
-          </div>
-        )}
+        {/* One-click connect — always available, even with servers already connected */}
+        <div className="rounded-lg bg-brand-50 border border-brand-100 p-4 space-y-3">
+          <p className="text-sm text-gray-700">
+            {guilds.length > 0
+              ? 'Connect another Discord server with one click.'
+              : 'Add AnswerLoops to your Discord server with one click — no bot token or Developer Portal required.'}
+          </p>
+          <Button type="button" size="sm" disabled={inviting} onClick={handleAddToDiscord}>
+            {inviting ? 'Redirecting…' : 'Add AnswerLoops to Discord'}
+          </Button>
+        </div>
 
-        {/* Legacy manual setup — shown only when already connected without OAuth guild */}
-        {connected && !isOAuthConnected && !editingChannels && (
+        {guilds.map((guild) => (
+          <DiscordGuildCard key={guild.id} guild={guild} onChanged={reloadGuilds} showToast={showToast} />
+        ))}
+
+        {/* Legacy manual setup — shown only when connected without any OAuth guild */}
+        {legacyConnected && !legacyEditing && (
           <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 divide-y divide-gray-100">
             <ReadOnlyRow label="Bot Token" value="••••••••• (saved)" />
-            <ReadOnlyRow label="Channel IDs" value={integration.channel_ids.join(', ') || '—'} />
-            {integration.escalation_role_id && (
-              <ReadOnlyRow label="Escalation Role ID" value={integration.escalation_role_id} />
+            <ReadOnlyRow label="Channel IDs" value={integration!.channel_ids.join(', ') || '—'} />
+            {integration!.escalation_role_id && (
+              <ReadOnlyRow label="Escalation Role ID" value={integration!.escalation_role_id} />
             )}
-            <ReadOnlyRow label="Confidence threshold" value={String(integration.confidence_threshold ?? 0.8)} />
-          </div>
-        )}
-
-        {/* OAuth-connected summary */}
-        {isOAuthConnected && !editingChannels && (
-          <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 divide-y divide-gray-100">
-            <ReadOnlyRow label="Server ID" value={integration.connected_guild_id!} />
-            <ReadOnlyRow label="Monitored channels" value={integration.channel_ids.join(', ') || '— (none selected)'} />
-            {integration.escalation_role_id && (
-              <ReadOnlyRow label="Escalation Role ID" value={integration.escalation_role_id} />
-            )}
-            <ReadOnlyRow label="Confidence threshold" value={String(integration.confidence_threshold ?? 0.8)} />
-          </div>
-        )}
-
-        {/* Channel picker — shown after OAuth connect or when editing */}
-        {(isOAuthConnected && editingChannels) && (
-          <form action={saveAction} className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-2">
-                Channels to monitor
-                {channels.length === 0 && <span className="text-gray-400 font-normal ml-1">(loading…)</span>}
-              </label>
-              {channels.length > 0 ? (
-                <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto rounded border border-gray-200 p-2 bg-white">
-                  {channels.map((ch) => (
-                    <label key={ch.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
-                      <input
-                        type="checkbox"
-                        name="channelIds"
-                        value={ch.id}
-                        defaultChecked={integration.channel_ids.includes(ch.id)}
-                        className="rounded"
-                      />
-                      #{ch.name}
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <input
-                  name="channelIds"
-                  type="text"
-                  defaultValue={integration.channel_ids.join(', ')}
-                  placeholder="123456789, 987654321"
-                  className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-                />
-              )}
-            </div>
-            <hr className="border-gray-100" />
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Escalation Role ID <span className="text-gray-400 font-normal">(optional)</span></label>
-              <input
-                name="escalationRoleId"
-                type="text"
-                defaultValue={integration.escalation_role_id ?? ''}
-                placeholder="Discord role ID — e.g. 123456789012345678"
-                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-              />
-              <p className="text-xs text-gray-400 mt-1">When AI confidence is below threshold, this role gets @mentioned in the thread.</p>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Confidence threshold <span className="text-gray-400 font-normal">(0–1, default 0.8)</span>
-              </label>
-              <input
-                name="confidenceThreshold"
-                type="number"
-                min="0"
-                max="1"
-                step="0.05"
-                defaultValue={integration.confidence_threshold ?? 0.8}
-                className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
-              />
-              <p className="text-xs text-gray-400 mt-1">AI answers below this score trigger human escalation.</p>
-            </div>
-            {(saveState as { error?: string } | null)?.error && (
-              <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
-            )}
-            <div className="flex gap-2">
-              <Button type="submit" size="sm" disabled={savePending}>
-                {savePending ? 'Saving…' : 'Save channels'}
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setEditingChannels(false)}>
-                Cancel
+            <ReadOnlyRow label="Confidence threshold" value={String(integration!.confidence_threshold ?? 0.8)} />
+            <div className="pt-2 flex gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setLegacyEditing(true)}>
+                Edit
               </Button>
               <Button
                 type="button"
@@ -357,25 +281,57 @@ function DiscordIntegrationCard() {
                 {deletePending ? 'Removing…' : 'Disconnect'}
               </Button>
             </div>
-          </form>
+          </div>
         )}
 
-        {/* Disconnect button for legacy (non-OAuth) connected state */}
-        {connected && !isOAuthConnected && (
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setEditingChannels(true)}>
-              Edit
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="danger"
-              disabled={deletePending}
-              onClick={() => startDeleteTransition(() => { deleteAction(new FormData()) })}
-            >
-              {deletePending ? 'Removing…' : 'Disconnect'}
-            </Button>
-          </div>
+        {legacyConnected && legacyEditing && (
+          <form action={saveAction} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Channel IDs</label>
+              <input
+                name="channelIds"
+                type="text"
+                defaultValue={integration!.channel_ids.join(', ')}
+                placeholder="123456789, 987654321"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Escalation Role ID <span className="text-gray-400 font-normal">(optional)</span></label>
+              <input
+                name="escalationRoleId"
+                type="text"
+                defaultValue={integration!.escalation_role_id ?? ''}
+                placeholder="Discord role ID — e.g. 123456789012345678"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Confidence threshold <span className="text-gray-400 font-normal">(0–1, default 0.8)</span>
+              </label>
+              <input
+                name="confidenceThreshold"
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                defaultValue={integration!.confidence_threshold ?? 0.8}
+                className="w-32 rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            {(saveState as { error?: string } | null)?.error && (
+              <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+            )}
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={savePending}>
+                {savePending ? 'Saving…' : 'Save'}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setLegacyEditing(false)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
         )}
 
         {(deleteState as { error?: string } | null)?.error && (
@@ -383,6 +339,151 @@ function DiscordIntegrationCard() {
         )}
       </div>
     </>
+  )
+}
+
+function DiscordGuildCard({
+  guild,
+  onChanged,
+  showToast,
+}: {
+  guild: DiscordGuild
+  onChanged: () => Promise<DiscordGuild[]>
+  showToast: (msg: string) => void
+}) {
+  const [editingChannels, setEditingChannels] = useState(false)
+  const [channels, setChannels] = useState<{ id: string; name: string }[]>([])
+  const [, startRemoveTransition] = useTransition()
+
+  const [saveState, saveAction, savePending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await saveDiscordGuildChannelsAction(prev, fd)
+      if (!result?.error) {
+        await onChanged()
+        setEditingChannels(false)
+        showToast('Channels updated')
+      }
+      return result
+    },
+    null
+  )
+
+  const [removeState, removeAction, removePending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      const result = await removeDiscordGuildAction(prev, fd)
+      if (!result?.error) await onChanged()
+      return result
+    },
+    null
+  )
+
+  useEffect(() => {
+    if (!editingChannels || channels.length > 0) return
+    fetch(`/api/discord/guilds?guild_id=${guild.guild_id}`)
+      .then((r) => r.json())
+      .then((data: { channels?: { id: string; name: string }[] }) => setChannels(data.channels ?? []))
+      .catch(() => null)
+  }, [editingChannels, channels.length, guild.guild_id])
+
+  return (
+    <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-gray-900">{guild.guild_name ?? `Server ${guild.guild_id}`}</p>
+        {!editingChannels && (
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setEditingChannels(true)}>
+              Edit channels
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              disabled={removePending}
+              onClick={() => startRemoveTransition(() => {
+                const fd = new FormData()
+                fd.set('guildId', guild.guild_id)
+                removeAction(fd)
+              })}
+            >
+              {removePending ? 'Removing…' : 'Remove'}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {!editingChannels && (
+        <div className="divide-y divide-gray-100">
+          <ReadOnlyRow label="Server ID" value={guild.guild_id} />
+          <ReadOnlyRow label="Monitored channels" value={guild.channel_ids.join(', ') || '— (none selected)'} />
+          {guild.escalation_role_id && (
+            <ReadOnlyRow label="Escalation Role ID" value={guild.escalation_role_id} />
+          )}
+        </div>
+      )}
+
+      {editingChannels && (
+        <form action={saveAction} className="space-y-3">
+          <input type="hidden" name="guildId" value={guild.guild_id} />
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-2">
+              Channels to monitor
+              {channels.length === 0 && <span className="text-gray-400 font-normal ml-1">(loading…)</span>}
+            </label>
+            {channels.length > 0 ? (
+              <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto rounded border border-gray-200 p-2 bg-white">
+                {channels.map((ch) => (
+                  <label key={ch.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
+                    <input
+                      type="checkbox"
+                      name="channelIds"
+                      value={ch.id}
+                      defaultChecked={guild.channel_ids.includes(ch.id)}
+                      className="rounded"
+                    />
+                    #{ch.name}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <input
+                name="channelIds"
+                type="text"
+                defaultValue={guild.channel_ids.join(', ')}
+                placeholder="123456789, 987654321"
+                className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+              />
+            )}
+          </div>
+          <hr className="border-gray-100" />
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Escalation Role ID <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input
+              name="escalationRoleId"
+              type="text"
+              defaultValue={guild.escalation_role_id ?? ''}
+              placeholder="Discord role ID — e.g. 123456789012345678"
+              className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm font-mono"
+            />
+            <p className="text-xs text-gray-400 mt-1">When AI confidence is below threshold, this role gets @mentioned in the thread.</p>
+          </div>
+          {(saveState as { error?: string } | null)?.error && (
+            <p className="text-xs text-red-600">{(saveState as { error?: string }).error}</p>
+          )}
+          <div className="flex gap-2">
+            <Button type="submit" size="sm" disabled={savePending}>
+              {savePending ? 'Saving…' : 'Save channels'}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setEditingChannels(false)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {(removeState as { error?: string } | null)?.error && (
+        <p className="text-xs text-red-600">{(removeState as { error?: string }).error}</p>
+      )}
+    </div>
   )
 }
 
