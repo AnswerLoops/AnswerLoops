@@ -121,6 +121,7 @@ function DiscordIntegrationCard() {
   // OAuth-connected servers — an org can have any number of these.
   const [guilds, setGuilds] = useState<DiscordGuild[] | undefined>(undefined)
   const [inviting, setInviting] = useState(false)
+  const [justConnectedGuildId, setJustConnectedGuildId] = useState<string | null>(null)
   const { toastMessage, showToast } = useToast()
   const [, startDeleteTransition] = useTransition()
   const searchParams = useSearchParams()
@@ -175,10 +176,12 @@ function DiscordIntegrationCard() {
   // Handle redirect back from Discord OAuth
   useEffect(() => {
     const connected = searchParams.get('discord_connected')
+    const guildId = searchParams.get('guild_id')
     const error = searchParams.get('discord_error')
     if (connected === '1') {
       reloadGuilds().then(() => {
         showToast('Discord server connected! Select channels below.')
+        if (guildId) setJustConnectedGuildId(guildId)
       })
       // Remove params from URL without page reload
       const url = new URL(window.location.href)
@@ -255,7 +258,14 @@ function DiscordIntegrationCard() {
         </div>
 
         {guilds.map((guild) => (
-          <DiscordGuildCard key={guild.id} guild={guild} onChanged={reloadGuilds} showToast={showToast} />
+          <DiscordGuildCard
+            key={guild.id}
+            guild={guild}
+            onChanged={reloadGuilds}
+            showToast={showToast}
+            autoEdit={guild.guild_id === justConnectedGuildId}
+            onAutoEditConsumed={() => setJustConnectedGuildId(null)}
+          />
         ))}
 
         {/* Legacy manual setup — shown only when connected without any OAuth guild */}
@@ -346,14 +356,28 @@ function DiscordGuildCard({
   guild,
   onChanged,
   showToast,
+  autoEdit,
+  onAutoEditConsumed,
 }: {
   guild: DiscordGuild
   onChanged: () => Promise<DiscordGuild[]>
   showToast: (msg: string) => void
+  autoEdit: boolean
+  onAutoEditConsumed: () => void
 }) {
-  const [editingChannels, setEditingChannels] = useState(false)
+  const [editingChannels, setEditingChannels] = useState(autoEdit)
   const [channels, setChannels] = useState<{ id: string; name: string }[]>([])
   const [, startRemoveTransition] = useTransition()
+
+  // Open the channel picker automatically right after this specific server
+  // was connected via OAuth — matches the pre-multi-server single-click flow
+  // instead of forcing an extra "Edit channels" click.
+  useEffect(() => {
+    if (!autoEdit) return
+    setEditingChannels(true)
+    onAutoEditConsumed()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoEdit])
 
   const [saveState, saveAction, savePending] = useActionState(
     async (prev: unknown, fd: FormData) => {
