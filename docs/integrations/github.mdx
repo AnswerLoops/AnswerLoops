@@ -34,6 +34,11 @@ Under **Permissions**, set:
 - **Repository → Issues**: Read & write
 - **Repository → Contents**: Read-only (for KB sync)
 - **Repository → Metadata**: Read-only
+- **Repository → Discussions**: Read-only (or Read & write)
+
+<Warning>
+  Grant **Repository → Discussions** before trying to subscribe to Discussion events. GitHub only shows event checkboxes for permissions you've already granted — if Discussions isn't set, the **Discussion** and **Discussion comment** checkboxes in the next step won't be visible at all, not greyed out, just missing. If you already saved the app without this permission, add it now, click **Save changes** (its own button, separate from the rest of the page), accept the org re-authorization prompt, then come back to Subscribe to events.
+</Warning>
 
 Under **Subscribe to events**, tick:
 
@@ -98,6 +103,14 @@ When KB sync is enabled: every push to the default branch re-embeds all `.md` an
     - The GitHub App has **Issues** ticked under **Subscribe to events**
   </Accordion>
 
+  <Accordion title="Discussions not appearing as tickets, even though Monitored events includes Discussions">
+    Almost always a missing app permission, not a config problem in AnswerLoops. In the GitHub App's **Permissions & events** page:
+    1. Check **Repository permissions → Discussions** is actually set (Read-only or Read & write) — if it's blank, the **Discussion** / **Discussion comment** checkboxes under Subscribe to events don't render at all, so it's easy to think you already subscribed when the app never had the option to.
+    2. If you just added the Discussions permission, click **Save changes**, accept the org re-authorization prompt, then scroll back down — the event checkboxes only appear after that save round-trip.
+    3. Confirm **Discussion** and **Discussion comment** are checked under Subscribe to events and saved.
+    4. GitHub does not retroactively redeliver past events — any test Discussion created before you fixed the permission/subscription needs to be recreated to actually test the fix.
+  </Accordion>
+
   <Accordion title="KB sync shows 0 chunks">
     - Confirm the repo contains `.md` or `.mdx` files outside `node_modules`, `vendor`, or test directories
     - Check that an AI provider is configured in Settings → AI Model (embeddings require an API key)
@@ -106,7 +119,7 @@ When KB sync is enabled: every push to the default branch re-embeds all `.md` an
 
   <Accordion title="Answered Discussions not appearing in the KB">
     - Confirm **Knowledge Base source** is toggled on for the repo — Discussions sync follows this flag, not **Monitored events**
-    - The GitHub App must have **Discussions** ticked under **Subscribe to events**; without it, no `discussion` webhook fires when an answer is marked
+    - The GitHub App must have **Repository permissions → Discussions** granted, and **Discussion** ticked under **Subscribe to events** — see the permission-before-events note above if the event checkbox was never visible to check
     - GitHub only sends the `answered` action when a maintainer explicitly marks a comment as the answer — discussions with replies but no accepted answer are intentionally excluded
     - Run **Sync now** to backfill discussions answered before the integration was connected
   </Accordion>
