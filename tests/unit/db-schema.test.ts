@@ -93,6 +93,7 @@ describe('DB schema: exported tables', () => {
       'subscriptions',
       'githubRepos',
       'pushSubscriptions',
+      'discordGuilds',
     ]
     for (const name of expectedExports) {
       expect(schema, `Missing export: ${name}`).toHaveProperty(name)
