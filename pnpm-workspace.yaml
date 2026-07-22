@@ -23,6 +23,7 @@ overrides:
   undici: '^6.27.0'
   postcss: '>=8.5.10'   # CVE-2026-41305 — next/next-auth pin 8.4.31 transitively
   js-yaml: '>=4.3.0'   # GHSA-52cp-r559-cp3m — quadratic CPU via YAML merge-key chains, pulled in by eslint's @eslint/eslintrc
+  sharp: '>=0.35.0'   # GHSA-f88m-g3jw-g9cj — inherited libvips CVEs (2026-33327/33328/35590/35591), pulled in by next and next-auth>next; single resolved version in this tree so an open range is safe here
   # GHSA-3jxr-9vmj-r5cp — one advisory covers two separately-vulnerable brace-expansion
   # lines in this tree. Both rules must stay major-capped (^, not >=) — an open ">="
   # range lets pnpm satisfy both overrides with a single shared 5.x version, which
