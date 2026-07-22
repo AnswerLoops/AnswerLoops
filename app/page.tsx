@@ -112,7 +112,7 @@ function Stats() {
     { stat: '2-pass review', label: 'a second model grades every answer before it posts' },
     { stat: '5 providers', label: 'plus any OpenAI-compatible endpoint — bring your own key' },
     { stat: '6 channels', label: 'Discord, Slack, GitHub, Telegram, Email, and your website' },
-    { stat: 'AGPL-3.0', label: 'self-host on your own infra, free forever' },
+    { stat: '14 days', label: 'try any hosted plan free before your card is charged' },
   ]
   return (
     <section className="bg-white py-16">
@@ -253,7 +253,7 @@ function Features() {
         </svg>
       ),
       title: 'Self-host on your infra',
-      body: 'AGPL-3.0 licensed. Clone and run docker compose up. Your data never leaves your servers. Privacy-first, fintech-ready.',
+      body: 'Open source. Clone and run docker compose up. Your data never leaves your servers. Privacy-first, fintech-ready.',
     },
   ]
   return (
@@ -306,7 +306,7 @@ function Enterprise() {
               <WaitlistForm dark />
               <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-white/20 px-7 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors">
                 <GithubIcon />
-                Self-host (AGPL-3.0)
+                View source on GitHub
               </Link>
             </div>
           </div>
@@ -336,7 +336,7 @@ function SelfHostCallout() {
           <div className="flex-1">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 mb-4">
               <GithubIcon className="h-3 w-3" />
-              Open source · AGPL-3.0
+              Open source
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">Self-host in three steps</h2>
             <p className="text-sm text-gray-500 leading-relaxed mb-4 max-w-lg">
@@ -370,8 +370,8 @@ function Pricing() {
     <section id="pricing" className="bg-white py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-gray-900">Hosted plans — or self-host free</h2>
-          <p className="mt-3 text-gray-500">All hosted plans start with a 14-day free trial. Prefer full control? Self-host is always free.</p>
+          <h2 className="text-3xl font-bold text-gray-900">Try it free for 14 days</h2>
+          <p className="mt-3 text-gray-500">Every hosted plan starts with a 14-day free trial. Prefer full control? You can also run it yourself.</p>
         </div>
 
         {/* Self-host row */}
@@ -379,13 +379,12 @@ function Pricing() {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-semibold text-gray-900">Self-hosted</span>
-              <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wide">AGPL-3.0</span>
+              <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Open source</span>
             </div>
             <p className="text-xs text-gray-500">Full source code. Run on your infra. Your data never leaves your servers.</p>
           </div>
           <div className="flex items-end gap-1 shrink-0">
-            <span className="text-3xl font-bold text-gray-900">Free</span>
-            <span className="text-sm text-gray-500 mb-1">forever</span>
+            <span className="text-3xl font-bold text-gray-900">Self-hosted</span>
           </div>
           <Link
             href={GITHUB_URL}
@@ -394,7 +393,7 @@ function Pricing() {
             className="shrink-0 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <GithubIcon />
-            Clone on GitHub
+            View on GitHub
           </Link>
         </div>
 
@@ -466,7 +465,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Is AnswerLoops open source?',
-    a: 'The core platform is AGPL-3.0 licensed. Clone the repo and run docker compose up to self-host on your own infrastructure with your data never leaving your servers. A hosted version with tiered plans is also available if you\'d rather not run it yourself.',
+    a: 'Yes, the core platform is open source. Clone the repo and run docker compose up to self-host on your own infrastructure with your data never leaving your servers. A hosted version with tiered plans is also available if you\'d rather not run it yourself. License details are on GitHub.',
   },
   {
     q: 'Does AnswerLoops work with AI coding agents like Claude Code or Cursor?',
@@ -536,7 +535,7 @@ function StructuredData() {
         name: 'Self-hosted',
         price: '0',
         priceCurrency: 'USD',
-        description: 'AGPL-3.0 licensed. Full source code, runs on your own infrastructure.',
+        description: 'Open source. Full source code, runs on your own infrastructure.',
       },
       ...ORDERED_PLANS.map((plan) => ({
         '@type': 'Offer',

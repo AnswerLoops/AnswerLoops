@@ -31,7 +31,7 @@ export function Nav({ loggedIn }: { loggedIn: boolean }) {
           <nav className="hidden md:flex items-center gap-6">
             <Link href="/#features" className="text-sm text-white/60 hover:text-white transition-colors">Features</Link>
             <Link href="/#how-it-works" className="text-sm text-white/60 hover:text-white transition-colors">How it works</Link>
-            <Link href="/#pricing" className="text-sm text-white/60 hover:text-white transition-colors">Pricing</Link>
+            <Link href="/pricing" className="text-sm text-white/60 hover:text-white transition-colors">Pricing</Link>
             <a href="https://answerloops.mintlify.site" target="_blank" rel="noopener noreferrer" className="text-sm text-white/60 hover:text-white transition-colors">Docs</a>
           </nav>
         </div>
@@ -53,7 +53,7 @@ export function Nav({ loggedIn }: { loggedIn: boolean }) {
             <nav className="flex flex-col p-4 gap-1">
               <Link href="/#features" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Features</Link>
               <Link href="/#how-it-works" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">How it works</Link>
-              <Link href="/#pricing" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Pricing</Link>
+              <Link href="/pricing" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Pricing</Link>
               <a href="https://answerloops.mintlify.site" target="_blank" rel="noopener noreferrer" className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">Docs</a>
               <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-gray-100">
                 <GithubIcon />
@@ -79,7 +79,7 @@ export function Footer() {
             <p className="text-xs text-gray-400 max-w-xs">AI-powered support automation for developer communities. Open source, self-hostable.</p>
             <div className="mt-4 flex items-center gap-1.5 text-xs text-gray-400">
               <GithubIcon className="h-3 w-3" />
-              <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 transition-colors">AGPL-3.0 — view source</Link>
+              <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 transition-colors">Open source — view source</Link>
             </div>
           </div>
           <div className="flex flex-wrap gap-x-12 gap-y-6">
@@ -88,7 +88,7 @@ export function Footer() {
               <div className="flex flex-col gap-2">
                 <Link href="/#features" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Features</Link>
                 <Link href="/#how-it-works" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">How it works</Link>
-                <Link href="/#pricing" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Pricing</Link>
+                <Link href="/pricing" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Pricing</Link>
               </div>
             </div>
             <div>
@@ -109,7 +109,7 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-10 border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-gray-400">© 2026 AnswerLoops. AGPL-3.0 licensed.</p>
+          <p className="text-xs text-gray-400">© 2026 AnswerLoops. Open source.</p>
           <p className="text-xs text-gray-400">Built in public · No VC money · Self-hostable</p>
         </div>
       </div>

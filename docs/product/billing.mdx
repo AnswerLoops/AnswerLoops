@@ -1,8 +1,26 @@
 ---
 title: Billing
-description: Coming soon.
+description: Manage your plan, usage, and payment method from Settings → Billing.
 ---
 
-<Info>
-  This page is being written. Check back soon or open an issue on [GitHub](https://github.com/NathanTarbert/community-platform).
-</Info>
+## Overview
+
+**Settings → Billing** shows your current plan, deflection usage for the month, and lets you upgrade, downgrade, or manage payment through Stripe's customer portal.
+
+## Usage tracking
+
+The usage bar shows deflections used against your plan's monthly limit. Once you cross 80% of your limit, a warning banner appears with a one-click upgrade to the next tier — so you see it coming instead of hitting a hard stop mid-month.
+
+If you reach 100% of your limit, AI auto-answering pauses for the rest of the billing period and new questions route to your human queue instead. Nothing breaks and you're never silently overcharged.
+
+## Upgrading or downgrading
+
+Click **Upgrade to [plan]** on any plan card, or use the warning banner's upgrade shortcut. Upgrades take effect immediately — Stripe prorates the difference. Downgrades and cancellations go through **Manage subscription →**, which opens the Stripe customer portal; downgrades take effect at the end of your current billing period.
+
+## Trial
+
+New orgs get a 14-day free trial on signup (card required). The trial banner shows days remaining; your card is charged automatically when the trial ends unless you cancel first.
+
+## Plans and pricing
+
+See [Billing Plans](/reference/billing-plans) for the full tier breakdown, or the public [pricing page](https://answerloops.com/pricing) for the interactive comparison table and FAQ.

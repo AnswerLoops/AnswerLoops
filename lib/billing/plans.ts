@@ -2,12 +2,25 @@ export const TRIAL_DAYS = 14
 
 export type PlanId = 'hobby' | 'pro' | 'scale' | 'enterprise'
 
+// Annual billing discount shown on the marketing pricing page. There is no
+// separate Stripe annual price configured yet — checkout always runs the
+// monthly price regardless of which toggle state the visitor was on. This
+// is a display-only rate until the product leaves waitlist mode and annual
+// Stripe prices exist to sell against.
+export const ANNUAL_DISCOUNT_PCT = 20
+
 export interface Plan {
   id: PlanId
   name: string
   deflectionsPerMonth: number | null // null = unlimited
   priceMonthly: number               // USD cents, 0 = free
   stripePriceId: string | null       // null = no Stripe product (free)
+}
+
+// Effective monthly price if billed annually (priceMonthly minus the annual
+// discount), rounded to the nearest cent. Display-only — see note above.
+export function annualMonthlyPrice(plan: Plan): number {
+  return Math.round(plan.priceMonthly * (1 - ANNUAL_DISCOUNT_PCT / 100))
 }
 
 export const PLANS: Record<PlanId, Plan> = {
