@@ -17,7 +17,7 @@ function PlatformBadge({ platform }: { platform: string | null | undefined }) {
   const p = platform ?? 'discord'
   const badge = PLATFORM_BADGE[p] ?? { label: p, className: 'bg-gray-100 text-gray-600' }
   return (
-    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${badge.className}`}>
+    <span className={`inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-medium ${badge.className}`}>
       {badge.label}
     </span>
   )
