@@ -1,6 +1,6 @@
 import { streamText, convertToModelMessages } from 'ai'
 import type { UIMessage } from 'ai'
-import { chatModel } from '@/lib/ai/models'
+import { chatModel, DEFAULT_FAST_MODEL } from '@/lib/ai/models'
 import { embedText } from '@/lib/ai/embed'
 import { getKBContext } from '@/lib/db/queries/kb'
 import { getPriorAnswers, getCandidateVectors } from '@/lib/db/queries/embeddings'
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     : ''
 
   const result = streamText({
-    model: await chatModel('gpt-4o-mini', org.id),
+    model: await chatModel(DEFAULT_FAST_MODEL, org.id),
     system: `You are a helpful support assistant for ${org.name}.
 Answer questions concisely and accurately based on the knowledge base context provided.
 If you don't know the answer or it's not covered in the context, say so honestly and suggest the user contact support directly.

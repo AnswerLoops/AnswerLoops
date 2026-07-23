@@ -1,6 +1,6 @@
 # Community Support Platform — Build Plan
 
-> The roadmap, mapped: what's done, what's next, and how each phase depends on the others. Pairs with `docs/ARCHITECTURE.md`.
+> The roadmap, mapped: what's done, what's next, and how each phase depends on the others. Pairs with `ARCHITECTURE.md`.
 
 ---
 
@@ -288,5 +288,5 @@ Unchanged from prior draft, summarized: org on the gated plan verifies their own
 
 - Each phase = one focused branch + PR, stacked when dependent (see graph).
 - Pattern established: side tables over `ALTER`; AI calls wrapped in try/catch; verify with `tsc --noEmit`, a clean `pnpm build`, and logic tests on a throwaway SQLite DB (`DB_PATH=$(mktemp)` + `tsx`).
-- Keep `docs/ARCHITECTURE.md` current when the pipeline changes.
+- Keep `ARCHITECTURE.md` current when the pipeline changes.
 - Competitive gap track: start at T1-1 and work down. Each T1 item ships independently.

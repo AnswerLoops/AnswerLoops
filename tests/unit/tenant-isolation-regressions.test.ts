@@ -56,7 +56,7 @@ describe('Widget chat route authenticates by widget token and scopes by org', ()
     expect(src).toContain('embedText(query, org.id)')
     expect(src).toContain('getKBContext(vector, 4, org.id)')
     expect(src).toContain('getPriorAnswers(related.map((r) => r.related_id), org.id)')
-    expect(src).toContain("chatModel('gpt-4o-mini', org.id)")
+    expect(src).toContain("chatModel(DEFAULT_FAST_MODEL, org.id)")
   })
 })
 

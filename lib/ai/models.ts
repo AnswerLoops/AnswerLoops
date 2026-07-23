@@ -7,6 +7,15 @@ import type { EmbeddingModel, LanguageModel } from 'ai'
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import { getOrgAIConfig } from '@/lib/db/queries/ai-config'
 
+// Platform default model IDs — the fallback used when an org has no AI
+// provider configured (or no override for that call site). Centralized here
+// so bumping a default means editing one constant, not hunting through every
+// chatModel()/embeddingModel() call site across lib/ai, lib/agent, and the
+// API routes that use them.
+export const DEFAULT_CHAT_MODEL = 'gpt-4o'
+export const DEFAULT_FAST_MODEL = 'gpt-4o-mini'
+export const DEFAULT_EMBEDDING_MODEL = 'text-embedding-3-small'
+
 export async function chatModel(defaultId: string, orgId?: number): Promise<LanguageModel> {
   if (MOCK_EXTERNALS) {
     return (require('./mock') as typeof import('./mock')).mockLanguageModel(defaultId)

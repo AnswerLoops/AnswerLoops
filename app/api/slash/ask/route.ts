@@ -3,7 +3,7 @@ import { generateText } from 'ai'
 import { getIntegrationByBotSecret } from '@/lib/db/queries/integrations'
 import { searchArticles } from '@/lib/db/queries/kb'
 import { embedText } from '@/lib/ai/embed'
-import { chatModel } from '@/lib/ai/models'
+import { chatModel, DEFAULT_CHAT_MODEL } from '@/lib/ai/models'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
   try {
     const { text } = await generateText({
-      model: await chatModel('gpt-4o', orgId),
+      model: await chatModel(DEFAULT_CHAT_MODEL, orgId),
       system: `You are a helpful support assistant for a Discord community.
 Answer concisely in markdown. Respond in the same language as the question.
 If you cite a KB article, reference the question it answered. If you don't know, say so honestly.${kbContext}`,
