@@ -17,6 +17,20 @@ allowBuilds:
   unrs-resolver: true
 minimumReleaseAgeExclude:
   - '@mendable/firecrawl-js@4.28.1'
+  # 4 high-severity Next.js advisories (middleware/proxy bypass, Server Actions
+  # DoS, Server Actions SSRF, rewrites SSRF) fixed only in 16.2.11+ — first-party
+  # Vercel release, can't wait out the normal 7-day aging window. @next/* are
+  # next's own per-platform binary/env subpackages, published in lockstep.
+  - 'next@16.2.11'
+  - '@next/env@16.2.11'
+  - '@next/swc-darwin-arm64@16.2.11'
+  - '@next/swc-darwin-x64@16.2.11'
+  - '@next/swc-linux-arm64-gnu@16.2.11'
+  - '@next/swc-linux-arm64-musl@16.2.11'
+  - '@next/swc-linux-x64-gnu@16.2.11'
+  - '@next/swc-linux-x64-musl@16.2.11'
+  - '@next/swc-win32-arm64-msvc@16.2.11'
+  - '@next/swc-win32-x64-msvc@16.2.11'
 overrides:
   ws: '>=8.21.0'
   shell-quote: '>=1.8.5'   # GHSA-395f-4hp3-45gv — >=1.8.4 wasn't actually patched, 1.8.4 itself is vulnerable
