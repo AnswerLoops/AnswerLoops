@@ -1,145 +1,108 @@
-# Community Support Platform — Architecture
+# AnswerLoops — Architecture
 
-> How every piece connects: from a Discord message to a deflected answer and a self-improving knowledge base.
+> How every piece connects: from a community message to a deflected answer and a self-improving knowledge base.
 
 ---
 
 ## 1. One-paragraph thesis
 
-A community member asks a question in Discord. The platform ingests it, triages it with AI, embeds it to find prior similar questions, drafts an answer grounded in the team's past answers and the project's source code, grades that answer's confidence, and either **auto-answers** the community (high confidence) or **routes it to a human** (low confidence). Resolved answers feed back into the knowledge base so repeat questions get cheaper and faster over time. Staff manage everything from a gated web dashboard.
+A community member asks a question in Discord, Slack, GitHub Issues/Discussions, Telegram, email, the embeddable website widget, or via an AI agent over MCP/REST. The platform ingests it, triages it with AI, embeds it to find prior similar questions, drafts an answer grounded in the team's past answers and (optionally) the project's source code, grades that answer's confidence, and either **auto-answers** the community (high confidence) or **routes it to a human** (low confidence) with the AI's draft attached. Resolved answers feed back into the knowledge base so repeat questions get cheaper and faster over time. Staff manage everything from a multi-tenant, OAuth-gated web dashboard. Every AI call uses the org's own configured provider — OpenAI, Anthropic, Google, Groq, Mistral, or any OpenAI-compatible endpoint (including local models) — the platform has no hardcoded model dependency.
 
 ---
 
-## 2. System map
+## 2. Ingest pipeline (the core flow)
 
-```
-                         ┌──────────────────────────────┐
-                         │          Discord              │
-                         │  (community asks questions)   │
-                         └───────────────┬──────────────┘
-                                         │  new message
-                                         ▼
-                         ┌──────────────────────────────┐
-                         │   Bot service (bot/index.ts)  │
-                         │   discord.js, long-running    │
-                         └───────────────┬──────────────┘
-                                         │ POST /api/ingest  (Bearer BOT_SECRET)
-                                         ▼
-        ┌────────────────────────────────────────────────────────────────┐
-        │                  Next.js app (App Router, Next 16)              │
-        │                                                                │
-        │  /api/ingest ──► triage ──► embed ──► find related ──► agent   │
-        │                                                  │             │
-        │                                                  ▼             │
-        │                                            assess answer       │
-        │                                          (auto vs human)       │
-        │                                                                │
-        │  proxy.ts gates all dashboard + API routes (staff session)     │
-        │                                                                │
-        │  Dashboard pages: /dashboard /tickets /faq /settings /login    │
-        └───────────────────────────────┬────────────────────────────────┘
-                                         │ better-sqlite3 (WAL)
-                                         ▼
-                         ┌──────────────────────────────┐
-                         │   SQLite  (data/community.db) │
-                         │   tickets, embeddings, links, │
-                         │   assessments, faq, events…   │
-                         └──────────────────────────────┘
+Every channel funnels into the same pipeline (`lib/ingest/pipeline.ts`, `processCommunityMessage`), regardless of source:
 
-   External services: OpenAI (triage / embeddings / agent / reviewer),
-   GitHub App (source-code search for the agent), Web Push (staff alerts).
-```
+| # | Step | Output |
+|---|------|--------|
+| 1 | **Validate + dedup** | reject already-processed messages |
+| 2 | **Triage** | category, severity, priority (fast/cheap model pass) |
+| 3 | **SLA deadlines** | response + resolve deadlines set by priority |
+| 4 | **Create ticket** | row in `tickets`, notifies staff (in-app + optional email/push) |
+| 5 | **Embed** | vector stored for semantic search |
+| 6 | **Find related** | prior similar tickets/KB articles surfaced |
+| 7 | **Agent answer** | draft grounded in KB + prior answers, optionally + connected GitHub repo source |
+| 8 | **Confidence review** | a separate AI pass grades the draft's confidence |
+| 9 | **Deflect or route** | confidence above threshold → auto-post; otherwise → human review queue with the draft attached |
+
+If any AI step fails, the ticket still gets created and defaults to the human queue — a pipeline failure never silently drops a question, and never auto-deflects on error.
+
+Each org can bring its own AI provider key (Settings → AI Model); the platform falls back to a shared key if none is configured.
 
 ---
 
-## 3. The ingest pipeline (the core flow)
+## 3. Multi-channel ingest
 
-File: `app/api/ingest/route.ts`. Triggered by the bot. Auth: `Authorization: Bearer ${BOT_SECRET}`.
-
-| # | Step | Code | Model | Output |
-|---|------|------|-------|--------|
-| 1 | **Validate + dedup** | Zod schema, `getTicketByDiscordMessageId` | — | reject dup Discord messages |
-| 2 | **Triage** | `lib/ai/triage.ts` | gpt-4o-mini (structured) | category, severity 0–1, summary, suggested priority |
-| 3 | **SLA deadlines** | `lib/sla/engine.ts` | — | response + resolve deadlines by priority |
-| 4 | **Create ticket** | `lib/db/queries/tickets.ts` | — | row in `tickets`, `created` event |
-| 5 | **In-app + push notify** | notifications + `lib/push/notify.ts` | — | staff alerted |
-| 6 | **Embed** | `lib/ai/embed.ts` | text-embedding-3-small | vector → `ticket_embeddings` |
-| 7 | **Find related** | `lib/ai/related.ts` (cosine) | — | top-K neighbours → `ticket_links`; flag duplicates |
-| 8 | **Agent answer** | `lib/ai/agent.ts` | gpt-4o + tools | draft grounded in prior answers, then GitHub source |
-| 9 | **Assess** | `lib/ai/assess.ts` | gpt-4o-mini (structured) | confidence + answered_fully → `ai_assessments` |
-| 10 | **Deflect or route** | agent | — | auto-answer Discord **or** post draft for human review |
-
-Steps 5–10 run in Next's `after()` (post-response background work) so the bot's POST returns fast. Each AI block is wrapped in try/catch — a failure never blocks ticket creation, and an assessment failure defaults to **human review** (never auto-deflects on error).
+| Channel | Notes |
+|---|---|
+| Discord | 1-click OAuth or manual bot token; an org can connect any number of Discord servers |
+| Slack | 1-click OAuth or polling mode (no webhook required) |
+| GitHub | Issues + Discussions ingested as tickets; answered Discussions also sync into the KB directly |
+| Telegram | Webhook-based |
+| Email | Zero-setup platform-hosted inbound address by default, or bring-your-own provider |
+| Website widget | Embeddable `<script>` chat widget |
+| MCP / Agent API | AI agents (Claude, Cursor, custom bots) call the platform as a tool via `POST /api/mcp` (JSON-RPC) or `/api/agent/*` (REST) |
 
 ---
 
-## 4. The two AI agents (and the reviewer)
+## 4. Data model (Postgres, via Drizzle ORM)
 
-1. **Triage** (`lib/ai/triage.ts`) — `generateObject`, gpt-4o-mini. Classifies type + urgency. Cheap, runs on every message.
-2. **Answer agent** (`lib/ai/agent.ts`) — `generateText` with tools, gpt-4o, max 5 steps. Tools hit the GitHub App: `searchCode`, `readFile`, `listFiles` (`lib/github/tools.ts`). **Prefers reusing prior resolved answers** (injected into the system prompt) before crawling source — cheaper, faster, consistent.
-3. **Reviewer** (`lib/ai/assess.ts`) — `generateObject`, gpt-4o-mini. A *separate* pass grading the agent's answer for confidence + completeness. Conservative by prompt. Drives the auto-deflect decision (`shouldAutoDeflect`, threshold `0.8`).
+Schema: `lib/db/schema.ts`. Migrations: hand-authored SQL in `drizzle/`, applied idempotently on every boot (`lib/db/migrate.ts`).
 
----
+| Table | Purpose |
+|-------|---------|
+| `orgs`, `users`, `memberships` | multi-tenant org/user/role structure |
+| `tickets`, `ticket_replies`, `ticket_events` | one row per community question, staff replies, audit log |
+| `ticket_embeddings`, `ticket_links` | semantic vector per ticket + nearest-neighbour graph |
+| `ai_assessments` | confidence grade per drafted answer |
+| `kb_articles`, `kb_sources` | knowledge base Q&A articles + their source documents/URLs |
+| `integrations` | per-org, per-platform connection config (Discord/Slack/Telegram/Email) |
+| `discord_guilds` | one row per Discord server an org has connected — an org can connect more than one |
+| `github_repos` | connected repos for source-code search + KB sync |
+| `api_keys` | org-scoped Bearer tokens for MCP/Agent API |
+| `subscriptions` | Stripe billing state |
 
-## 5. Data model (SQLite)
-
-Schema: `lib/db/schema.sql`. Connection: `lib/db/index.ts` (WAL, foreign keys, schema applied idempotently on boot).
-
-| Table | Purpose | Key columns |
-|-------|---------|-------------|
-| `tickets` | one row per community question | category, severity_score, ai_summary, ai_draft, ai_draft_status, priority, status, sla_* , resolution_notes |
-| `ticket_replies` | staff replies | ticket_id, staff_name, content |
-| `ticket_events` | audit log | event_type, old/new value, actor |
-| `ticket_embeddings` | semantic vector per ticket | vector (JSON), model |
-| `ticket_links` | nearest-neighbour graph | ticket_id, related_id, score |
-| `ai_assessments` | confidence grade per answer | confidence, answered_fully, auto_deflected, reasoning |
-| `sla_configs` | response/resolve hours by priority | seeded: critical→low |
-| `faq_snapshots` | weekly generated FAQ | week range, content, ticket_count |
-| `notifications` | in-app staff alerts | type, message, read |
-| `push_subscriptions` | web-push endpoints | endpoint, p256dh, auth |
-| `github_repos` | repos the agent can search | installation_id, owner, repo |
-
-**Design note:** enrichment tables (`ticket_embeddings`, `ticket_links`, `ai_assessments`) are **side tables** keyed by `ticket_id` — added with `CREATE TABLE IF NOT EXISTS`, never `ALTER`, so they apply cleanly to an existing database.
+Every tenant-data query requires an explicit `org_id` — there is no silent default-org fallback. Bot tokens and AI provider keys are encrypted at rest (AES-256-GCM).
 
 ---
 
-## 6. Web app surface
+## 5. Web app surface
 
-- **Auth** — `proxy.ts` (Next 16 renamed `middleware`→`proxy`) gates every route except `/login` and `/api/ingest`. Shared-password staff login; signed httpOnly cookie (`lib/auth/`). Unauthenticated pages redirect to `/login`; APIs return 401.
-- **Dashboard** (`app/(dashboard)/`) — stats cards (open, SLA breaches, **Needs Review**, **Auto-Answered**), SLA list, recent tickets. Live-refreshes every 5s.
-- **Tickets** — list + detail. Detail shows original message, AI draft (approve/edit/dismiss), **confidence badge + reasoning**, **related questions** + "Asked N×", SLA, replies, activity log.
-- **FAQ** — weekly snapshot generation from resolved tickets (`lib/ai/faq-generator.ts`).
-- **Settings** — connect GitHub repos for the agent to search.
+- **Auth** — Auth.js v5, Google OAuth. `auth.ts`'s `PUBLIC_PATHS` allowlist gates which routes skip session auth (self-authenticating webhooks, public marketing pages); everything else requires a session and is scoped to the caller's org.
+- **Dashboard** — live overview, tickets (list + detail with AI draft/confidence/related questions/SLA), knowledge base, analytics, FAQ auto-generation, simulation/dry-run mode, team management, billing, settings (channel integrations, AI model config, widget embed).
+- **Marketing site** — landing page, `/pricing`, comparison pages, docs links — all pre-auth, public.
 
 ---
 
-## 7. External dependencies
+## 6. External dependencies
 
-| Service | Used for | Config |
-|---------|----------|--------|
-| OpenAI | triage, embeddings, answer agent, reviewer | `OPENAI_API_KEY` |
-| GitHub App | source-code search tools | `lib/github/app.ts`, installed repos |
-| Discord | ingest source + answer delivery | bot token, `BOT_SECRET` |
-| Web Push | staff notifications | VAPID keys |
-
-**Required env:** `OPENAI_API_KEY`, `BOT_SECRET`, `SESSION_SECRET`, `STAFF_PASSWORD`, Discord + GitHub + VAPID credentials. (See `.env.local.example`.)
-
----
-
-## 8. Deployment
-
-- `Dockerfile` (Node 20 Alpine, builds better-sqlite3 natively) + `docker-compose.yml` (app + bot services).
-- **Known gap:** compose currently runs `pnpm dev` with a source bind-mount — dev mode, not a built image. SQLite is a single file (`data/`), so it must be a persistent volume. See the build plan, Hardening track.
+| Service | Used for | Required? |
+|---|---|---|
+| AI provider (per org) | triage, answer drafting, confidence grading, widget chat | at least one, env fallback or per-org key |
+| Postgres (Neon in production) | all persistent state | yes |
+| Discord / Slack / GitHub / Telegram / Resend (email) | ingest channels | each optional, configured per org |
+| Stripe | billing, subscription management | for hosted plans |
+| Firecrawl | crawl a public docs URL into the KB | optional |
 
 ---
 
-## 9. Current state (June 2026)
+## 7. Deployment
 
-**Shipped this cycle (open PRs):**
-- `#5` Shared-password staff auth (proxy gate, session cookie).
-- `#6` Semantic enrichment (embeddings, dedup, prior-answer reuse).
-- `#7` Confidence scoring + auto-deflection (reviewer pass, auto vs human).
+- Multi-stage `Dockerfile` (deps → build → runner, no build toolchain in the final image), non-root user.
+- Two services: **app** (dashboard + API, `pnpm start`) and **bot** (Discord gateway listener, `pnpm bot:start`) — both built from the same image.
+- `docker-compose.prod.yml` for production; `docker compose up` (dev target) for local development with a local Postgres.
+- Migrations run automatically on startup — no manual migration step.
+- Deploys to Railway or Fly.io; see `docs/self-hosting/` for the full self-host guide.
 
-**Pipeline live end-to-end:** Discord → triage → embed → related → agent → assess → deflect/route → dashboard.
+---
 
-Next steps and dependencies: see `docs/BUILD-PLAN.md`.
+## 8. Security posture
+
+- Every commit is scanned before merge: Trivy (secrets/deps/misconfig), Semgrep (SAST), Zizmor (GitHub Actions workflow audit for script injection/unpinned actions/over-broad permissions).
+- Per-org data isolation is enforced at the query layer, with regression tests (`tenant-isolation*.test.ts`, `no-default-org.test.ts`) that fail if an org filter regresses.
+- Secrets (bot tokens, AI provider keys) encrypted at rest.
+
+---
+
+For the full self-hosting setup, see `docs/self-hosting/`. For product/integration docs, see `docs/`.
