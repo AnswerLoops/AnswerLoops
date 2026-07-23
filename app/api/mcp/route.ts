@@ -3,7 +3,7 @@ import { resolveApiKey } from '@/lib/db/queries/api-keys'
 import { isValidApiKeyFormat } from '@/lib/mcp/keys'
 import { MCP_TOOLS, callMcpTool } from '@/lib/mcp/tools'
 import { rpcError, rpcResult, JsonRpcErrorCode, type JsonRpcRequest } from '@/lib/mcp/protocol'
-import { rateLimit } from '@/lib/ratelimit'
+import { rateLimitShared } from '@/lib/ratelimit'
 import { readBodyCapped } from '@/lib/http/read-body-capped'
 import { logger } from '@/lib/logger'
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
     req.headers.get('x-real-ip') ??
     'unknown'
-  const ipLimit = rateLimit(`mcp-ip:${ip}`, IP_RATE_LIMIT_MAX, IP_RATE_LIMIT_WINDOW_MS)
+  const ipLimit = await rateLimitShared(`mcp-ip:${ip}`, IP_RATE_LIMIT_MAX, IP_RATE_LIMIT_WINDOW_MS)
   if (!ipLimit.ok) {
     return Response.json(rpcError(null, JsonRpcErrorCode.INTERNAL_ERROR, 'Rate limit exceeded'), { status: 429 })
   }
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
   }
   const { orgId } = resolved
 
-  const limit = rateLimit(`mcp:${orgId}`, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)
+  const limit = await rateLimitShared(`mcp:${orgId}`, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)
   if (!limit.ok) {
     return Response.json(rpcError(id, JsonRpcErrorCode.INTERNAL_ERROR, 'Rate limit exceeded'), { status: 429 })
   }
