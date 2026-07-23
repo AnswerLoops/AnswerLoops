@@ -16,7 +16,8 @@
     "test:e2e": "playwright test",
     "test:e2e:typecheck": "tsc --noEmit -p e2e/tsconfig.json",
     "test:e2e:ui": "playwright test --ui",
-    "test:server": "next start -p 3100"
+    "test:server": "next start -p 3100",
+    "docker:preview": "docker compose -f docker-compose.prod.yml down && docker compose -f docker-compose.prod.yml up -d --build app"
   },
   "engines": {
     "node": ">=20.9"
