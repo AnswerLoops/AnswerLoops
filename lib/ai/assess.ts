@@ -1,8 +1,8 @@
 import { generateObject } from 'ai'
-import { chatModel } from '@/lib/ai/models'
+import { chatModel, DEFAULT_FAST_MODEL } from '@/lib/ai/models'
 import { z } from 'zod'
 
-export const ASSESS_MODEL = 'gpt-4o-mini'
+export const ASSESS_MODEL = DEFAULT_FAST_MODEL
 
 // At/above this confidence AND a fully-answered question, the answer is posted
 // as a real answer to the community instead of a "team will follow up" draft.

@@ -1,7 +1,7 @@
 import { embed } from 'ai'
-import { embeddingModel } from '@/lib/ai/models'
+import { embeddingModel, DEFAULT_EMBEDDING_MODEL } from '@/lib/ai/models'
 
-export const EMBEDDING_MODEL = 'text-embedding-3-small'
+export const EMBEDDING_MODEL = DEFAULT_EMBEDDING_MODEL
 
 /**
  * Embed a piece of text into a vector. Caller is responsible for combining the

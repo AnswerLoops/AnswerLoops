@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { generateText } from 'ai'
 import { getIntegrationByBotSecret } from '@/lib/db/queries/integrations'
-import { chatModel } from '@/lib/ai/models'
+import { chatModel, DEFAULT_CHAT_MODEL } from '@/lib/ai/models'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
   try {
     const { text } = await generateText({
-      model: await chatModel('gpt-4o', orgId),
+      model: await chatModel(DEFAULT_CHAT_MODEL, orgId),
       system: `You are summarizing a Discord channel conversation for support staff.
 Output a tight bullet-point summary in markdown:
 - What was asked or discussed

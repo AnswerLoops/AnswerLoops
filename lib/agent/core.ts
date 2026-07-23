@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import { chatModel } from '@/lib/ai/models'
+import { chatModel, DEFAULT_CHAT_MODEL } from '@/lib/ai/models'
 import { embedText } from '@/lib/ai/embed'
 import { searchArticles, getKBContext } from '@/lib/db/queries/kb'
 import { getLatestFAQ } from '@/lib/db/queries/faq'
@@ -239,7 +239,7 @@ export async function generateAnswerCore(orgId: number, args: Record<string, unk
     : ''
 
   const { text } = await generateText({
-    model: await chatModel('gpt-4o', orgId),
+    model: await chatModel(DEFAULT_CHAT_MODEL, orgId),
     system: `You are a technical support agent. Answer using the knowledge base context provided. Do not invent product-specific details not present in the context — if the context doesn't cover the question, say so honestly instead of guessing. Be concise.${context}`,
     prompt: question,
   })

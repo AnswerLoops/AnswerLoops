@@ -4,7 +4,7 @@ import { auth } from '@/auth'
 import { getDb } from '@/lib/db/drizzle'
 import { tickets, DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { desc, eq, and } from 'drizzle-orm'
-import { chatModel } from '@/lib/ai/models'
+import { chatModel, DEFAULT_CHAT_MODEL } from '@/lib/ai/models'
 import { assessAnswer, AUTO_DEFLECT_THRESHOLD } from '@/lib/ai/assess'
 import { searchArticles } from '@/lib/db/queries/kb'
 import { embedText } from '@/lib/ai/embed'
@@ -14,7 +14,7 @@ const MOD = 'api/simulation/run'
 
 const Schema = z.object({
   count: z.coerce.number().int().min(1).max(100).default(20),
-  model: z.string().default('gpt-4o'),
+  model: z.string().default(DEFAULT_CHAT_MODEL),
   threshold: z.coerce.number().min(0).max(1).default(AUTO_DEFLECT_THRESHOLD),
 })
 

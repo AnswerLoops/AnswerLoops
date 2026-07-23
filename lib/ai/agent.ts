@@ -1,5 +1,5 @@
 import { generateText, tool, stepCountIs } from 'ai'
-import { chatModel } from '@/lib/ai/models'
+import { chatModel, DEFAULT_CHAT_MODEL } from '@/lib/ai/models'
 import { z } from 'zod'
 import { searchCode, readFile, listFiles } from '@/lib/github/tools'
 import { getConfiguredRepos } from '@/lib/github/app'
@@ -88,7 +88,7 @@ Guidelines:
   try {
     const t0 = Date.now()
     const { text } = await generateText({
-      model: await chatModel('gpt-4o', orgId),
+      model: await chatModel(DEFAULT_CHAT_MODEL, orgId),
       stopWhen: stepCountIs(5),
       system,
       prompt: question,
