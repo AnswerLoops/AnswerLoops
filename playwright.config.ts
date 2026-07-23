@@ -10,8 +10,38 @@ const BASE_URL = `http://localhost:${PORT}`
 
 export const STORAGE_STATE = path.join(__dirname, 'e2e', '.tmp', 'state.json')
 
+// Never fall back to an ambient DATABASE_URL here — e2e's global-setup truncates
+// and reseeds whatever database it resolves to, so silently inheriting a value
+// meant for prod debugging or another branch would be destructive, not just wrong.
+// If you need a non-default e2e database, set TEST_DATABASE_URL explicitly.
+function resolveTestDatabaseUrl(): string {
+  const url = process.env.TEST_DATABASE_URL ?? 'postgres://community:community@localhost:5432/community_test'
+
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw new Error(
+      `E2E DATABASE_URL "${url}" doesn't look like a local test database (expected host localhost/127.0.0.1 and a database name containing "test"). Set TEST_DATABASE_URL explicitly if you need something else.`
+    )
+  }
+
+  const host = parsed.hostname
+  const database = parsed.pathname.replace(/^\//, '')
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1'
+  const looksLikeTestDb = database.toLowerCase().includes('test')
+
+  if (!isLocalHost || !looksLikeTestDb) {
+    throw new Error(
+      `E2E DATABASE_URL "${url}" doesn't look like a local test database (expected host localhost/127.0.0.1 and a database name containing "test"). Set TEST_DATABASE_URL explicitly if you need something else.`
+    )
+  }
+
+  return url
+}
+
 export const TEST_ENV = {
-  DATABASE_URL: process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgres://community:community@localhost:5432/community_test',
+  DATABASE_URL: resolveTestDatabaseUrl(),
   MOCK_EXTERNALS: '1',
   BOT_SECRET: 'test-bot-secret',
   AUTH_SECRET: 'test-auth-secret',

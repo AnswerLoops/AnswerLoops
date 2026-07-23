@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import postgres from 'postgres'
 import { eq, sql } from 'drizzle-orm'
 import { getDb } from '../lib/db/drizzle'
 import { runMigrations } from '../lib/db/migrate'
@@ -12,9 +13,46 @@ export const WIDGET_TOKEN_FILE = path.join(__dirname, '.tmp', 'widget-token.json
 const SESSION_COOKIE = 'authjs.session-token'
 const MAX_AGE_SECONDS = 7 * 24 * 60 * 60 // 7 days
 
+// Postgres error code for "database already exists" — thrown by CREATE DATABASE
+// when another test run (or a previous attempt) already created it.
+const DATABASE_ALREADY_EXISTS = '42P04'
+
+// Our default fallback DB (community_test) is never provisioned by docker-compose,
+// which only creates `community`. Self-heal by connecting to the `community` admin
+// database and creating `community_test` if it's missing, so the default fallback
+// actually works out of the box instead of requiring a developer to create it by hand.
+// Skip this when TEST_DATABASE_URL was explicitly set — the developer owns that DB.
+async function ensureTestDatabaseExists() {
+  if (process.env.TEST_DATABASE_URL) return
+
+  const url = new URL(process.env.DATABASE_URL!)
+  const targetDatabase = url.pathname.replace(/^\//, '')
+
+  const adminUrl = new URL(url.toString())
+  adminUrl.pathname = '/community'
+
+  const adminClient = postgres(adminUrl.toString(), { max: 1 })
+  try {
+    // Quote the identifier per Postgres rules (double any embedded double-quotes)
+    // rather than parameterizing — CREATE DATABASE doesn't accept bound params.
+    const quotedName = `"${targetDatabase.replace(/"/g, '""')}"`
+    await adminClient.unsafe(`CREATE DATABASE ${quotedName}`)
+  } catch (err) {
+    const code = (err as { code?: string; cause?: { code?: string } })?.code ?? (err as { cause?: { code?: string } })?.cause?.code
+    if (code !== DATABASE_ALREADY_EXISTS) {
+      throw err
+    }
+  } finally {
+    await adminClient.end()
+  }
+}
+
 export default async function globalSetup() {
   const stateDir = path.join(__dirname, '.tmp')
   fs.mkdirSync(stateDir, { recursive: true })
+
+  // Make sure the target test database exists before connecting via getDb().
+  await ensureTestDatabaseExists()
 
   // Apply migrations and wipe test data to a clean baseline.
   await runMigrations()
