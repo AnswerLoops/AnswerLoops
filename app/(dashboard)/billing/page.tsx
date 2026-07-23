@@ -89,6 +89,39 @@ function TrialExpiredBanner({ onUpgrade, pending }: { onUpgrade: (planId: string
   )
 }
 
+const NEXT_TIER: Record<string, string | null> = {
+  hobby: 'pro',
+  pro: 'scale',
+  scale: 'enterprise',
+  enterprise: null,
+}
+
+function LimitWarningBanner({ planId, onUpgrade, pending }: { planId: string; onUpgrade: (planId: string) => void; pending: boolean }) {
+  const nextPlan = NEXT_TIER[planId] ?? null
+  const nextPlanName = nextPlan ? ORDERED_PLANS.find((p) => p.id === nextPlan)?.name : null
+
+  return (
+    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 h-2 w-2 rounded-full flex-shrink-0 bg-amber-500" />
+        <div>
+          <p className="text-sm font-semibold text-amber-800">Approaching your deflection limit</p>
+          <p className="mt-0.5 text-xs text-amber-700">You&apos;ve used over 80% of this month&apos;s deflections. Upgrade now to avoid interruption.</p>
+        </div>
+      </div>
+      {nextPlan && (
+        <button
+          onClick={() => onUpgrade(nextPlan)}
+          disabled={pending}
+          className="shrink-0 rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-60 transition-colors whitespace-nowrap"
+        >
+          {pending ? 'Redirecting…' : `Upgrade to ${nextPlanName} →`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 function UsageBar({ used, limit, planId, currentPeriodEnd, cancelAtPeriodEnd, status }: {
   used: number
   limit: number | null
@@ -268,6 +301,8 @@ export default function BillingPage() {
 
   const isCanceled = data?.status === 'canceled'
   const isTrialing = data?.isTrialing ?? false
+  const usagePct = data?.limit ? (data.used / data.limit) * 100 : 0
+  const approachingLimit = !isCanceled && data?.limit !== null && usagePct >= 80 && usagePct < 100
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -289,6 +324,7 @@ export default function BillingPage() {
       {!loading && data && (
         <>
           {isTrialing && data.trialEndsAt && <TrialBanner trialEndsAt={data.trialEndsAt} />}
+          {approachingLimit && <LimitWarningBanner planId={data.planId} onUpgrade={upgrade} pending={upgradePending} />}
           {isCanceled && <TrialExpiredBanner onUpgrade={upgrade} pending={upgradePending} />}
 
           {!isCanceled && (

@@ -69,6 +69,11 @@ function Hero() {
           <div className="mt-8 mx-auto max-w-lg">
             <WaitlistForm dark />
             <p className="mt-3 text-xs text-white/40 text-center">Be first to know when we launch. No spam.</p>
+            <p className="mt-2 text-xs text-center">
+              <Link href="/pricing" className="text-white/50 hover:text-white/80 transition-colors">
+                Try it free for 14 days →
+              </Link>
+            </p>
           </div>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
             {HERO_PILLS.map((p) => (
@@ -112,7 +117,7 @@ function Stats() {
     { stat: '2-pass review', label: 'a second model grades every answer before it posts' },
     { stat: '5 providers', label: 'plus any OpenAI-compatible endpoint — bring your own key' },
     { stat: '6 channels', label: 'Discord, Slack, GitHub, Telegram, Email, and your website' },
-    { stat: 'AGPL-3.0', label: 'self-host on your own infra, free forever' },
+    { stat: '14 days', label: 'try any hosted plan free before your card is charged' },
   ]
   return (
     <section className="bg-white py-16">
@@ -253,7 +258,7 @@ function Features() {
         </svg>
       ),
       title: 'Self-host on your infra',
-      body: 'AGPL-3.0 licensed. Clone and run docker compose up. Your data never leaves your servers. Privacy-first, fintech-ready.',
+      body: 'Open source. Clone and run docker compose up. Your data never leaves your servers. Privacy-first, fintech-ready.',
     },
   ]
   return (
@@ -306,7 +311,7 @@ function Enterprise() {
               <WaitlistForm dark />
               <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-white/20 px-7 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors">
                 <GithubIcon />
-                Self-host (AGPL-3.0)
+                View source on GitHub
               </Link>
             </div>
           </div>
@@ -336,7 +341,7 @@ function SelfHostCallout() {
           <div className="flex-1">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 mb-4">
               <GithubIcon className="h-3 w-3" />
-              Open source · AGPL-3.0
+              Open source
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">Self-host in three steps</h2>
             <p className="text-sm text-gray-500 leading-relaxed mb-4 max-w-lg">
@@ -358,87 +363,6 @@ function SelfHostCallout() {
             </Link>
           </div>
         </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Pricing ───────────────────────────────────────────────────────────────────
-
-function Pricing() {
-  return (
-    <section id="pricing" className="bg-white py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-gray-900">Hosted plans — or self-host free</h2>
-          <p className="mt-3 text-gray-500">All hosted plans start with a 14-day free trial. Prefer full control? Self-host is always free.</p>
-        </div>
-
-        {/* Self-host row */}
-        <div className="mb-4 rounded-2xl border-2 border-gray-200 bg-gray-50 p-6 flex flex-col sm:flex-row sm:items-center gap-6">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm font-semibold text-gray-900">Self-hosted</span>
-              <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wide">AGPL-3.0</span>
-            </div>
-            <p className="text-xs text-gray-500">Full source code. Run on your infra. Your data never leaves your servers.</p>
-          </div>
-          <div className="flex items-end gap-1 shrink-0">
-            <span className="text-3xl font-bold text-gray-900">Free</span>
-            <span className="text-sm text-gray-500 mb-1">forever</span>
-          </div>
-          <Link
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <GithubIcon />
-            Clone on GitHub
-          </Link>
-        </div>
-
-        {/* Hosted plans */}
-        <div className="grid sm:grid-cols-3 gap-5">
-          {ORDERED_PLANS.map((plan) => {
-            const isHighlight = plan.id === 'pro'
-            return (
-              <div
-                key={plan.id}
-                className={`rounded-2xl border-2 p-7 flex flex-col ${isHighlight ? 'border-brand-500 bg-brand-50/40 shadow-lg' : 'border-gray-200 bg-white'}`}
-              >
-                {isHighlight && (
-                  <div className="mb-3">
-                    <span className="rounded-full bg-brand-600 px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wide">Most popular</span>
-                  </div>
-                )}
-                <div className="text-base font-semibold text-gray-900">{plan.name}</div>
-                <div className="mt-4 flex items-end gap-1">
-                  <span className="text-4xl font-bold text-gray-900">${plan.priceMonthly / 100}</span>
-                  <span className="text-sm text-gray-500 mb-1.5">/mo</span>
-                </div>
-                <div className="mt-1 text-xs text-brand-600 font-medium">14-day free trial</div>
-                <div className="mt-3 text-sm text-gray-500">
-                  {plan.deflectionsPerMonth === null
-                    ? 'Unlimited deflections'
-                    : `${plan.deflectionsPerMonth.toLocaleString()} deflections/mo`}
-                </div>
-                <div className="flex-1" />
-                <div className={`mt-8 w-full rounded-xl py-2.5 text-center text-xs font-semibold ${
-                    isHighlight
-                      ? 'bg-brand-100 text-brand-600'
-                      : 'border-2 border-gray-200 text-gray-400'
-                  }`}>
-                  Available at launch
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        <p className="mt-8 text-center text-sm text-gray-400">
-          All hosted plans include Discord + Slack ingest, AI agent, knowledge base, analytics, embeddable widget, and email alerts.
-          Card required at signup. Cancel anytime before trial ends and you won&apos;t be charged.
-        </p>
       </div>
     </section>
   )
@@ -466,7 +390,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Is AnswerLoops open source?',
-    a: 'The core platform is AGPL-3.0 licensed. Clone the repo and run docker compose up to self-host on your own infrastructure with your data never leaving your servers. A hosted version with tiered plans is also available if you\'d rather not run it yourself.',
+    a: 'Yes, the core platform is open source. Clone the repo and run docker compose up to self-host on your own infrastructure with your data never leaving your servers. A hosted version with tiered plans is also available if you\'d rather not run it yourself. License details are on GitHub.',
   },
   {
     q: 'Does AnswerLoops work with AI coding agents like Claude Code or Cursor?',
@@ -536,7 +460,7 @@ function StructuredData() {
         name: 'Self-hosted',
         price: '0',
         priceCurrency: 'USD',
-        description: 'AGPL-3.0 licensed. Full source code, runs on your own infrastructure.',
+        description: 'Open source. Full source code, runs on your own infrastructure.',
       },
       ...ORDERED_PLANS.map((plan) => ({
         '@type': 'Offer',
@@ -605,7 +529,6 @@ export default async function LandingPage() {
       <Features />
       <Enterprise />
       <SelfHostCallout />
-      <Pricing />
       <FAQ />
       <CTA />
       <Footer />
