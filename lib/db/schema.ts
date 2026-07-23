@@ -9,6 +9,7 @@ import {
   uniqueIndex,
   index,
   jsonb,
+  timestamp,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -464,6 +465,16 @@ export const apiGenerations = pgTable(
     index('idx_api_generations_org').on(t.orgId),
   ]
 )
+
+// Shared, cross-instance rate-limit counter (#169). lib/ratelimit.ts's
+// original in-process Map only sees the traffic hitting one instance, so
+// this table backs a Postgres-atomic-upsert limiter that every instance
+// shares — see rateLimitShared in lib/ratelimit.ts.
+export const rateLimitBuckets = pgTable('rate_limit_buckets', {
+  key: text('key').primaryKey(),
+  count: integer('count').notNull().default(1),
+  resetAt: timestamp('reset_at', { withTimezone: true }).notNull(),
+})
 
 /** The default workspace that owns all data until real auth assigns memberships. */
 export const DEFAULT_ORG_ID = 1

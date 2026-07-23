@@ -435,7 +435,7 @@ describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
 
   it('applies a per-org rate limit before dispatching tools/list or tools/call', () => {
     const s = src()
-    const limitIdx = s.indexOf('rateLimit(`mcp:${orgId}`')
+    const limitIdx = s.indexOf('rateLimitShared(`mcp:${orgId}`')
     const toolsListIdx = s.indexOf("body.method === 'tools/list'")
     expect(limitIdx).toBeGreaterThan(-1)
     expect(limitIdx).toBeLessThan(toolsListIdx)
@@ -443,7 +443,7 @@ describe('app/api/mcp/route: JSON-RPC dispatcher', () => {
 
   it('applies a per-IP rate limit before any auth check, so unauthenticated traffic cannot hammer the route unthrottled', () => {
     const s = src()
-    const ipLimitIdx = s.indexOf('rateLimit(`mcp-ip:${ip}`')
+    const ipLimitIdx = s.indexOf('rateLimitShared(`mcp-ip:${ip}`')
     const bodySizeCheckIdx = s.indexOf('contentLength > MAX_BODY_BYTES')
     const authCheckIdx = s.indexOf('if (!bearerKey)')
     expect(ipLimitIdx).toBeGreaterThan(-1)
