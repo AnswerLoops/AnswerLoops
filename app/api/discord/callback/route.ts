@@ -2,6 +2,7 @@ import { type NextRequest } from 'next/server'
 import crypto from 'node:crypto'
 import { auth } from '@/auth'
 import { getIntegration, upsertIntegration } from '@/lib/db/queries/integrations'
+import { addDiscordGuild, DiscordGuildTakenError } from '@/lib/db/queries/discord-guilds'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -39,15 +40,24 @@ export async function GET(req: NextRequest) {
     return Response.redirect(failUrl)
   }
 
+  // Org-level row still carries the shared bot_secret used for every guild
+  // this org connects — ensure it exists, but no longer stores a single
+  // connected_guild_id (that's now one row per guild in discord_guilds).
   const existing = await getIntegration(orgId, 'discord')
   const botSecret = existing?.bot_secret ?? crypto.randomBytes(32).toString('hex')
+  if (!existing?.bot_secret) {
+    await upsertIntegration({ orgId, platform: 'discord', botSecret })
+  }
 
-  await upsertIntegration({
-    orgId,
-    platform: 'discord',
-    connectedGuildId: guildId,
-    botSecret: existing?.bot_secret ? undefined : botSecret,
-  })
+  try {
+    await addDiscordGuild(orgId, guildId)
+  } catch (err) {
+    if (err instanceof DiscordGuildTakenError) {
+      failUrl.searchParams.set('discord_error', 'guild_already_connected')
+      return Response.redirect(failUrl)
+    }
+    throw err
+  }
 
   if (from === 'onboarding') {
     const next = new URL('/onboarding', baseUrl)

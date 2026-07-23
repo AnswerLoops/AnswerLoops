@@ -10,6 +10,7 @@ import {
   getIntegration,
   getIntegrationByInboundAddress,
 } from '@/lib/db/queries/integrations'
+import { updateDiscordGuildChannels, removeDiscordGuild } from '@/lib/db/queries/discord-guilds'
 import { getOrg } from '@/lib/db/queries/orgs'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
@@ -104,6 +105,49 @@ export async function deleteDiscordIntegrationAction(
   const orgId = session.orgId ?? DEFAULT_ORG_ID
 
   await deleteIntegration(orgId, 'discord')
+  refresh()
+  return null
+}
+
+// ── Discord — multi-server (OAuth-connected guilds) ─────────────────────────
+
+export async function saveDiscordGuildChannelsAction(
+  _prevState: unknown,
+  formData: FormData
+): Promise<{ error?: string } | null> {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
+  const guildId = String(formData.get('guildId') ?? '').trim()
+  if (!guildId) return { error: 'Missing guild id' }
+
+  const rawChannelIds = formData.getAll('channelIds')
+  const channelIdList = rawChannelIds
+    .flatMap((v) => String(v).split(','))
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (channelIdList.length === 0) return { error: 'At least one channel is required' }
+
+  const escalationRoleId = String(formData.get('escalationRoleId') ?? '').trim() || null
+
+  await updateDiscordGuildChannels(orgId, guildId, channelIdList, escalationRoleId)
+  refresh()
+  return null
+}
+
+export async function removeDiscordGuildAction(
+  _prevState: unknown,
+  formData: FormData
+): Promise<{ error?: string } | null> {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+  const orgId = session.orgId ?? DEFAULT_ORG_ID
+
+  const guildId = String(formData.get('guildId') ?? '').trim()
+  if (!guildId) return { error: 'Missing guild id' }
+
+  await removeDiscordGuild(orgId, guildId)
   refresh()
   return null
 }

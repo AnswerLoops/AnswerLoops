@@ -28,6 +28,16 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
+      // Next.js content-hashes every file under _next/static — the filename
+      // changes whenever the content does, so caching it forever is safe.
+      // Without this, Cloudflare has nothing cacheable to work with and
+      // every JS/CSS chunk round-trips to the origin on every request.
+      {
+        source: '/_next/static/(.*)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
     ]
   },
 }

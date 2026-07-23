@@ -22,7 +22,8 @@ import {
 } from './handlers'
 import { registerSlashCommands, handleAsk, handleSummarize, type SlashConfig } from './slash'
 import { logger } from '../lib/logger'
-import { getIntegration, getIntegrationByGuildId, listIntegrations, parseChannelIds, saveGuildChannelMap } from '../lib/db/queries/integrations'
+import { getIntegration, listIntegrations, parseChannelIds, saveGuildChannelMap } from '../lib/db/queries/integrations'
+import { getDiscordGuildByGuildId, parseDiscordGuildChannelIds } from '../lib/db/queries/discord-guilds'
 import { markDiscordDeleted, markThreadDiscordDeleted } from '../lib/db/queries/tickets'
 import { DEFAULT_ORG_ID } from '../lib/db/schema'
 import { startSlackPoller, reloadSlackPoller, stopSlackPoller } from '../lib/slack/poller'
@@ -84,16 +85,19 @@ async function loadOrgConfigForGuild(guildId: string): Promise<{ config: BotConf
   if (guildConfigCache.has(guildId)) return guildConfigCache.get(guildId)!
 
   const targetUrl = process.env.BOT_TARGET_URL ?? 'http://localhost:3000'
-  const integration = await getIntegrationByGuildId(guildId).catch(() => null)
+  const guildRow = await getDiscordGuildByGuildId(guildId).catch(() => null)
 
   let result: { config: BotConfig; orgId: number } | null = null
-  if (integration) {
+  if (guildRow) {
+    // botSecret is shared per org across every guild that org connects —
+    // resolve it from the org's integrations row, not the per-guild row.
+    const orgIntegration = await getIntegration(guildRow.org_id, 'discord').catch(() => null)
     result = {
-      orgId: integration.org_id,
+      orgId: guildRow.org_id,
       config: {
         targetUrl,
-        botSecret: integration.bot_secret ?? process.env.BOT_SECRET ?? '',
-        channelIds: parseChannelIds(integration),
+        botSecret: orgIntegration?.bot_secret ?? process.env.BOT_SECRET ?? '',
+        channelIds: parseDiscordGuildChannelIds(guildRow),
       },
     }
   }
