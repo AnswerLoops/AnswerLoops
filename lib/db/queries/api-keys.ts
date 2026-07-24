@@ -62,12 +62,15 @@ export async function createApiKey(
   return { plaintextKey: key, record: toApiKey(row) }
 }
 
-/** Active + revoked keys, newest first — UI shows revoked ones greyed out rather than hiding them. */
+/**
+ * Active keys only, newest first. Revoked records remain in the database for
+ * auditability, but should not remain visible as usable workspace credentials.
+ */
 export async function listApiKeys(orgId: number): Promise<ApiKey[]> {
   const rows = await getDb()
     .select()
     .from(apiKeys)
-    .where(eq(apiKeys.orgId, orgId))
+    .where(and(eq(apiKeys.orgId, orgId), isNull(apiKeys.revokedAt)))
     .orderBy(apiKeys.createdAt)
   return rows.map(toApiKey).reverse()
 }

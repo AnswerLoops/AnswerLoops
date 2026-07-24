@@ -7,175 +7,100 @@ import { Nav, Footer, GithubIcon, GITHUB_URL } from '@/components/marketing/chro
 
 export const dynamic = 'force-dynamic'
 
-// ── Hero ──────────────────────────────────────────────────────────────────────
+function ArrowIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M5 12h14m-5-5 5 5-5 5" />
+    </svg>
+  )
+}
 
-const HERO_PILLS = [
-  {
-    icon: (
-      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" />
-      </svg>
-    ),
-    label: 'Connect in minutes',
-  },
-  {
-    icon: (
-      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
-    label: 'Trained on your docs & tickets',
-  },
-  {
-    icon: (
-      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-    label: 'Auto-answers when confident',
-  },
-  {
-    icon: (
-      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-4a4 4 0 10-4-4 4 4 0 004 4zm6 4a4 4 0 10-4-4" />
-      </svg>
-    ),
-    label: 'Escalates what it\'s unsure about',
-  },
-]
+function CheckIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  )
+}
+
+function SparkIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M12 3 9.8 9.8 3 12l6.8 2.2L12 21l2.2-6.8L21 12l-6.8-2.2L12 3Z" />
+    </svg>
+  )
+}
+
+function SectionLabel({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
+  return (
+    <div className={`mb-5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${light ? 'text-blue-300' : 'text-blue-600'}`}>
+      <span className={`h-px w-6 ${light ? 'bg-blue-400/70' : 'bg-blue-500'}`} />
+      {children}
+    </div>
+  )
+}
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-ink-950">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(29,78,216,0.3),_transparent_60%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(49,46,129,0.4),_transparent_60%)]" />
-      <div className="absolute inset-0 opacity-[0.07] bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><circle cx=%222%22 cy=%222%22 r=%221%22 fill=%22%23eff6ff%22/></svg>')]" />
-      <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-16">
-        <div className="text-center animate-[softRise_0.5s_ease-out]">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/80">
-            <span aria-hidden>✨</span>
-            AI agents that work where your devs are
+    <section className="relative isolate overflow-hidden bg-[#030611]">
+      <div className="landing-grid pointer-events-none absolute inset-0 opacity-50" />
+      <div className="pointer-events-none absolute left-1/2 top-[-18rem] h-[44rem] w-[72rem] -translate-x-1/2 rounded-[50%] bg-blue-600/25 blur-[140px]" />
+      <div className="pointer-events-none absolute -left-48 top-[34rem] h-[34rem] w-[34rem] rounded-full bg-indigo-700/15 blur-[120px]" />
+      <div className="pointer-events-none absolute -right-52 top-[20rem] h-[38rem] w-[38rem] rounded-full bg-cyan-500/10 blur-[130px]" />
+
+      <div className="relative mx-auto max-w-7xl px-5 pb-20 pt-20 sm:px-8 sm:pb-28 sm:pt-28">
+        <div className="mx-auto max-w-4xl text-center">
+          <div className="landing-hero-rise inline-flex items-center gap-2 rounded-full border border-blue-300/15 bg-blue-400/[0.07] px-3.5 py-1.5 text-[11px] font-medium text-blue-100 shadow-[inset_0_1px_rgba(255,255,255,0.05)]">
+            <span className="text-cyan-300"><SparkIcon /></span>
+            Built for support teams entering the agent era
           </div>
-          <h1 className="mt-6 text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
-            <span className="text-white">AI agents for your</span>
-            <br />
-            <span className="bg-gradient-to-r from-brand-400 via-brand-500 to-indigo-400 bg-clip-text text-transparent">
-              developer community
+
+          <h1 className="landing-hero-rise [animation-delay:80ms] mt-7 text-balance text-[2.8rem] font-semibold leading-[0.98] tracking-[-0.055em] text-white sm:text-6xl md:text-[5rem]">
+            Support runs itself.
+            <span className="mt-2 block bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-400 bg-clip-text text-transparent">
+              Your team stays in control.
             </span>
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-base text-white/60 leading-relaxed">
-            Connect Discord or Slack. AnswerLoops triages every question with AI, answers from your own docs and resolved tickets, and auto-posts replies when it&apos;s confident — so your team only sees the questions it isn&apos;t sure about.
+
+          <p className="landing-hero-rise [animation-delay:160ms] mx-auto mt-7 max-w-2xl text-pretty text-base leading-relaxed text-slate-300/70 sm:text-lg">
+            AnswerLoops resolves repeat developer questions across Discord, Slack, GitHub, email, and your website—grounded in your knowledge, checked by a second model, and escalated when confidence is low.
           </p>
-          <div className="mt-8 mx-auto max-w-lg">
-            <WaitlistForm dark />
-            <p className="mt-3 text-xs text-white/40 text-center">Be first to know when we launch. No spam.</p>
-            <p className="mt-2 text-xs text-center">
-              <Link href="/pricing" className="text-white/50 hover:text-white/80 transition-colors">
-                Try it free for 14 days →
-              </Link>
-            </p>
-          </div>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            {HERO_PILLS.map((p) => (
-              <div key={p.label} className="flex items-center gap-2 text-sm text-white/50">
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/5 text-brand-400">{p.icon}</span>
-                {p.label}
-              </div>
-            ))}
+
+          <div className="landing-hero-rise [animation-delay:240ms] mx-auto mt-9 max-w-xl">
+            <WaitlistForm dark className="landing-waitlist" />
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] font-medium text-white/55">
+              <span className="flex items-center gap-1.5"><CheckIcon className="h-3 w-3 text-emerald-400" /> 14-day hosted trial</span>
+              <span className="flex items-center gap-1.5"><CheckIcon className="h-3 w-3 text-emerald-400" /> Open-source core</span>
+              <span className="flex items-center gap-1.5"><CheckIcon className="h-3 w-3 text-emerald-400" /> Bring your own model</span>
+            </div>
           </div>
         </div>
-        <div className="mt-14 mx-auto max-w-3xl animate-[softRise_0.65s_ease-out]">
-          <AnimatedChat />
+
+        <div className="landing-hero-rise [animation-delay:320ms] relative mx-auto mt-16 max-w-6xl sm:mt-20">
+          <div className="pointer-events-none absolute -inset-x-20 -bottom-24 h-56 bg-blue-600/20 blur-[100px]" />
+          <div className="relative rounded-[2rem] border border-white/8 bg-white/[0.025] p-2 shadow-[0_1px_0_rgba(255,255,255,0.06)_inset] sm:p-3">
+            <AnimatedChat />
+          </div>
+          <div className="pointer-events-none absolute inset-x-16 -bottom-px h-px bg-gradient-to-r from-transparent via-cyan-300/80 to-transparent shadow-[0_0_28px_rgba(103,232,249,0.65)]" />
         </div>
       </div>
     </section>
   )
 }
 
-// ── Trust bar ─────────────────────────────────────────────────────────────────
+const CHANNELS = ['Discord', 'Slack', 'GitHub', 'Telegram', 'Email', 'Web widget']
 
-function TrustBar() {
-  const integrations = ['Discord', 'Slack', 'Telegram', 'Email', 'GitHub', 'Website Widget']
+function ChannelRail() {
   return (
-    <section className="border-b border-border bg-gray-50 py-8">
-      <div className="mx-auto max-w-6xl px-6">
-        <p className="text-center text-xs font-medium uppercase tracking-widest text-ink-400 mb-6">Works with your existing tools</p>
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-          {integrations.map((name) => (
-            <span key={name} className="text-sm font-semibold text-ink-400 hover:text-brand-700 transition-colors">{name}</span>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Stats ─────────────────────────────────────────────────────────────────────
-
-function Stats() {
-  const items = [
-    { stat: '2-pass review', label: 'a second model grades every answer before it posts' },
-    { stat: '5 providers', label: 'plus any OpenAI-compatible endpoint — bring your own key' },
-    { stat: '6 channels', label: 'Discord, Slack, GitHub, Telegram, Email, and your website' },
-    { stat: '14 days', label: 'try any hosted plan free before your card is charged' },
-  ]
-  return (
-    <section className="bg-white py-16">
-      <div className="mx-auto max-w-6xl px-6 grid grid-cols-2 sm:grid-cols-4 gap-8">
-        {items.map((item) => (
-          <div key={item.stat} className="text-center">
-            <div className="text-3xl font-bold text-brand-600">{item.stat}</div>
-            <div className="mt-2 text-sm text-gray-500 leading-snug">{item.label}</div>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-// ── How it works ──────────────────────────────────────────────────────────────
-
-function HowItWorks() {
-  const steps = [
-    {
-      n: '01',
-      title: 'Connect your community',
-      body: 'Paste your Discord bot token or Slack credentials. AnswerLoops starts ingesting questions immediately — no code required.',
-      detail: 'Supports Discord servers, Slack workspaces, and embeddable web widget. All three can run simultaneously.',
-    },
-    {
-      n: '02',
-      title: 'AI reads and understands',
-      body: 'Every question is classified, embedded, and matched against prior resolved answers and your uploaded docs.',
-      detail: 'Works with your existing knowledge: paste docs, upload PDFs, or ingest URLs. Grounded answers only — no hallucinations.',
-    },
-    {
-      n: '03',
-      title: 'High-confidence replies post automatically',
-      body: 'A reviewer model grades each answer. High-confidence, fully-answered replies post automatically.',
-      detail: 'Low-confidence questions queue for a human with a ready-to-edit draft. The AI knows what it does not know.',
-    },
-    {
-      n: '04',
-      title: 'Gets smarter every week',
-      body: 'Community 👍/👎 feedback prunes bad answers. Resolved tickets promote into the knowledge base.',
-      detail: 'No retraining step — the next matching question just has a better answer to pull from.',
-    },
-  ]
-  return (
-    <section id="how-it-works" className="bg-gray-50 border-y border-border py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-ink-900">From setup to self-improving in minutes</h2>
-          <p className="mt-3 text-ink-500 max-w-xl mx-auto">Connect a channel and the AI pipeline is already running — classification, retrieval, and confidence grading ship together, not as separate add-ons.</p>
-        </div>
-        <div className="grid sm:grid-cols-2 gap-6">
-          {steps.map((s) => (
-            <div key={s.n} className="rounded-2xl border border-border bg-surface p-8 shadow-sm shadow-ink-900/[0.03] hover:shadow-md hover:border-brand-200 transition-all">
-              <div className="text-xs font-bold text-brand-500 tracking-widest mb-3">{s.n}</div>
-              <h3 className="text-lg font-semibold text-ink-900 mb-2">{s.title}</h3>
-              <p className="text-sm text-ink-600 leading-relaxed mb-3">{s.body}</p>
-              <p className="text-xs text-ink-400 leading-relaxed border-t border-border pt-3">{s.detail}</p>
+    <section className="relative overflow-hidden border-y border-white/10 bg-[#070b15]">
+      <div className="pointer-events-none absolute left-1/2 top-0 h-24 w-[42rem] -translate-x-1/2 bg-blue-500/10 blur-[70px]" />
+      <div className="relative mx-auto flex max-w-7xl flex-col items-center gap-5 px-5 py-8 sm:px-8 lg:flex-row lg:justify-between">
+        <p className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/55">One brain. Every support channel.</p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {CHANNELS.map((channel, index) => (
+            <div key={channel} className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[11px] font-medium text-white/75 shadow-[inset_0_1px_rgba(255,255,255,0.035)]">
+              <span className={`h-1.5 w-1.5 rounded-full shadow-[0_0_10px_currentColor] ${index % 3 === 0 ? 'bg-indigo-400' : index % 3 === 1 ? 'bg-blue-400' : 'bg-cyan-300'}`} />
+              {channel}
             </div>
           ))}
         </div>
@@ -184,237 +109,415 @@ function HowItWorks() {
   )
 }
 
-// ── Features ──────────────────────────────────────────────────────────────────
-
-function Features() {
-  const features = [
+function Outcomes() {
+  const stats = [
     {
-      icon: (
-        <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
-        </svg>
-      ),
-      title: 'Instant deflection',
-      body: 'High-confidence answers post automatically in seconds. No human in the loop for questions the AI is sure about.',
+      eyebrow: 'Quality gate',
+      value: '2-pass',
+      label: 'Every answer is drafted, then independently reviewed.',
+      accent: 'from-indigo-400 to-blue-400',
     },
     {
-      icon: (
-        <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-        </svg>
-      ),
-      title: 'Confidence gate',
-      body: 'A separate reviewer model grades every answer. Only fully-answered, high-confidence replies go live. The AI knows when to escalate.',
+      eyebrow: 'One knowledge layer',
+      value: '6 channels',
+      label: 'Discord, Slack, GitHub, Telegram, email, and web.',
+      accent: 'from-blue-400 to-cyan-300',
     },
     {
-      icon: (
-        <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-        </svg>
-      ),
-      title: 'Bring your own LLM',
-      body: 'OpenAI, Anthropic, Google, Groq, Mistral, or any OpenAI-compatible endpoint. No platform AI bill — your key, your cost.',
+      eyebrow: 'Model freedom',
+      value: '5+ providers',
+      label: 'Use the best model for the job—or bring your own endpoint.',
+      accent: 'from-cyan-300 to-emerald-300',
     },
     {
-      icon: (
-        <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
-        </svg>
-      ),
-      title: 'Smart escalation',
-      body: 'Questions below the confidence threshold route to your team with a ready-to-edit AI draft. Humans only touch the hard ones.',
-    },
-    {
-      icon: (
-        <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-        </svg>
-      ),
-      title: 'Analytics & ROI',
-      body: 'Deflection rate, hours saved, per-category accuracy — all live. Turns ticket data into a number a budget owner can sign off on.',
-    },
-    {
-      icon: (
-        <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/>
-        </svg>
-      ),
-      title: 'Embeddable widget',
-      body: 'The same self-improving KB available on any website via a script tag. One platform, every channel.',
-    },
-    {
-      icon: (
-        <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-      ),
-      title: 'Self-improving KB',
-      body: 'Resolved tickets auto-promote into the knowledge base. Community feedback prunes bad answers. Deflection rate climbs passively.',
-    },
-    {
-      icon: (
-        <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-        </svg>
-      ),
-      title: 'Self-host on your infra',
-      body: 'Open source. Clone and run docker compose up. Your data never leaves your servers. Privacy-first, fintech-ready.',
+      eyebrow: 'Continuous coverage',
+      value: 'Always on',
+      label: 'Triage continues after your support team signs off.',
+      accent: 'from-violet-400 to-blue-400',
     },
   ]
-  return (
-    <section id="features" className="bg-white py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-gray-900">Everything your support team needs</h2>
-          <p className="mt-3 text-gray-500">One pipeline, not a stack of tools you have to wire together yourself.</p>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {features.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-gray-100 bg-gray-50/50 p-6 hover:border-brand-100 hover:bg-brand-50/20 transition-colors">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-brand-100 bg-white shadow-sm">
-                {f.icon}
-              </div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-1.5">{f.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
 
-// ── Enterprise ────────────────────────────────────────────────────────────────
-
-function Enterprise() {
-  const perks = [
-    'SSO / SAML (Google, Okta, Azure AD)',
-    'Audit logs & compliance exports',
-    'Custom data retention policies',
-    'Dedicated Slack support channel',
-    'SLA-backed uptime guarantee',
-    'White-label widget (remove branding)',
-    'Custom AI model endpoints',
-    'DPA / BAA available on request',
-  ]
   return (
-    <section className="bg-white py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-brand-950 p-10 md:p-14 flex flex-col md:flex-row gap-12">
-          <div className="flex-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-500/30 bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-300 mb-6">Enterprise</div>
-            <h2 className="text-3xl font-bold text-white mb-4">Built for regulated industries</h2>
-            <p className="text-slate-300 leading-relaxed mb-6">
-              Fintech, healthcare, and enterprise teams need data isolation, audit trails, and legal agreements. AnswerLoops ships all of it — or you self-host and own everything.
+    <section className="relative overflow-hidden bg-[#f6f8fc] py-24 sm:py-32">
+      <div className="pointer-events-none absolute right-[-14rem] top-[-10rem] h-[34rem] w-[34rem] rounded-full bg-blue-200/50 blur-[120px]" />
+      <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+          <div className="landing-reveal">
+            <SectionLabel>Built for the questions that repeat</SectionLabel>
+            <h2 className="max-w-xl text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.045em] text-slate-950 sm:text-5xl">
+              Turn support noise into a compounding knowledge loop.
+            </h2>
+          </div>
+          <div className="landing-reveal [animation-delay:100ms] lg:pb-1">
+            <p className="max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
+              Most support tools make the inbox faster. AnswerLoops makes fewer questions reach the inbox at all. Every resolved conversation improves the next answer, while confidence gates keep your team in charge of the edge cases.
             </p>
-            <div className="flex flex-col gap-3">
-              <WaitlistForm dark />
-              <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-white/20 px-7 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors">
-                <GithubIcon />
-                View source on GitHub
-              </Link>
-            </div>
-          </div>
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 content-start">
-            {perks.map((p) => (
-              <div key={p} className="flex items-start gap-2.5">
-                <svg className="h-4 w-4 text-brand-400 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M5 13l4 4L19 7"/>
-                </svg>
-                <span className="text-sm text-slate-300">{p}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Self-host callout ─────────────────────────────────────────────────────────
-
-function SelfHostCallout() {
-  return (
-    <section className="bg-gray-50 border-y border-gray-100 py-16">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
-          <div className="flex-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 mb-4">
-              <GithubIcon className="h-3 w-3" />
-              Open source
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Self-host in three steps</h2>
-            <p className="text-sm text-gray-500 leading-relaxed mb-4 max-w-lg">
-              Clone the repo, add your env vars, run one command. Your community data stays on your servers — not ours. Privacy-first teams, fintech, and regulated industries choose this path.
-            </p>
-            <div className="bg-gray-950 rounded-xl px-5 py-4 font-mono text-sm text-green-400 max-w-lg">
-              docker compose -f docker-compose.prod.yml up --build -d
-            </div>
-          </div>
-          <div className="flex flex-col gap-3 md:min-w-[200px]">
-            <Link
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
-            >
-              <GithubIcon />
-              View on GitHub
+            <Link href="/#how-it-works" className="group mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+              See the loop in action
+              <ArrowIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
         </div>
+
+        <div className="landing-reveal relative mt-16 overflow-hidden rounded-[2rem] border border-white/10 bg-[#07101f] p-2 shadow-[0_32px_90px_rgba(15,23,42,0.18)] sm:p-3">
+          <div className="landing-grid pointer-events-none absolute inset-0 opacity-30" />
+          <div className="pointer-events-none absolute -right-24 -top-40 h-96 w-96 rounded-full bg-blue-500/25 blur-[110px]" />
+          <div className="relative flex flex-col gap-3 border-b border-white/8 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/70">The AnswerLoops operating system</p>
+              <p className="mt-1 text-sm font-medium text-white">Coverage, quality, and control—working as one loop.</p>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-white/45">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.8)]" />
+              Built into every answer
+            </div>
+          </div>
+
+          <div className="relative grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {stats.map((stat, index) => (
+              <article
+                key={stat.eyebrow}
+                className="group relative min-h-48 overflow-hidden rounded-[1.4rem] border border-white/[0.07] bg-white/[0.035] p-6 transition duration-300 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/[0.055] sm:min-h-52"
+                style={{ animationDelay: `${index * 70}ms` }}
+              >
+                <div className={`absolute inset-x-6 top-0 h-px bg-gradient-to-r ${stat.accent} opacity-80`} />
+                <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.17em] text-white/35">
+                  <span className={`h-1.5 w-1.5 rounded-full bg-gradient-to-br ${stat.accent}`} />
+                  {stat.eyebrow}
+                </div>
+                <div className="mt-8 text-[2rem] font-semibold leading-none tracking-[-0.045em] text-white sm:text-[2.25rem]">{stat.value}</div>
+                <p className="mt-4 max-w-[15rem] text-xs leading-relaxed text-slate-300/55">{stat.label}</p>
+                <span className="absolute bottom-5 right-5 font-mono text-[9px] text-white/15">0{index + 1}</span>
+              </article>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   )
 }
 
-// ── FAQ ───────────────────────────────────────────────────────────────────────
-// Copy phrased the way people actually ask an AI assistant ("what is X",
-// "how does X do Y"), not how a marketing team titles a section — this is
-// the GEO content Perplexity/ChatGPT-with-search retrieve and cite directly.
-// FAQ_ITEMS also feeds the FAQPage JSON-LD in StructuredData below, so the
-// structured data always mirrors what's actually visible on the page.
+const LOOP_STEPS = [
+  {
+    n: '01',
+    title: 'Listen everywhere',
+    body: 'Questions arrive from Discord, Slack, GitHub, Telegram, email, or your embedded widget. The channel changes; the workflow does not.',
+    accent: 'from-indigo-500 to-blue-500',
+  },
+  {
+    n: '02',
+    title: 'Ground every answer',
+    body: 'AnswerLoops classifies intent and retrieves the most relevant docs, URLs, PDFs, and previously resolved tickets before drafting.',
+    accent: 'from-blue-500 to-cyan-400',
+  },
+  {
+    n: '03',
+    title: 'Review before posting',
+    body: 'A separate reviewer model grades completeness and confidence. Strong answers publish in seconds; uncertain ones become editable drafts.',
+    accent: 'from-cyan-400 to-emerald-400',
+  },
+  {
+    n: '04',
+    title: 'Learn from the outcome',
+    body: 'Feedback removes weak answers and human resolutions flow back into the knowledge base, so deflection improves without a retraining ritual.',
+    accent: 'from-emerald-400 to-blue-500',
+  },
+]
+
+function HowItWorks() {
+  return (
+    <section id="how-it-works" className="relative overflow-hidden bg-[#050914] py-24 text-white sm:py-32">
+      <div className="landing-grid pointer-events-none absolute inset-0 opacity-30" />
+      <div className="pointer-events-none absolute left-[-12rem] top-1/3 h-[30rem] w-[30rem] rounded-full bg-blue-700/15 blur-[120px]" />
+      <div className="relative mx-auto grid max-w-7xl gap-14 px-5 sm:px-8 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
+        <div className="landing-reveal lg:sticky lg:top-28 lg:self-start">
+          <SectionLabel light>The confidence-gated loop</SectionLabel>
+          <h2 className="max-w-md text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.045em] sm:text-5xl">
+            Autonomous when it can be. Human when it should be.
+          </h2>
+          <p className="mt-6 max-w-md text-sm leading-relaxed text-slate-300/60 sm:text-base">
+            The safeguard is part of the pipeline, not a setting someone remembers to turn on later.
+          </p>
+          <div className="mt-9 inline-flex items-center gap-3 rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-4 py-2 text-xs text-emerald-200">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+            </span>
+            Reviewer model always on
+          </div>
+        </div>
+
+        <div className="relative">
+          <div className="absolute bottom-10 left-[27px] top-10 w-px bg-gradient-to-b from-blue-500/50 via-cyan-400/30 to-transparent sm:left-[35px]" />
+          {LOOP_STEPS.map((item, index) => (
+            <article key={item.n} className="landing-reveal relative grid grid-cols-[56px_1fr] gap-4 border-b border-white/8 py-9 first:pt-0 last:border-b-0 sm:grid-cols-[72px_1fr] sm:gap-6 sm:py-12">
+              <div className={`relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br ${item.accent} p-px sm:h-[70px] sm:w-[70px]`}>
+                <div className="flex h-full w-full items-center justify-center rounded-[calc(1rem-1px)] bg-[#080d19] text-xs font-semibold text-white/70 sm:text-sm">{item.n}</div>
+              </div>
+              <div className="pt-1 sm:pt-2">
+                <div className="mb-3 flex items-center gap-3">
+                  <h3 className="text-xl font-semibold tracking-[-0.025em] sm:text-2xl">{item.title}</h3>
+                  {index === 2 && <span className="hidden rounded-full bg-blue-500/15 px-2 py-1 text-[9px] font-medium text-blue-200 sm:inline">THE SAFETY LAYER</span>}
+                </div>
+                <p className="max-w-xl text-sm leading-relaxed text-slate-300/55 sm:text-base">{item.body}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ProductPreview() {
+  return (
+    <div className="relative h-full min-h-[280px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
+      <div className="flex h-10 items-center gap-2 border-b border-slate-100 px-4">
+        <span className="h-2 w-2 rounded-full bg-slate-200" />
+        <span className="h-2 w-2 rounded-full bg-slate-200" />
+        <span className="h-2 w-2 rounded-full bg-slate-200" />
+        <span className="ml-3 text-[9px] font-medium text-slate-400">AnswerLoops / Analytics</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2.5 p-4">
+        {[
+          ['73%', 'Deflection rate', '+8.4%'],
+          ['186h', 'Time saved', '+22h'],
+          ['94%', 'Answer quality', '+3.1%'],
+        ].map(([value, label, delta]) => (
+          <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <div className="text-base font-semibold text-slate-900 sm:text-lg">{value}</div>
+            <div className="mt-1 text-[8px] text-slate-400 sm:text-[9px]">{label}</div>
+            <div className="mt-2 text-[8px] font-medium text-emerald-600">{delta}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mx-4 rounded-xl border border-slate-100 p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <span className="text-[9px] font-medium text-slate-500">Resolved conversations</span>
+          <span className="text-[8px] text-slate-300">Last 30 days</span>
+        </div>
+        <div className="flex h-24 items-end gap-1.5">
+          {[28, 44, 38, 58, 52, 72, 63, 82, 70, 92, 84, 100].map((height, index) => (
+            <span
+              key={index}
+              className="flex-1 rounded-t-sm bg-gradient-to-t from-blue-600 to-cyan-300"
+              style={{ height: `${height}%`, opacity: 0.38 + index * 0.045 }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Features() {
+  const compactFeatures = [
+    {
+      title: 'Your model, your economics',
+      body: 'OpenAI, Anthropic, Google, Groq, Mistral, Ollama, or any OpenAI-compatible endpoint. No hidden AI markup.',
+      color: 'bg-indigo-500',
+    },
+    {
+      title: 'Escalations arrive ready',
+      body: 'Low-confidence questions reach your team with full context, cited sources, and a draft ready to edit.',
+      color: 'bg-blue-500',
+    },
+    {
+      title: 'One source of truth',
+      body: 'The same living knowledge base powers community channels, your website widget, and MCP-compatible agents.',
+      color: 'bg-cyan-500',
+    },
+  ]
+
+  return (
+    <section id="features" className="relative overflow-hidden bg-[#eef3fb] py-24 sm:py-32">
+      <div className="pointer-events-none absolute left-[-10rem] top-0 h-[30rem] w-[30rem] rounded-full bg-indigo-200/45 blur-[120px]" />
+      <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="landing-reveal max-w-2xl">
+          <SectionLabel>Product, not a pile of integrations</SectionLabel>
+          <h2 className="text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.045em] text-slate-950 sm:text-5xl">
+            Everything the loop needs to keep getting better.
+          </h2>
+        </div>
+
+        <div className="mt-14 grid gap-5 lg:grid-cols-2">
+          <article className="landing-reveal group min-h-[500px] overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-[0_20px_60px_rgba(30,64,175,0.07)] sm:p-9">
+            <div className="flex h-full flex-col">
+              <div className="max-w-md">
+                <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-lg shadow-blue-500/20">
+                  <SparkIcon />
+                </div>
+                <h3 className="text-2xl font-semibold tracking-[-0.035em] text-slate-950">Prove the impact, not just the activity.</h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-500">Track deflection, answer quality, hours saved, and the topics generating the most support load.</p>
+              </div>
+              <div className="mt-9 flex-1 transition-transform duration-500 group-hover:-translate-y-1">
+                <ProductPreview />
+              </div>
+            </div>
+          </article>
+
+          <article className="landing-reveal [animation-delay:100ms] group relative min-h-[500px] overflow-hidden rounded-[2rem] border border-blue-400/10 bg-[#071126] p-6 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] sm:p-9">
+            <div className="pointer-events-none absolute -right-28 top-10 h-72 w-72 rounded-full bg-blue-500/25 blur-[90px]" />
+            <div className="relative flex h-full flex-col">
+              <div className="max-w-md">
+                <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-cyan-300">
+                  <CheckIcon />
+                </div>
+                <h3 className="text-2xl font-semibold tracking-[-0.035em]">Quality control is built into the answer.</h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-300/60">Every draft includes its evidence. Every answer passes through an independent confidence review.</p>
+              </div>
+
+              <div className="mt-10 space-y-3">
+                {[
+                  ['Grounding coverage', '100%', 'w-full'],
+                  ['Answer completeness', '98%', 'w-[98%]'],
+                  ['Reviewer confidence', '96%', 'w-[96%]'],
+                ].map(([label, value, width], index) => (
+                  <div key={label} className="rounded-xl border border-white/8 bg-white/[0.035] p-4">
+                    <div className="mb-3 flex justify-between text-[10px]">
+                      <span className="text-white/45">{label}</span>
+                      <span className={index === 2 ? 'font-medium text-emerald-300' : 'text-white/70'}>{value}</span>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full bg-white/8">
+                      <div className={`h-full ${width} rounded-full bg-gradient-to-r from-blue-500 to-cyan-300`} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-auto pt-7 text-[10px] text-white/30">Auto-post threshold: 90% · configurable by category</div>
+            </div>
+          </article>
+        </div>
+
+        <div className="mt-5 grid gap-5 md:grid-cols-3">
+          {compactFeatures.map((feature, index) => (
+            <article key={feature.title} className="landing-reveal rounded-[1.5rem] border border-slate-200/80 bg-white/75 p-7 backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:bg-white hover:shadow-[0_18px_45px_rgba(30,64,175,0.08)]" style={{ animationDelay: `${index * 80}ms` }}>
+              <span className={`mb-8 block h-2 w-2 rounded-full ${feature.color} shadow-[0_0_15px_currentColor]`} />
+              <h3 className="text-lg font-semibold tracking-[-0.025em] text-slate-900">{feature.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-slate-500">{feature.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Ownership() {
+  const enterprise = ['SSO and SAML', 'Audit logs', 'Custom retention', 'DPA / BAA', 'SLA-backed uptime', 'White-label widget']
+
+  return (
+    <section className="bg-white py-24 sm:py-32">
+      <div className="mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="landing-reveal relative overflow-hidden rounded-[2rem] bg-[#07101f] text-white shadow-[0_36px_100px_rgba(15,23,42,0.22)]">
+          <div className="landing-grid pointer-events-none absolute inset-0 opacity-40" />
+          <div className="relative grid overflow-hidden lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="relative border-b border-white/8 p-7 sm:p-12 lg:border-b-0 lg:border-r">
+              <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-500/25 blur-[100px]" />
+              <div className="relative">
+                <SectionLabel light>Open source by default</SectionLabel>
+                <h2 className="max-w-lg text-balance text-3xl font-semibold leading-[1.08] tracking-[-0.04em] text-white sm:text-5xl">Own the experience. Own the stack.</h2>
+                <p className="mt-5 max-w-lg text-sm leading-relaxed text-slate-200/85 sm:text-base">
+                  Run AnswerLoops on your infrastructure when data residency and operational control matter. Or use the hosted service and let us handle the plumbing.
+                </p>
+                <div className="mt-8 overflow-hidden rounded-xl border border-white/15 bg-black/25 shadow-[inset_0_1px_rgba(255,255,255,0.04)]">
+                  <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-2.5" aria-hidden="true">
+                    <span className="h-2 w-2 rounded-full bg-white/25" />
+                    <span className="h-2 w-2 rounded-full bg-white/25" />
+                    <span className="h-2 w-2 rounded-full bg-white/25" />
+                  </div>
+                  <div className="overflow-x-auto px-4 py-4 font-mono text-[11px] text-cyan-100 sm:text-xs">
+                    <span className="mr-3 text-white/50">$</span>docker compose -f docker-compose.prod.yml up --build -d
+                  </div>
+                </div>
+                <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="group mt-7 inline-flex items-center gap-2 text-sm font-semibold text-white">
+                  <GithubIcon />
+                  Explore the source
+                  <ArrowIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="relative p-7 sm:p-12">
+              <div className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-cyan-500/10 blur-[90px]" />
+              <div className="relative inline-flex rounded-full border border-blue-300/25 bg-blue-400/[0.12] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-100">Enterprise ready</div>
+              <h3 className="relative mt-6 text-2xl font-semibold tracking-[-0.03em] text-white sm:text-3xl">Control without compromise.</h3>
+              <p className="relative mt-3 text-sm leading-relaxed text-slate-200/80">Security and governance for regulated teams, without losing the speed of an AI-native workflow.</p>
+              <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                {enterprise.map((item) => (
+                  <div key={item} className="relative flex items-center gap-2.5 text-xs font-medium text-slate-200/85">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-200">
+                      <CheckIcon className="h-3 w-3" />
+                    </span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <Link href="/pricing" className="relative mt-9 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.11] px-5 py-2.5 text-xs font-semibold text-white shadow-[inset_0_1px_rgba(255,255,255,0.06)] transition hover:bg-white/15">
+                Explore plans <ArrowIcon className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
 
 const FAQ_ITEMS = [
   {
     q: 'What is AnswerLoops?',
-    a: 'AnswerLoops is an AI support platform for developer communities. It watches Discord, Slack, GitHub Issues/Discussions, Telegram, email, and your website chat widget, answers repeat questions automatically from your knowledge base, and routes anything it isn\'t confident about to a human with an AI-drafted reply ready to edit.',
+    a: 'AnswerLoops is an AI support platform for developer communities. It watches Discord, Slack, GitHub Issues and Discussions, Telegram, email, and your website widget, answers repeat questions from your knowledge base, and routes uncertain questions to a human with a draft ready to edit.',
   },
   {
-    q: 'How does AnswerLoops decide when to auto-answer vs. escalate to a human?',
-    a: 'Every drafted answer goes through a second AI pass that grades its own confidence. Only answers that clear a configurable threshold post automatically — everything else queues for a human, with the AI\'s draft attached so staff aren\'t starting from scratch.',
+    q: 'How does it decide when to auto-answer?',
+    a: 'Every draft goes through a second AI pass that grades grounding, completeness, and confidence. Only answers above your configurable threshold post automatically. Everything else enters the human queue with its sources and draft attached.',
   },
   {
-    q: 'Can I use my own AI provider with AnswerLoops?',
-    a: 'Yes. Each organization configures its own key for OpenAI, Anthropic, Google Gemini, Groq, Mistral, or any OpenAI-compatible endpoint (including local models via Ollama). There\'s no platform AI markup — you pay your provider directly.',
+    q: 'Can I use my own AI provider?',
+    a: 'Yes. Configure OpenAI, Anthropic, Google Gemini, Groq, Mistral, Ollama, or any OpenAI-compatible endpoint. You pay the provider directly, with no platform markup on model usage.',
   },
   {
-    q: 'Is AnswerLoops open source?',
-    a: 'Yes, the core platform is open source. Clone the repo and run docker compose up to self-host on your own infrastructure with your data never leaving your servers. A hosted version with tiered plans is also available if you\'d rather not run it yourself. License details are on GitHub.',
+    q: 'Can I self-host AnswerLoops?',
+    a: 'Yes. The core platform is open source and ships with a production Docker Compose setup. Self-hosting keeps community data on your infrastructure, while the hosted plans remove the operational work.',
   },
   {
-    q: 'Does AnswerLoops work with AI coding agents like Claude Code or Cursor?',
-    a: 'Yes — AnswerLoops ships an MCP (Model Context Protocol) server, so any MCP-compatible agent can search your knowledge base, read tickets, open new ones, and generate grounded answers directly, using the same pipeline as every other support channel.',
-  },
-  {
-    q: 'How is AnswerLoops different from Intercom or Chatbase?',
-    a: 'Intercom and Chatbase are built support/chatbot tools with AI added on top. AnswerLoops is AI-first: the confidence-gated auto-answer pipeline is the product, not a feature bolted onto a human-first inbox. It\'s also the only one of the three that\'s fully open source and self-hostable. See the comparison pages linked in the footer for a feature-by-feature breakdown.',
+    q: 'Does it work with coding agents?',
+    a: 'Yes. The built-in MCP server lets compatible agents search the same knowledge base, read tickets, open new ones, and generate grounded support answers.',
   },
 ] as const
 
 function FAQ() {
   return (
-    <section id="faq" className="bg-gray-50 py-24">
-      <div className="mx-auto max-w-3xl px-6">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-gray-900">Frequently asked questions</h2>
+    <section id="faq" className="relative overflow-hidden bg-[#f4f7fb] py-24 sm:py-32">
+      <div className="pointer-events-none absolute -left-52 top-20 h-[34rem] w-[34rem] rounded-full bg-blue-200/45 blur-[130px]" />
+      <div className="pointer-events-none absolute -right-52 bottom-0 h-[30rem] w-[30rem] rounded-full bg-cyan-100/60 blur-[120px]" />
+      <div className="relative mx-auto grid max-w-6xl gap-12 px-5 sm:px-8 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
+        <div className="landing-reveal lg:sticky lg:top-28 lg:self-start">
+          <SectionLabel>Questions, answered</SectionLabel>
+          <h2 className="text-4xl font-semibold tracking-[-0.045em] text-slate-950 sm:text-5xl">The useful details.</h2>
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-600">Everything you need to know before putting AnswerLoops in front of your community.</p>
+          <div className="mt-7 inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-white/75 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-blue-700 shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+            5 answers · 2 minute read
+          </div>
         </div>
-        <div className="flex flex-col gap-4">
-          {FAQ_ITEMS.map((item) => (
-            <div key={item.q} className="rounded-2xl border border-gray-100 bg-white p-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">{item.q}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{item.a}</p>
-            </div>
+        <div className="space-y-3">
+          {FAQ_ITEMS.map((item, index) => (
+            <details
+              key={item.q}
+              className="landing-reveal group overflow-hidden rounded-2xl border border-slate-200/90 bg-white/80 shadow-[0_10px_35px_rgba(30,64,175,0.045)] backdrop-blur-sm transition hover:border-blue-200 hover:bg-white open:border-blue-200 open:bg-white open:shadow-[0_18px_50px_rgba(30,64,175,0.08)]"
+              open={index === 0}
+            >
+              <summary className="flex cursor-pointer list-none items-center gap-4 px-5 py-5 text-sm font-semibold text-slate-950 marker:content-none sm:px-6 sm:text-base">
+                <span className="font-mono text-[10px] font-semibold text-blue-500/75">0{index + 1}</span>
+                <span className="flex-1">{item.q}</span>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-lg font-light text-slate-500 transition group-open:rotate-45 group-open:border-blue-200 group-open:bg-blue-50 group-open:text-blue-600">+</span>
+              </summary>
+              <div className="mx-5 border-t border-slate-100 sm:mx-6">
+                <p className="max-w-2xl py-5 pl-7 pr-4 text-sm leading-relaxed text-slate-600">{item.a}</p>
+              </div>
+            </details>
           ))}
         </div>
       </div>
@@ -422,28 +525,25 @@ function FAQ() {
   )
 }
 
-// ── CTA ───────────────────────────────────────────────────────────────────────
-
 function CTA() {
   return (
-    <section className="bg-black">
-      <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-        <h2 className="text-3xl font-bold text-white">Stop answering the same question by hand.</h2>
-        <p className="mt-4 text-gray-400 text-lg max-w-xl mx-auto">Be first in line when we open the doors.</p>
-        <div className="mt-10 mx-auto max-w-lg">
-          <WaitlistForm dark />
-          <p className="mt-3 text-xs text-slate-500">No spam. Unsubscribe any time.</p>
+    <section className="relative overflow-hidden bg-[#030611]">
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[30rem] w-[54rem] -translate-x-1/2 rounded-[50%] bg-blue-600/25 blur-[120px]" />
+      <div className="landing-grid pointer-events-none absolute inset-0 opacity-35" />
+      <div className="relative mx-auto max-w-5xl px-5 py-24 text-center sm:px-8 sm:py-32">
+        <div className="landing-reveal mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] text-cyan-300 shadow-[0_0_40px_rgba(59,130,246,0.18)]">
+          <SparkIcon />
+        </div>
+        <h2 className="landing-reveal mt-7 text-balance text-4xl font-semibold leading-[1.02] tracking-[-0.05em] text-white sm:text-6xl">Make the next repeat question the last one.</h2>
+        <p className="landing-reveal mx-auto mt-5 max-w-xl text-sm leading-relaxed text-slate-300/60 sm:text-base">Join the waitlist for hosted access, or explore the source and run AnswerLoops on your own infrastructure today.</p>
+        <div className="landing-reveal mx-auto mt-9 max-w-xl">
+          <WaitlistForm dark className="landing-waitlist" />
+          <p className="mt-3 text-[10px] text-white/25">Product updates only. Unsubscribe whenever you want.</p>
         </div>
       </div>
     </section>
   )
 }
-
-// ── Structured data ─────────────────────────────────────────────────────────
-// Product + Offer JSON-LD so AI search engines (Perplexity, Bing Copilot,
-// Gemini) can extract pricing and feature info accurately instead of
-// guessing from prose. Mirrors ORDERED_PLANS — kept in sync manually since
-// this is server-rendered from the same source of truth, not duplicated data.
 
 function StructuredData() {
   const jsonLd = {
@@ -480,10 +580,6 @@ function StructuredData() {
     ],
   }
 
-  // FAQPage schema mirrors the visible FAQ section below (FAQ_ITEMS) —
-  // required to keep the markup honest per Google's structured-data
-  // guidance, which is why this was deferred in the first GEO pass until
-  // an actual FAQ section existed on the page.
   const faqJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -499,21 +595,11 @@ function StructuredData() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
     </>
   )
 }
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function LandingPage() {
   const session = await auth()
@@ -522,15 +608,16 @@ export default async function LandingPage() {
     <div className="min-h-screen bg-white">
       <StructuredData />
       <Nav loggedIn={!!session?.user} />
-      <Hero />
-      <TrustBar />
-      <Stats />
-      <HowItWorks />
-      <Features />
-      <Enterprise />
-      <SelfHostCallout />
-      <FAQ />
-      <CTA />
+      <main>
+        <Hero />
+        <ChannelRail />
+        <Outcomes />
+        <HowItWorks />
+        <Features />
+        <Ownership />
+        <FAQ />
+        <CTA />
+      </main>
       <Footer />
     </div>
   )

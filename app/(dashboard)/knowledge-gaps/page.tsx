@@ -35,17 +35,21 @@ export default async function KnowledgeGapsPage() {
   const missingKB = gaps.filter((g) => g.gap_reason === 'no_kb_article').length
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="dashboard-page max-w-6xl space-y-7">
 
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Knowledge Gaps</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Questions the AI couldn&apos;t answer well. Fix these to improve deflection rate.</p>
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+            <span className="h-px w-6 bg-blue-500" />
+            Improvement queue
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Knowledge Gaps</h1>
+          <p className="mt-1 text-sm text-slate-500">Turn uncertain answers into the next best additions to your knowledge base.</p>
         </div>
         <Link
           href="/kb"
-          className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+          className="flex items-center gap-1.5 self-start rounded-full bg-gradient-to-r from-blue-700 to-blue-500 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-600/20 transition-transform hover:-translate-y-0.5"
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -57,7 +61,7 @@ export default async function KnowledgeGapsPage() {
       {/* Summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total gaps',        value: totalGaps,  color: 'text-gray-900',   bg: 'bg-gray-50 border-gray-200' },
+          { label: 'Total gaps',        value: totalGaps,  color: 'text-white',      bg: 'bg-[linear-gradient(135deg,#07101f,#123f91)] border-blue-400/20 [&>p:first-child]:text-blue-200' },
           { label: 'Needs human',       value: needsHuman, color: 'text-red-700',    bg: 'bg-red-50 border-red-100' },
           { label: 'Low confidence',    value: lowConf,    color: 'text-amber-700',  bg: 'bg-amber-50 border-amber-100' },
           { label: 'Missing KB article',value: missingKB,  color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-100' },

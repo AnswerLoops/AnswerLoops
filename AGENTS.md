@@ -263,6 +263,13 @@ This applies to: docs, code comments, example env files, README, test fixtures, 
 
 # Secret violation protocol — HARD RULE
 
+**Never surface credential values.** Do not print, quote, log, summarize, or
+otherwise reproduce a detected secret in tool output, commentary, commits, PRs,
+issues, or chat responses. Report only the secret type, affected file and line,
+and the environment-variable name when that name can be established without
+revealing the value. Redact command output at the source whenever a command
+could otherwise emit credentials.
+
 If Trivy's secret scanner (or Semgrep, or any other tool) detects a credential, API key, token, or secret in the codebase at any point:
 
 1. **Stop immediately.** Do not continue the current task.

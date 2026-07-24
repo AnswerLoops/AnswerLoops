@@ -68,14 +68,14 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const resolvedChannelId = ticket.discord_thread_id ?? ticket.discord_channel_id
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="dashboard-page max-w-6xl space-y-6">
       {/* Back navigation */}
-      <Link href="/tickets" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors">
+      <Link href="/tickets" className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 transition-colors hover:text-blue-800">
         ← Back to tickets
       </Link>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-xs text-gray-400">#{ticket.id}</span>
@@ -108,7 +108,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
               )
             )}
           </div>
-          <h1 className="text-lg font-semibold text-gray-900">
+          <h1 className="max-w-3xl text-2xl font-semibold tracking-tight text-slate-950">
             {ticket.ai_summary ?? ticket.content.slice(0, 120)}
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">

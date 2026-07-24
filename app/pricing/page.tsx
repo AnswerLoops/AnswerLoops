@@ -45,88 +45,140 @@ export default async function PricingPage() {
   const session = await auth()
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#f5f8fd]">
       <Nav loggedIn={!!session?.user} />
 
-      <section className="bg-ink-950 py-20">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <span className="inline-block rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/60 mb-6">
-            Pricing
-          </span>
-          <h1 className="text-4xl font-bold text-white sm:text-5xl">Simple pricing that scales with you</h1>
-          <p className="mt-5 text-lg text-white/60 max-w-2xl mx-auto">
-            Deflection-based tiers, not per-seat. Every hosted plan starts with a 14-day free trial. Prefer full control? You can also self-host it yourself.
+      <section className="relative isolate overflow-hidden bg-[#030611] pb-48 pt-20 sm:pb-56 sm:pt-28">
+        <div className="landing-grid pointer-events-none absolute inset-0 opacity-55" />
+        <div className="pointer-events-none absolute left-1/2 top-[-22rem] h-[48rem] w-[76rem] -translate-x-1/2 rounded-[50%] bg-blue-600/25 blur-[140px]" />
+        <div className="pointer-events-none absolute -right-52 top-20 h-96 w-96 rounded-full bg-cyan-500/10 blur-[120px]" />
+        <div className="relative mx-auto max-w-4xl px-5 text-center sm:px-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-300/20 bg-blue-400/[0.08] px-3.5 py-1.5 text-[11px] font-medium text-blue-100">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.8)]" />
+            Pricing without the seat tax
+          </div>
+          <h1 className="mt-7 text-balance text-[2.8rem] font-semibold leading-[0.98] tracking-[-0.055em] text-white sm:text-6xl md:text-[4.7rem]">
+            Pay for resolved questions.
+            <span className="mt-2 block bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-400 bg-clip-text text-transparent">
+              Not occupied seats.
+            </span>
+          </h1>
+          <p className="mx-auto mt-7 max-w-2xl text-pretty text-base leading-relaxed text-slate-200/75 sm:text-lg">
+            Every hosted plan includes the complete support loop. Choose the answer volume you need, bring your own model provider, and upgrade only when automation is already creating value.
           </p>
-        </div>
-      </section>
-
-      <section className="bg-white py-20">
-        <div className="mx-auto max-w-6xl px-6">
-          {/* Self-host row */}
-          <div className="mb-10 rounded-2xl border-2 border-gray-200 bg-gray-50 p-6 flex flex-col sm:flex-row sm:items-center gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold text-gray-900">Self-hosted</span>
-                <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Open source</span>
-              </div>
-              <p className="text-xs text-gray-500">Full source code. Run on your infra. Your data never leaves your servers.</p>
-            </div>
-            <div className="flex items-end gap-1 shrink-0">
-              <span className="text-3xl font-bold text-gray-900">Self-hosted</span>
-            </div>
-            <Link
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <GithubIcon />
-              View on GitHub
-            </Link>
-          </div>
-
-          <PricingToggle plans={ORDERED_PLANS} />
-
-          <p className="mt-8 text-center text-sm text-gray-400">
-            All hosted plans include Discord + Slack + GitHub + Telegram + Email ingest, the AI agent, knowledge base, analytics, and the embeddable widget.
-            Card required at signup. Cancel anytime before the trial ends and you won&apos;t be charged.
-          </p>
-        </div>
-      </section>
-
-      <section className="bg-gray-50 border-y border-gray-200 py-20">
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-bold text-gray-900">Compare plans</h2>
-            <p className="mt-2 text-sm text-gray-500">Every plan includes the full AI pipeline — higher tiers add scale, insight, and support.</p>
-          </div>
-          <PricingComparisonTable />
-        </div>
-      </section>
-
-      <section className="bg-white py-20">
-        <div className="mx-auto max-w-3xl px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold text-gray-900">Pricing questions</h2>
-          </div>
-          <div className="flex flex-col gap-4">
-            {PRICING_FAQ.map((item) => (
-              <div key={item.q} className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">{item.q}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{item.a}</p>
-              </div>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] font-medium text-white/55">
+            {['14-day hosted trial', 'No per-seat fees', 'No AI usage markup'].map((item) => (
+              <span key={item} className="flex items-center gap-2">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400/12 text-[9px] text-emerald-300">✓</span>
+                {item}
+              </span>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="waitlist" className="bg-black">
-        <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-          <h2 className="text-3xl font-bold text-white">Be first in line when we open the doors.</h2>
-          <p className="mt-4 text-gray-400 text-lg max-w-xl mx-auto">Join the waitlist and we&apos;ll email you the moment hosted plans go live.</p>
-          <div className="mt-10 mx-auto max-w-lg">
+      <section className="relative pb-24 sm:pb-32">
+        <div className="relative mx-auto -mt-32 max-w-7xl px-5 sm:-mt-40 sm:px-8">
+          <div className="rounded-[2.25rem] border border-slate-200/80 bg-white/95 p-4 shadow-[0_30px_100px_rgba(15,23,42,0.16)] backdrop-blur-xl sm:p-7">
+            <PricingToggle plans={ORDERED_PLANS} />
+          </div>
+
+          <div className="relative mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-[#07101f] p-7 text-white shadow-[0_24px_70px_rgba(15,23,42,0.16)] sm:p-9">
+            <div className="landing-grid pointer-events-none absolute inset-0 opacity-35" />
+            <div className="pointer-events-none absolute -right-28 -top-32 h-80 w-80 rounded-full bg-blue-500/20 blur-[100px]" />
+            <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/80">Community edition</span>
+                  <span className="rounded-full border border-white/12 bg-white/[0.06] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-white/60">Open source</span>
+                </div>
+                <h2 className="mt-4 text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">Prefer to own the whole stack?</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-200/70">
+                  Run AnswerLoops on your infrastructure with the same channels, knowledge layer, and confidence-gated workflow. Your data stays on your servers.
+                </p>
+                <div className="mt-6 inline-flex max-w-full overflow-x-auto rounded-xl border border-white/12 bg-black/25 px-4 py-3 font-mono text-[11px] text-cyan-100">
+                  <span className="mr-3 text-white/40">$</span>docker compose -f docker-compose.prod.yml up -d
+                </div>
+              </div>
+              <div className="flex flex-col items-start gap-4 lg:items-end">
+                <div>
+                  <span className="text-4xl font-semibold tracking-[-0.04em]">$0</span>
+                  <span className="ml-2 text-xs text-white/45">platform fee</span>
+                </div>
+                <Link
+                  href={GITHUB_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-white/[0.1] px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-white/15"
+                >
+                  <GithubIcon />
+                  Explore the source
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <p className="mx-auto mt-7 max-w-3xl text-center text-xs leading-relaxed text-slate-500">
+            Hosted plans include Discord, Slack, GitHub, Telegram, email ingest, the AI agent, knowledge base, analytics, and the embeddable widget. Card required at signup; cancel before the trial ends and you won&apos;t be charged.
+          </p>
+        </div>
+      </section>
+
+      <section className="border-y border-slate-200/80 bg-white py-24 sm:py-32">
+        <div className="mx-auto max-w-6xl px-5 sm:px-8">
+          <div className="mb-12 grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
+            <div>
+              <div className="mb-5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+                <span className="h-px w-6 bg-blue-500" />
+                Full comparison
+              </div>
+              <h2 className="text-4xl font-semibold tracking-[-0.045em] text-slate-950 sm:text-5xl">Choose for the next stage—not the next hire.</h2>
+            </div>
+            <p className="max-w-xl text-sm leading-relaxed text-slate-600 lg:justify-self-end">
+              Every tier includes the complete answer pipeline. Higher plans increase automation volume and add the operational insight your team needs as support scales.
+            </p>
+          </div>
+          <PricingComparisonTable />
+        </div>
+      </section>
+
+      <section className="relative overflow-hidden bg-[#f4f7fb] py-24 sm:py-32">
+        <div className="pointer-events-none absolute -left-52 top-0 h-[32rem] w-[32rem] rounded-full bg-blue-200/45 blur-[130px]" />
+        <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
+          <div className="mb-12 max-w-2xl">
+            <div className="mb-5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+              <span className="h-px w-6 bg-blue-500" />
+              Pricing questions
+            </div>
+            <h2 className="text-4xl font-semibold tracking-[-0.045em] text-slate-950 sm:text-5xl">No surprise math.</h2>
+            <p className="mt-4 text-sm leading-relaxed text-slate-600">The details that matter before you put a support workflow into production.</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {PRICING_FAQ.map((item, index) => (
+              <article key={item.q} className="rounded-2xl border border-slate-200/90 bg-white/85 p-6 shadow-[0_12px_35px_rgba(30,64,175,0.045)] backdrop-blur-sm">
+                <div className="mb-5 flex items-center justify-between">
+                  <span className="font-mono text-[10px] font-semibold text-blue-500/75">0{index + 1}</span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500/50" />
+                </div>
+                <h3 className="text-base font-semibold tracking-[-0.02em] text-slate-950">{item.q}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.a}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="waitlist" className="relative overflow-hidden bg-[#030611]">
+        <div className="landing-grid pointer-events-none absolute inset-0 opacity-35" />
+        <div className="pointer-events-none absolute left-1/2 top-0 h-[28rem] w-[52rem] -translate-x-1/2 rounded-[50%] bg-blue-600/25 blur-[120px]" />
+        <div className="relative mx-auto max-w-5xl px-5 py-24 text-center sm:px-8 sm:py-32">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-white/12 bg-white/[0.07] text-lg text-cyan-300">↗</div>
+          <h2 className="mt-7 text-balance text-4xl font-semibold leading-[1.02] tracking-[-0.05em] text-white sm:text-6xl">Start with the questions you already answer twice.</h2>
+          <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-slate-200/70 sm:text-base">Join the hosted waitlist, or deploy the open-source edition on your infrastructure today.</p>
+          <div className="landing-waitlist mx-auto mt-9 max-w-xl">
             <WaitlistForm dark />
-            <p className="mt-3 text-xs text-slate-500">No spam. Unsubscribe any time.</p>
+            <p className="mt-3 text-[10px] text-white/45">Product updates only. Unsubscribe whenever you want.</p>
           </div>
         </div>
       </section>

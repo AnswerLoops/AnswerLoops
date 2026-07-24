@@ -305,10 +305,14 @@ export default function BillingPage() {
   const approachingLimit = !isCanceled && data?.limit !== null && usagePct >= 80 && usagePct < 100
 
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="dashboard-page max-w-6xl space-y-8">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Billing</h1>
-        <p className="mt-1 text-sm text-gray-500">Manage your plan and usage.</p>
+        <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+          <span className="h-px w-6 bg-blue-500" />
+          Workspace plan
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Billing</h1>
+        <p className="mt-1 text-sm text-slate-500">Understand usage at a glance and scale without interrupting support.</p>
       </div>
 
       {loading && (
@@ -339,7 +343,7 @@ export default function BillingPage() {
           )}
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-sm font-semibold text-gray-900">Plans</h2>
               <span className="text-xs text-gray-400">All plans include a 14-day free trial</span>
             </div>
@@ -358,7 +362,7 @@ export default function BillingPage() {
           </div>
 
           {!isCanceled && (
-            <div className="rounded-xl border border-gray-200 bg-white p-5 flex items-center justify-between">
+            <div className="flex flex-col items-start gap-4 rounded-xl border border-gray-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-900">Subscription management</p>
                 <p className="text-xs text-gray-500 mt-0.5">

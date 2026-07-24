@@ -20,17 +20,21 @@ export default async function DashboardPage() {
   const firstName = session?.user?.name?.split(' ')[0] ?? 'there'
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="dashboard-page max-w-7xl space-y-7">
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-ink-900">Good to see you, {firstName}</h1>
-          <p className="text-sm text-ink-400 mt-0.5">Here&rsquo;s what&rsquo;s happening in your community today.</p>
+          <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">
+            <span className="h-px w-5 bg-blue-500" />
+            Live workspace
+          </div>
+          <h1 className="text-2xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-3xl">Good to see you, {firstName}</h1>
+          <p className="mt-1 text-sm text-slate-500">Here&rsquo;s what&rsquo;s happening in your community today.</p>
         </div>
         <Link
           href="/tickets"
-          className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-brand-600/20 hover:bg-brand-700 transition-colors"
+          className="flex items-center gap-1.5 self-start rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:brightness-110"
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -46,11 +50,11 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
         {/* Recent tickets — wider */}
-        <div className="lg:col-span-3 rounded-xl border border-border bg-surface overflow-hidden shadow-sm shadow-ink-900/[0.03]">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gray-50/50">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_16px_45px_rgba(30,64,175,0.06)] lg:col-span-3">
+          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-ink-900">Open Tickets</h2>
-              <p className="text-xs text-ink-400">Oldest unresolved questions</p>
+              <h2 className="text-sm font-semibold text-slate-950">Open tickets</h2>
+              <p className="mt-0.5 text-xs text-slate-500">Oldest unresolved questions</p>
             </div>
             <Link href="/tickets" className="text-xs text-brand-600 hover:text-brand-700 font-medium">
               View all →
@@ -71,11 +75,11 @@ export default async function DashboardPage() {
               {recentTickets.map((ticket) => (
                 <li key={ticket.id}>
                   <Link href={`/tickets/${ticket.id}`} className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50/70 transition-colors group">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-800 truncate group-hover:text-gray-900">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-800 group-hover:text-slate-950">
                         {ticket.ai_summary ?? ticket.content.slice(0, 80)}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="mt-0.5 text-xs text-slate-400">
                         {ticket.discord_author_name ?? 'Unknown'} · #{ticket.id}
                       </p>
                     </div>
@@ -94,8 +98,8 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2 flex flex-col gap-5">
 
           {/* SLA breaches */}
-          <div className="rounded-xl border border-border bg-surface overflow-hidden shadow-sm shadow-ink-900/[0.03]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gray-50/50">
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_16px_45px_rgba(30,64,175,0.06)]">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
               <div>
                 <h2 className="text-sm font-semibold text-ink-900">SLA Status</h2>
                 <p className="text-xs text-ink-400">Tickets past response time</p>
@@ -112,9 +116,9 @@ export default async function DashboardPage() {
           </div>
 
           {/* Quick actions */}
-          <div className="rounded-xl border border-border bg-surface overflow-hidden shadow-sm shadow-ink-900/[0.03]">
-            <div className="px-5 py-4 border-b border-border bg-gray-50/50">
-              <h2 className="text-sm font-semibold text-ink-900">Quick actions</h2>
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_16px_45px_rgba(30,64,175,0.06)]">
+            <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+              <h2 className="text-sm font-semibold text-slate-950">Quick actions</h2>
             </div>
             <div className="p-3 space-y-1">
               {[
@@ -142,9 +146,9 @@ export default async function DashboardPage() {
                 <Link
                   key={action.href}
                   href={action.href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-ink-600 hover:bg-gray-50 hover:text-ink-900 transition-colors group"
+                  className="group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-blue-50 hover:text-slate-950"
                 >
-                  <span className="text-ink-400 group-hover:text-brand-600 transition-colors">{action.icon}</span>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-400 transition-colors group-hover:bg-blue-100 group-hover:text-blue-600">{action.icon}</span>
                   {action.label}
                   <svg className="h-3.5 w-3.5 ml-auto text-ink-300 group-hover:text-ink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m9 18 6-6-6-6"/>

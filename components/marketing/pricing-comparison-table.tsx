@@ -1,12 +1,14 @@
 function Dash() {
-  return <span className="text-gray-300">—</span>
+  return <span className="text-slate-300">—</span>
 }
 
 function Check() {
   return (
-    <svg className="mx-auto h-4 w-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <span className="mx-auto flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
       <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+      </svg>
+    </span>
   )
 }
 
@@ -39,35 +41,41 @@ const ROWS: Row[] = [
 ]
 
 function CellValue({ value }: { value: Cell }) {
-  if (typeof value === 'string') return <span className="text-sm text-gray-700">{value}</span>
+  if (typeof value === 'string') return <span className="text-xs font-semibold text-slate-800">{value}</span>
   return value ? <Check /> : <Dash />
 }
 
 export function PricingComparisonTable() {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-gray-200">
-      <table className="w-full min-w-[640px] text-left">
+    <div className="overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white shadow-[0_20px_65px_rgba(30,64,175,0.07)]">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[760px] text-left">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50">
-            <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Feature</th>
-            <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Hobby</th>
-            <th className="px-5 py-3.5 text-center text-xs font-semibold text-brand-600 uppercase tracking-wide">Pro</th>
-            <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Scale</th>
-            <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Enterprise</th>
+          <tr className="border-b border-slate-200 bg-slate-50/90">
+            <th className="w-[38%] px-6 py-5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">Feature</th>
+            <th className="px-4 py-5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">Hobby</th>
+            <th className="border-x border-blue-100 bg-blue-50/70 px-4 py-5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-blue-700">Pro</th>
+            <th className="px-4 py-5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">Scale</th>
+            <th className="px-4 py-5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">Enterprise</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
-          {ROWS.map((row) => (
-            <tr key={row.feature} className="bg-white">
-              <td className="px-5 py-3 text-sm text-gray-700">{row.feature}</td>
-              <td className="px-5 py-3 text-center"><CellValue value={row.hobby} /></td>
-              <td className="px-5 py-3 text-center bg-brand-50/40"><CellValue value={row.pro} /></td>
-              <td className="px-5 py-3 text-center"><CellValue value={row.scale} /></td>
-              <td className="px-5 py-3 text-center"><CellValue value={row.enterprise} /></td>
+        <tbody className="divide-y divide-slate-100">
+          {ROWS.map((row, index) => (
+            <tr key={row.feature} className={`transition-colors hover:bg-slate-50/80 ${index === 0 ? 'bg-slate-50/35' : 'bg-white'}`}>
+              <td className="px-6 py-4 text-sm font-medium text-slate-700">{row.feature}</td>
+              <td className="px-4 py-4 text-center"><CellValue value={row.hobby} /></td>
+              <td className="border-x border-blue-100/80 bg-blue-50/35 px-4 py-4 text-center"><CellValue value={row.pro} /></td>
+              <td className="px-4 py-4 text-center"><CellValue value={row.scale} /></td>
+              <td className="px-4 py-4 text-center"><CellValue value={row.enterprise} /></td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
+      <div className="flex flex-col items-start gap-1.5 border-t border-slate-100 bg-slate-50/60 px-4 py-4 text-[10px] text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <span>Scroll horizontally on smaller screens</span>
+        <span className="font-semibold text-blue-700">All plans include BYO AI provider</span>
+      </div>
     </div>
   )
 }

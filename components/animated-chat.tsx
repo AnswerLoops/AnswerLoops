@@ -1,234 +1,312 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LogoMark } from './logo'
 
-const USER_MSG = "Can't seem to get the webhooks to fire for my social media scheduling tool 😕 anyone know what's up?"
-const AI_MSG = "Found it — webhook signature validation was tightened in the last release. Make sure your endpoint returns 200 before processing the payload async."
+const STEP_DURATIONS = [1400, 1700, 1800, 1600, 3600, 600] as const
 
-const CHAR_DELAY = 28
-const AI_THINKING_DELAY = 1000
-const AFTER_REPLY_DELAY = 900
-const DASHBOARD_HOLD_MS = 3600
-const RESTART_DELAY = 500
+const STEP_LABELS = [
+  'New question received',
+  'Searching connected knowledge',
+  'Drafting a grounded answer',
+  'Reviewing answer confidence',
+  'Answer posted automatically',
+  'Restarting workflow demo',
+] as const
 
-type Scene = 'chat' | 'dashboard'
-type Phase = 'idle' | 'user-typing' | 'ai-thinking' | 'ai-typing' | 'ai-done'
+const PIPELINE = [
+  { label: 'Understand', detail: 'how_to · webhook', step: 0 },
+  { label: 'Retrieve', detail: '3 sources matched', step: 1 },
+  { label: 'Draft', detail: 'Grounded response', step: 2 },
+  { label: 'Review', detail: '96% confidence', step: 3 },
+  { label: 'Resolve', detail: 'Posted to Discord', step: 4 },
+] as const
+
+function CheckIcon({ className = 'h-3.5 w-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  )
+}
 
 export function AnimatedChat() {
-  const [scene, setScene] = useState<Scene>('chat')
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [userChars, setUserChars] = useState(0)
-  const [aiChars, setAiChars] = useState(0)
-  const [badgeIn, setBadgeIn] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Separate ref for the dashboard-scene badge/reset chain — these two timers
-  // run concurrently with each other, so they can't share timerRef (delay()
-  // cancels whatever timerRef currently holds, which would kill the badge
-  // reveal the instant the reset timer below it was scheduled).
-  const sceneTimerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
-
-  const clear = () => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-  }
-  const delay = (ms: number, fn: () => void) => {
-    clear()
-    timerRef.current = setTimeout(fn, ms)
-  }
-  const clearSceneTimers = () => {
-    sceneTimerRefs.current.forEach(clearTimeout)
-    sceneTimerRefs.current = []
-  }
-  const sceneDelay = (ms: number, fn: () => void) => {
-    sceneTimerRefs.current.push(setTimeout(fn, ms))
-  }
-
-  const typeUser = (i: number) => {
-    if (i > USER_MSG.length) {
-      setPhase('ai-thinking')
-      delay(AI_THINKING_DELAY, () => typeAi(0))
-      return
-    }
-    setUserChars(i)
-    timerRef.current = setTimeout(() => typeUser(i + 1), CHAR_DELAY)
-  }
-
-  const typeAi = (i: number) => {
-    if (i === 0) setPhase('ai-typing')
-    if (i > AI_MSG.length) {
-      setPhase('ai-done')
-      delay(AFTER_REPLY_DELAY, () => {
-        setScene('dashboard')
-        clearSceneTimers()
-        sceneDelay(500, () => setBadgeIn(true))
-        sceneDelay(500 + DASHBOARD_HOLD_MS, () => {
-          setBadgeIn(false)
-          setScene('chat')
-          setPhase('idle')
-          setUserChars(0)
-          setAiChars(0)
-          delay(RESTART_DELAY, () => {
-            setPhase('user-typing')
-            typeUser(0)
-          })
-        })
-      })
-      return
-    }
-    setAiChars(i)
-    timerRef.current = setTimeout(() => typeAi(i + 1), CHAR_DELAY)
-  }
+  const [step, setStep] = useState(0)
+  const [reducedMotion, setReducedMotion] = useState(false)
 
   useEffect(() => {
-    delay(700, () => {
-      setPhase('user-typing')
-      typeUser(0)
-    })
-    return () => {
-      clear()
-      clearSceneTimers()
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const updateMotionPreference = () => {
+      setReducedMotion(media.matches)
+      if (media.matches) setStep(4)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    updateMotionPreference()
+    media.addEventListener('change', updateMotionPreference)
+    return () => media.removeEventListener('change', updateMotionPreference)
   }, [])
 
-  const userText = USER_MSG.slice(0, userChars)
-  const aiText = AI_MSG.slice(0, aiChars)
+  useEffect(() => {
+    if (reducedMotion) return
+    const timer = window.setTimeout(
+      () => setStep((current) => (current + 1) % STEP_DURATIONS.length),
+      STEP_DURATIONS[step],
+    )
+    return () => window.clearTimeout(timer)
+  }, [reducedMotion, step])
+
+  const visibleStep = step === 5 ? 4 : step
+  const faded = step === 5
 
   return (
-    <div className="relative rounded-2xl border border-white/10 shadow-2xl shadow-black/50 overflow-hidden min-h-[380px] sm:min-h-[420px]">
-      {/* ── Scene 1: community channel (Discord-style) ── */}
+    <div
+      className="relative overflow-hidden rounded-[1.5rem] border border-white/12 bg-[#080d1b] shadow-[0_42px_120px_rgba(0,0,0,0.62),0_0_0_1px_rgba(96,165,250,0.04)]"
+      data-step={step}
+      aria-label="Animated AnswerLoops support workflow"
+    >
+      <div className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-blue-600/20 blur-[100px]" />
+      <div className="pointer-events-none absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-cyan-400/10 blur-[100px]" />
+
+      <div className="relative flex h-11 items-center justify-between border-b border-white/8 bg-white/[0.035] px-4">
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1.5" aria-hidden="true">
+            <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+            <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+            <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+          </div>
+          <span className="hidden h-4 w-px bg-white/10 sm:block" />
+          <div className="hidden items-center gap-2 text-[11px] text-white/45 sm:flex">
+            <LogoMark size={16} />
+            AnswerLoops live workspace
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] font-medium text-emerald-300">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          All systems operational
+        </div>
+      </div>
+
       <div
-        className={`flex bg-[#313338] transition-opacity duration-500 ${scene === 'chat' ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}
+        className={`relative grid min-h-[500px] transition duration-500 sm:min-h-[540px] md:grid-cols-[148px_minmax(0,1fr)_230px] ${
+          faded ? 'scale-[0.985] opacity-0' : 'scale-100 opacity-100'
+        }`}
       >
-        {/* Guild rail */}
-        <div className="hidden sm:flex w-16 shrink-0 flex-col items-center gap-3 bg-[#1e1f22] py-3">
-          <div className="h-10 w-10 rounded-2xl bg-[#313338] flex items-center justify-center text-white/70 text-xs font-bold">DV</div>
-          <div className="h-8 w-1 rounded-full bg-white/10" />
-          <div className="h-10 w-10 rounded-2xl bg-brand-600 flex items-center justify-center ring-2 ring-white/10">
-            <LogoMark size={20} />
+        <aside className="hidden border-r border-white/8 bg-black/15 p-3 md:block">
+          <div className="mb-5 flex items-center gap-2 px-1">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-[10px] font-bold text-white">
+              DV
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold text-white/80">DevVault</div>
+              <div className="text-[8px] text-white/30">12,842 members</div>
+            </div>
           </div>
-          <div className="h-10 w-10 rounded-2xl bg-[#313338] flex items-center justify-center text-white/40 text-xs">+</div>
-        </div>
-
-        {/* Channel list */}
-        <div className="hidden md:flex w-48 shrink-0 flex-col bg-[#2b2d31] p-3">
-          <div className="text-xs font-semibold text-white/80 px-1 mb-3">devtools community</div>
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-white/30 px-1 mb-1">Text Channels</div>
-          <div className="flex flex-col gap-0.5">
-            <div className="rounded px-2 py-1 text-sm text-white/40"># general</div>
-            <div className="rounded bg-white/10 px-2 py-1 text-sm text-white font-medium"># support</div>
-            <div className="rounded px-2 py-1 text-sm text-white/40"># bugs</div>
+          <div className="mb-2 px-2 text-[8px] font-semibold uppercase tracking-[0.18em] text-white/25">Channels</div>
+          {['# announcements', '# general', '# support', '# api-help'].map((channel) => (
+            <div
+              key={channel}
+              className={`mb-0.5 rounded-md px-2 py-1.5 text-[10px] ${
+                channel === '# support' ? 'bg-blue-500/12 font-medium text-blue-200' : 'text-white/35'
+              }`}
+            >
+              {channel}
+            </div>
+          ))}
+          <div className="mt-6 mb-2 px-2 text-[8px] font-semibold uppercase tracking-[0.18em] text-white/25">AnswerLoops</div>
+          <div className="flex items-center gap-2 rounded-md bg-white/[0.035] px-2 py-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="text-[9px] text-white/50">Watching 4 channels</span>
           </div>
-        </div>
+        </aside>
 
-        {/* Chat pane */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          <div className="flex items-center gap-2 border-b border-black/20 px-4 py-3 shadow-sm">
-            <span className="text-white/30 text-lg font-light">#</span>
-            <span className="text-sm font-semibold text-white">support</span>
+        <div className="flex min-w-0 flex-col">
+          <div className="flex h-12 items-center justify-between border-b border-white/8 px-4 sm:px-5">
+            <div className="flex items-center gap-2">
+              <span className="text-white/25">#</span>
+              <span className="text-xs font-semibold text-white/85">support</span>
+            </div>
+            <div className="rounded-full border border-white/8 bg-white/[0.035] px-2.5 py-1 text-[9px] text-white/35">
+              AnswerLoops is listening
+            </div>
           </div>
 
-          <div className="p-4 space-y-4 h-[300px] sm:h-[340px] overflow-hidden">
-            {(phase !== 'idle') && (
-              <div className="flex gap-3 items-start animate-[fadeIn_0.25s_ease]">
-                <div className="h-9 w-9 shrink-0 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">J</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm mb-0.5">
-                    <span className="font-medium text-white">jordan_dev</span>{' '}
-                    <span className="text-[11px] text-white/30">Today at 2:14 PM</span>
-                  </div>
-                  <div className="text-sm text-white/80 leading-relaxed">
-                    {userText}
-                    {phase === 'user-typing' && (
-                      <span className="inline-block w-[2px] h-[14px] bg-white/60 ml-0.5 align-middle animate-[blink_0.7s_step-end_infinite]" />
-                    )}
-                  </div>
+          <div className="flex-1 space-y-5 overflow-hidden px-4 py-5 sm:px-5">
+            <div className="flex gap-3 opacity-45">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-500 text-[10px] font-bold text-white">M</div>
+              <div>
+                <div className="mb-1 text-[10px]">
+                  <span className="font-semibold text-white/80">maya_ops</span>
+                  <span className="ml-2 text-white/25">Today at 9:41 AM</span>
                 </div>
+                <p className="text-[11px] leading-relaxed text-white/55">The deploy guide fixed it — thank you!</p>
               </div>
-            )}
+            </div>
 
-            {phase === 'ai-thinking' && (
-              <div className="flex gap-3 items-start animate-[fadeIn_0.2s_ease]">
-                <LogoMark size={36} className="shrink-0" />
-                <div className="flex-1">
-                  <div className="text-sm mb-0.5">
-                    <span className="font-medium text-white">AnswerLoops</span>{' '}
-                    <span className="rounded bg-brand-600 px-1 py-0.5 text-white text-[9px] font-bold align-middle">APP</span>
-                  </div>
-                  <div className="flex items-center gap-1 h-5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:0ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:300ms]" />
-                  </div>
+            <div className="demo-enter flex gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">J</div>
+              <div className="min-w-0">
+                <div className="mb-1 text-[10px]">
+                  <span className="font-semibold text-white/85">jordan_dev</span>
+                  <span className="ml-2 text-white/25">Today at 9:42 AM</span>
                 </div>
+                <p className="max-w-md text-[11px] leading-[1.65] text-white/70 sm:text-xs">
+                  Webhooks stopped firing after yesterday&apos;s release. Signatures fail even though our secret didn&apos;t change — any ideas?
+                </p>
               </div>
-            )}
+            </div>
 
-            {(phase === 'ai-typing' || phase === 'ai-done') && (
-              <div className="flex gap-3 items-start animate-[fadeIn_0.25s_ease]">
-                <LogoMark size={36} className="shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm mb-0.5">
-                    <span className="font-medium text-white">AnswerLoops</span>{' '}
-                    <span className="rounded bg-brand-600 px-1 py-0.5 text-white text-[9px] font-bold align-middle">APP</span>{' '}
-                    <span className="text-[11px] text-white/30">Today at 2:14 PM</span>
+            {visibleStep >= 1 && visibleStep < 4 && (
+              <div className="demo-enter flex gap-3">
+                <LogoMark size={32} className="shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex items-center gap-2 text-[10px]">
+                    <span className="font-semibold text-white/85">AnswerLoops</span>
+                    <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[8px] font-bold text-blue-200">APP</span>
                   </div>
-                  <div className="text-sm text-white/80 leading-relaxed">
-                    {aiText}
-                    {phase === 'ai-typing' && (
-                      <span className="inline-block w-[2px] h-[14px] bg-white/60 ml-0.5 align-middle animate-[blink_0.7s_step-end_infinite]" />
-                    )}
-                  </div>
-                  {phase === 'ai-done' && (
-                    <div className="mt-2 w-fit rounded border-l-4 border-brand-500 bg-black/20 px-3 py-2 animate-[fadeIn_0.3s_ease]">
-                      <div className="text-[10px] text-white/40 mb-0.5">docs.answerloops.com</div>
-                      <div className="text-xs font-medium text-brand-300">Webhook Setup Guide →</div>
+                  {visibleStep === 1 && (
+                    <div className="max-w-sm rounded-lg border border-blue-400/15 bg-blue-500/[0.06] p-3">
+                      <div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-blue-200">
+                        <SearchIcon />
+                        Searching product knowledge
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="demo-shimmer h-1.5 w-full rounded-full bg-white/8" />
+                        <div className="demo-shimmer h-1.5 w-4/5 rounded-full bg-white/8 [animation-delay:120ms]" />
+                      </div>
+                    </div>
+                  )}
+                  {visibleStep >= 2 && (
+                    <div className="demo-enter max-w-md text-[11px] leading-[1.65] text-white/70 sm:text-xs">
+                      <p>
+                        Found it — signature validation became stricter in yesterday&apos;s release. Return a <code className="rounded bg-white/8 px-1 py-0.5 text-cyan-200">200</code> before processing the payload asynchronously, then verify against the raw request body.
+                      </p>
+                      <div className="mt-2.5 rounded-lg border-l-2 border-blue-400 bg-blue-500/[0.08] px-3 py-2">
+                        <div className="text-[9px] text-white/30">docs.answerloops.com</div>
+                        <div className="mt-0.5 text-[10px] font-medium text-blue-200">Webhook signature migration guide ↗</div>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             )}
+
+            {visibleStep >= 4 && (
+              <div className="demo-enter flex gap-3">
+                <LogoMark size={32} className="shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 text-[10px]">
+                    <span className="font-semibold text-white/85">AnswerLoops</span>
+                    <span className="ml-2 rounded bg-blue-500/20 px-1.5 py-0.5 text-[8px] font-bold text-blue-200">APP</span>
+                    <span className="ml-2 text-white/25">Today at 9:42 AM</span>
+                  </div>
+                  <p className="max-w-md text-[11px] leading-[1.65] text-white/70 sm:text-xs">
+                    Found it — signature validation became stricter in yesterday&apos;s release. Return a <code className="rounded bg-white/8 px-1 py-0.5 text-cyan-200">200</code> before processing the payload asynchronously, then verify against the raw request body.
+                  </p>
+                  <div className="mt-2.5 max-w-sm rounded-lg border-l-2 border-blue-400 bg-blue-500/[0.08] px-3 py-2">
+                    <div className="text-[9px] text-white/30">docs.answerloops.com</div>
+                    <div className="mt-0.5 text-[10px] font-medium text-blue-200">Webhook signature migration guide ↗</div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/15 bg-emerald-400/8 px-2.5 py-1 text-[9px] font-medium text-emerald-300">
+                      <CheckIcon className="h-3 w-3" />
+                      Auto-answered
+                    </span>
+                    <span className="text-[9px] text-white/25">2.8s · 3 cited sources</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mx-4 mb-4 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2.5 text-[10px] text-white/20 sm:mx-5">
+            Message #support
+            <span className="ml-auto rounded border border-white/8 px-1.5 py-0.5 text-[8px]">⌘ K</span>
           </div>
         </div>
-      </div>
 
-      {/* ── Scene 2: AnswerLoops dashboard ── */}
-      <div
-        className={`bg-[#0b0d14] p-4 sm:p-6 transition-opacity duration-500 min-h-[300px] sm:min-h-[340px] flex flex-col ${scene === 'dashboard' ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <LogoMark size={22} />
-          <span className="text-sm font-semibold text-white">AnswerLoops</span>
-          <span className="text-xs text-white/30">/ Tickets</span>
-        </div>
+        <aside className="hidden border-l border-white/8 bg-black/10 p-4 md:block">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-white/70">Live workflow</span>
+            <span className="rounded-full bg-blue-500/12 px-2 py-1 text-[8px] font-medium text-blue-200">Ticket #2841</span>
+          </div>
 
-        <div className="rounded-xl border border-white/10 bg-white p-4 shadow-xl">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-gray-400">#42</span>
-              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">how_to</span>
-              <span
-                className={`rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 transition-all duration-300 ${badgeIn ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
-              >
-                Auto-answered · 95%
+          <div className="relative space-y-1">
+            <div className="absolute bottom-5 left-[11px] top-5 w-px bg-white/8" />
+            <div
+              className="demo-progress absolute left-[11px] top-5 w-px origin-top bg-gradient-to-b from-blue-400 to-cyan-300 transition-[height] duration-700"
+              style={{ height: `${Math.max(0, visibleStep) * 47}px` }}
+            />
+            {PIPELINE.map((item) => {
+              const active = visibleStep === item.step
+              const complete = visibleStep > item.step
+              return (
+                <div key={item.label} className="relative flex min-h-[46px] gap-3">
+                  <div
+                    className={`relative z-10 mt-1 flex h-[23px] w-[23px] shrink-0 items-center justify-center rounded-full border transition-all duration-500 ${
+                      complete
+                        ? 'border-blue-400 bg-blue-500 text-white'
+                        : active
+                          ? 'border-cyan-300 bg-cyan-300/15 text-cyan-200 shadow-[0_0_18px_rgba(103,232,249,0.25)]'
+                          : 'border-white/10 bg-[#0b1120] text-white/20'
+                    }`}
+                  >
+                    {complete ? <CheckIcon className="h-3 w-3" /> : <span className="text-[8px]">{item.step + 1}</span>}
+                  </div>
+                  <div className={`pt-0.5 transition-opacity duration-500 ${active || complete ? 'opacity-100' : 'opacity-35'}`}>
+                    <div className="text-[9px] font-medium text-white/80">{item.label}</div>
+                    <div className={`mt-0.5 text-[8px] ${active ? 'text-cyan-200/80' : 'text-white/25'}`}>{item.detail}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="mt-3 rounded-xl border border-white/8 bg-white/[0.035] p-3">
+            <div className="mb-2 flex items-center justify-between text-[8px] uppercase tracking-[0.14em] text-white/25">
+              Confidence
+              <span className={visibleStep >= 3 ? 'text-emerald-300' : 'text-white/25'}>
+                {visibleStep >= 3 ? '96%' : '—'}
               </span>
             </div>
-            <span className="text-[11px] text-gray-400 shrink-0">Just now</span>
+            <div className="h-1 overflow-hidden rounded-full bg-white/8">
+              <div className={`h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-300 transition-all duration-1000 ${visibleStep >= 3 ? 'w-[96%]' : 'w-0'}`} />
+            </div>
+            <div className="mt-3 flex items-center gap-1.5 text-[8px] text-white/30">
+              <span className={`h-1.5 w-1.5 rounded-full ${visibleStep >= 4 ? 'bg-emerald-400' : 'bg-white/15'}`} />
+              {visibleStep >= 4 ? 'No human review needed' : 'Threshold: 90%'}
+            </div>
           </div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">
-            Can&apos;t get webhooks to fire for social media scheduling tool
-          </h3>
-          <p className="text-xs text-gray-500 leading-relaxed mb-3">
-            jordan_dev · #support · Discord
-          </p>
-          <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" /></svg>
-            Resolved automatically — no human review needed
-          </div>
-        </div>
-
-        <div className="flex-1" />
+        </aside>
       </div>
+
+      <div className="relative grid grid-cols-3 border-t border-white/8 bg-black/20">
+        {[
+          ['2.8 sec', 'time to answer'],
+          ['3', 'grounding sources'],
+          ['0', 'human touches'],
+        ].map(([value, label]) => (
+          <div key={label} className="border-r border-white/8 px-3 py-3 text-center last:border-r-0 sm:py-3.5">
+            <div className="text-xs font-semibold text-white sm:text-sm">{value}</div>
+            <div className="mt-0.5 text-[8px] text-white/30 sm:text-[9px]">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      <span className="sr-only" role="status" aria-live="polite">
+        {STEP_LABELS[step]}
+      </span>
     </div>
   )
 }

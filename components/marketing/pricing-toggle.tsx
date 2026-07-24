@@ -4,9 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ANNUAL_DISCOUNT_PCT, annualMonthlyPrice, type Plan } from '@/lib/billing/plans'
 
-function CheckIcon() {
+function CheckIcon({ inverted = false }: { inverted?: boolean }) {
   return (
-    <svg className="h-3.5 w-3.5 text-brand-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <svg className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${inverted ? 'text-cyan-300' : 'text-blue-600'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
       <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
@@ -39,29 +39,42 @@ const PLAN_FEATURES: Record<string, string[]> = {
   ],
 }
 
+const PLAN_DESCRIPTIONS: Record<string, string> = {
+  pro: 'For small teams ready to remove repeat support from the daily queue.',
+  scale: 'For growing communities that need deeper insight and escalation control.',
+  enterprise: 'For high-volume or regulated teams with custom operational requirements.',
+}
+
 export function PricingToggle({ plans }: { plans: Plan[] }) {
   const [annual, setAnnual] = useState(true)
 
   return (
     <>
-      <div className="flex items-center justify-center gap-3">
-        <span className={`text-sm font-medium transition-colors ${!annual ? 'text-gray-900' : 'text-gray-400'}`}>Monthly</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={annual}
-          onClick={() => setAnnual((v) => !v)}
-          className={`relative inline-flex h-7 w-13 shrink-0 items-center rounded-full transition-colors ${annual ? 'bg-brand-600' : 'bg-gray-300'}`}
-        >
-          <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${annual ? 'translate-x-7' : 'translate-x-1'}`} />
-        </button>
-        <span className={`text-sm font-medium transition-colors ${annual ? 'text-gray-900' : 'text-gray-400'}`}>
-          Annual
-          <span className="ml-1.5 rounded-full bg-brand-100 px-2 py-0.5 text-[11px] font-semibold text-brand-700">Save {ANNUAL_DISCOUNT_PCT}%</span>
-        </span>
+      <div className="flex flex-col items-center justify-between gap-5 px-2 pb-5 sm:flex-row sm:px-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600">Hosted plans</div>
+          <p className="mt-1 text-sm font-medium text-slate-900">The complete support loop, managed for you.</p>
+        </div>
+        <div className="flex items-center rounded-full border border-slate-200 bg-slate-100/80 p-1 shadow-[inset_0_1px_rgba(15,23,42,0.03)]">
+          <span className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${!annual ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}>Monthly</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={annual}
+            aria-label="Use annual billing"
+            onClick={() => setAnnual((v) => !v)}
+            className={`relative mx-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${annual ? 'bg-blue-600' : 'bg-slate-300'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${annual ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+          <span className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${annual ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}>
+            Annual
+          </span>
+          <span className="ml-1 mr-1 rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-emerald-700">Save {ANNUAL_DISCOUNT_PCT}%</span>
+        </div>
       </div>
 
-      <div className="mt-10 grid sm:grid-cols-3 gap-5">
+      <div className="grid gap-4 lg:grid-cols-3">
         {plans.map((plan) => {
           const isHighlight = plan.id === 'pro'
           const displayPrice = annual ? annualMonthlyPrice(plan) : plan.priceMonthly
@@ -69,45 +82,59 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
           return (
             <div
               key={plan.id}
-              className={`relative rounded-2xl border-2 p-7 flex flex-col ${isHighlight ? 'border-brand-500 bg-brand-50/40 shadow-lg' : 'border-gray-200 bg-white'}`}
+              className={`relative flex min-h-[540px] flex-col overflow-hidden rounded-[1.75rem] border p-7 transition duration-300 hover:-translate-y-1 ${
+                isHighlight
+                  ? 'border-blue-400/20 bg-[#07101f] text-white shadow-[0_26px_65px_rgba(15,23,42,0.22)]'
+                  : 'border-slate-200/90 bg-white text-slate-950 shadow-[0_16px_45px_rgba(30,64,175,0.055)] hover:shadow-[0_22px_60px_rgba(30,64,175,0.1)]'
+              }`}
             >
               {isHighlight && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="rounded-full bg-brand-600 px-3 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider shadow">
+                <>
+                  <div className="landing-grid pointer-events-none absolute inset-0 opacity-30" />
+                  <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-500/25 blur-[90px]" />
+                </>
+              )}
+              {isHighlight && (
+                <div className="relative mb-7">
+                  <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.13em] text-cyan-200">
                     Most popular
                   </span>
                 </div>
               )}
-              <div className="text-base font-semibold text-gray-900">{plan.name}</div>
-              <div className="mt-4 flex items-end gap-1">
-                <span className="text-4xl font-bold text-gray-900">${(displayPrice / 100).toFixed(0)}</span>
-                <span className="text-sm text-gray-500 mb-1.5">/mo</span>
+              {!isHighlight && <div className="relative mb-7 text-[9px] font-bold uppercase tracking-[0.13em] text-slate-400">Hosted</div>}
+              <div className={`relative text-lg font-semibold ${isHighlight ? 'text-white' : 'text-slate-950'}`}>{plan.name}</div>
+              <p className={`relative mt-2 min-h-16 text-xs leading-relaxed ${isHighlight ? 'text-slate-200/65' : 'text-slate-500'}`}>
+                {PLAN_DESCRIPTIONS[plan.id]}
+              </p>
+              <div className="relative mt-5 flex items-end gap-1">
+                <span className={`text-5xl font-semibold tracking-[-0.05em] ${isHighlight ? 'text-white' : 'text-slate-950'}`}>${(displayPrice / 100).toFixed(0)}</span>
+                <span className={`mb-1.5 text-sm ${isHighlight ? 'text-white/50' : 'text-slate-500'}`}>/mo</span>
               </div>
               {annual && (
-                <div className="mt-1 text-xs text-gray-400">billed annually · ${((displayPrice * 12) / 100).toFixed(0)}/yr</div>
+                <div className={`relative mt-1 text-[10px] ${isHighlight ? 'text-white/45' : 'text-slate-400'}`}>billed annually · ${((displayPrice * 12) / 100).toFixed(0)}/yr</div>
               )}
-              <div className="mt-1 text-xs text-brand-600 font-medium">14-day free trial</div>
-              <div className="mt-3 text-sm text-gray-500">
+              <div className={`relative mt-2 text-xs font-semibold ${isHighlight ? 'text-emerald-300' : 'text-emerald-700'}`}>14-day free trial</div>
+              <div className={`relative mt-4 border-t pt-4 text-xs font-medium ${isHighlight ? 'border-white/10 text-blue-100' : 'border-slate-100 text-blue-700'}`}>
                 {plan.deflectionsPerMonth === null
                   ? 'Unlimited deflections'
                   : `${plan.deflectionsPerMonth.toLocaleString()} deflections/mo`}
               </div>
 
-              <ul className="mt-6 space-y-2 flex-1">
+              <ul className="relative mt-6 flex-1 space-y-2.5">
                 {features.map((f) => (
                   <li key={f} className="flex items-start gap-2">
-                    <CheckIcon />
-                    <span className="text-xs text-gray-600">{f}</span>
+                    <CheckIcon inverted={isHighlight} />
+                    <span className={`text-xs leading-relaxed ${isHighlight ? 'text-slate-200/75' : 'text-slate-600'}`}>{f}</span>
                   </li>
                 ))}
               </ul>
 
               <Link
                 href="#waitlist"
-                className={`mt-8 w-full rounded-xl py-2.5 text-center text-xs font-semibold transition-colors ${
+                className={`relative mt-8 w-full rounded-full py-3 text-center text-xs font-semibold transition ${
                   isHighlight
-                    ? 'bg-brand-600 text-white hover:bg-brand-700'
-                    : 'border-2 border-gray-200 text-gray-700 hover:bg-gray-50'
+                    ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-600/20 hover:brightness-110'
+                    : 'border border-slate-200 bg-slate-50 text-slate-800 hover:border-blue-200 hover:bg-blue-50'
                 }`}
               >
                 Join the waitlist

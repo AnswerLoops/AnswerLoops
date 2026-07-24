@@ -2063,12 +2063,13 @@ interface ApiKeyRow {
   revoked_at: string | null
 }
 
-function ApiKeysSection() {
+export function ApiKeysSection() {
   const [keys, setKeys] = useState<ApiKeyRow[] | null>(null)
   const [newKeyName, setNewKeyName] = useState('')
   const [plaintextKey, setPlaintextKey] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [confirmRevoke, setConfirmRevoke] = useState<number | null>(null)
+  const [revokeError, setRevokeError] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
   const loadKeys = useCallback(async () => {
@@ -2093,11 +2094,22 @@ function ApiKeysSection() {
 
   function revoke(keyId: number) {
     setConfirmRevoke(null)
+    setRevokeError(null)
     startTransition(async () => {
-      const fd = new FormData()
-      fd.set('keyId', String(keyId))
-      await revokeApiKeyAction(null, fd)
-      await loadKeys()
+      try {
+        const fd = new FormData()
+        fd.set('keyId', String(keyId))
+        const result = await revokeApiKeyAction(null, fd)
+        if (result?.error) {
+          setRevokeError(result.error)
+          return
+        }
+        setKeys((current) => current?.filter((key) => key.id !== keyId) ?? current)
+        setPlaintextKey(null)
+      } catch {
+        setRevokeError('Could not revoke this key. Please try again.')
+        await loadKeys()
+      }
     })
   }
 
@@ -2128,19 +2140,19 @@ function ApiKeysSection() {
           scoped to this org. See <a href="https://answerloops.mintlify.site/integrations/mcp" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">the MCP docs</a> for setup.
         </p>
 
-        <form action={createAction} className="flex gap-2">
+        <form action={createAction} className="flex flex-col gap-2 sm:flex-row">
           <input
             name="name"
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
             placeholder="e.g. Claude Code (laptop)"
-            className="flex-1 rounded border border-gray-200 px-3 py-1.5 text-sm"
+            className="w-full min-w-0 flex-1 rounded border border-gray-200 px-3 py-1.5 text-sm"
             maxLength={100}
           />
           <select
             name="expiresInDays"
             defaultValue=""
-            className="rounded border border-gray-200 px-2 py-1.5 text-sm text-gray-700"
+            className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm text-gray-700 sm:w-auto"
             title="Expiry"
           >
             <option value="">Never expires</option>
@@ -2148,9 +2160,11 @@ function ApiKeysSection() {
             <option value="90">90 days</option>
             <option value="365">1 year</option>
           </select>
-          <Button type="submit" size="sm" disabled={creating || !newKeyName.trim()}>
-            {creating ? 'Creating…' : 'Create key'}
-          </Button>
+          <div className="w-full sm:w-auto">
+            <Button type="submit" size="sm" disabled={creating || !newKeyName.trim()} className="w-full sm:w-auto">
+              {creating ? 'Creating…' : 'Create key'}
+            </Button>
+          </div>
         </form>
         {createState?.error && <p className="text-xs text-red-600">{createState.error}</p>}
 
@@ -2182,33 +2196,31 @@ function ApiKeysSection() {
           <p className="text-sm text-gray-400 p-4">No API keys yet.</p>
         ) : (
           keys.map((k) => {
-            const revoked = !!k.revoked_at
-            const expired = !revoked && !!k.expires_at && new Date(k.expires_at) < new Date()
+            const expired = !!k.expires_at && new Date(k.expires_at) < new Date()
             return (
-              <div key={k.id} className={`flex items-center justify-between px-4 py-3 ${revoked || expired ? 'opacity-50' : ''}`}>
-                <div>
+              <div key={k.id} className={`flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${expired ? 'opacity-50' : ''}`}>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900">{k.name}</p>
-                  <p className="text-xs text-gray-400 font-mono">
+                  <p className="break-all text-xs font-mono text-gray-400">
                     {k.key_prefix}••••••••
-                    {revoked ? ' · revoked' : expired ? ' · expired' : k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString()}` : ' · never used'}
-                    {!revoked && !expired && k.expires_at ? ` · expires ${new Date(k.expires_at).toLocaleDateString()}` : ''}
+                    {expired ? ' · expired' : k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString()}` : ' · never used'}
+                    {!expired && k.expires_at ? ` · expires ${new Date(k.expires_at).toLocaleDateString()}` : ''}
                   </p>
                 </div>
-                {!revoked && (
-                  confirmRevoke === k.id ? (
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="danger" onClick={() => revoke(k.id)}>Confirm</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setConfirmRevoke(null)}>Cancel</Button>
-                    </div>
-                  ) : (
-                    <Button size="sm" variant="ghost" onClick={() => setConfirmRevoke(k.id)}>Revoke</Button>
-                  )
+                {confirmRevoke === k.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="danger" onClick={() => revoke(k.id)}>Confirm</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmRevoke(null)}>Cancel</Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmRevoke(k.id)}>Revoke</Button>
                 )}
               </div>
             )
           })
         )}
       </div>
+      {revokeError && <p role="alert" className="text-xs text-red-600">{revokeError}</p>}
     </div>
   )
 }
@@ -2413,20 +2425,27 @@ export default function SettingsPage() {
   }, [])
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-lg font-semibold text-gray-900 mb-4">Settings</h1>
+    <div className="dashboard-page max-w-6xl">
+      <div className="mb-6">
+        <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">
+          <span className="h-px w-5 bg-blue-500" />
+          Workspace configuration
+        </div>
+        <h1 className="text-2xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-3xl">Settings</h1>
+        <p className="mt-1 text-sm text-slate-500">Manage integrations, AI behavior, team access, and customer-facing channels.</p>
+      </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-gray-200 mb-6 overflow-x-auto">
+      <div className="mb-7 flex gap-1 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/80 p-1.5 shadow-sm">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setTab(tab.id)}
             className={[
-              'px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
+              'rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
               activeTab === tab.id
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300',
+                ? 'bg-[#07101f] text-white shadow-md'
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900',
             ].join(' ')}
           >
             {tab.label}

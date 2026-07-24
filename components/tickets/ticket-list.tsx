@@ -32,17 +32,17 @@ function SLAIndicator({ ticket }: { ticket: Ticket }) {
 export function TicketList({ tickets }: { tickets: Ticket[] }) {
   if (tickets.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 px-6 py-12 text-center text-sm text-gray-500">
+      <div className="rounded-2xl border border-dashed border-blue-200 bg-[linear-gradient(145deg,#ffffff,#eff6ff)] px-6 py-16 text-center text-sm text-slate-500">
         No tickets found.
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+    <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(15,23,42,0.55)]">
       <table className="w-full text-sm min-w-[720px]">
         <thead>
-          <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs text-gray-500 font-medium">
+          <tr className="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <th className="px-4 py-2.5">#</th>
             <th className="px-4 py-2.5">Summary</th>
             <th className="px-4 py-2.5">Source</th>
@@ -57,10 +57,10 @@ export function TicketList({ tickets }: { tickets: Ticket[] }) {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {tickets.map((ticket) => (
-            <tr key={ticket.id} className="hover:bg-gray-50 transition-colors">
+            <tr key={ticket.id} className="transition-colors hover:bg-blue-50/45">
               <td className="px-4 py-3 text-gray-400">#{ticket.id}</td>
               <td className="px-4 py-3 max-w-xs">
-                <Link href={`/tickets/${ticket.id}`} className="text-gray-900 hover:text-brand-600 line-clamp-2">
+                <Link href={`/tickets/${ticket.id}`} className="line-clamp-2 font-medium text-slate-900 hover:text-blue-700">
                   {ticket.ai_summary ?? ticket.content.slice(0, 100)}
                 </Link>
               </td>

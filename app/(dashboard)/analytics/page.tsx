@@ -47,25 +47,30 @@ export default async function AnalyticsPage() {
   const responseTotal = sla.responseMet + sla.responseBreached
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="dashboard-page max-w-6xl space-y-7">
       <div>
-        <h1 className="text-lg font-semibold text-gray-900">Analytics</h1>
-        <p className="text-sm text-gray-500">How much the platform is deflecting — and what it's worth</p>
+        <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+          <span className="h-px w-6 bg-blue-500" />
+          Performance
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Analytics</h1>
+        <p className="mt-1 text-sm text-slate-500">See what the support agent resolves, where it hesitates, and the time your team gets back.</p>
       </div>
 
       {/* Hero ROI */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-lg border border-green-200 bg-green-50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-green-700">Staff time saved</p>
-          <p className="mt-1 text-3xl font-bold text-green-800">{hours(savings.hoursSaved)}</p>
-          <p className="text-xs text-green-700/80 mt-1">≈ {money(savings.dollarsSaved)} at {money(savings.hourlyRate)}/hr</p>
+        <div className="relative overflow-hidden rounded-2xl border border-blue-400/20 bg-[linear-gradient(135deg,#07101f_0%,#0b2d6e_100%)] p-5 text-white shadow-[0_20px_50px_-28px_rgba(37,99,235,0.9)]">
+          <div className="absolute -right-10 -top-16 h-36 w-36 rounded-full bg-cyan-400/20 blur-2xl" />
+          <p className="relative text-xs font-medium uppercase tracking-wide text-blue-200">Staff time saved</p>
+          <p className="relative mt-1 text-3xl font-bold text-white">{hours(savings.hoursSaved)}</p>
+          <p className="relative mt-1 text-xs text-blue-100/80">≈ {money(savings.dollarsSaved)} at {money(savings.hourlyRate)}/hr</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
+        <div className="rounded-2xl border border-blue-100 bg-[linear-gradient(145deg,#ffffff_20%,#eff6ff_100%)] p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Deflection rate</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{pct(rate)}</p>
           <p className="text-xs text-gray-500 mt-1">{stats.deflected} of {stats.answered} answered auto-resolved</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Questions handled</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{stats.totalTickets}</p>
           <p className="text-xs text-gray-500 mt-1">{savings.minutesPerTicket} min saved per deflection</p>
