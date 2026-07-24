@@ -129,19 +129,24 @@ export default function SimulationPage() {
   const doneCount = progress.filter(e => e.done).length
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="dashboard-page max-w-6xl space-y-7">
       <div>
-        <h1 className="text-2xl font-bold text-white">Simulation Mode</h1>
-        <p className="text-gray-400 mt-1 text-sm">
+        <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">
+          <span className="h-px w-5 bg-blue-500" />
+          Safe evaluation
+        </div>
+        <h1 className="text-2xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-3xl">Simulation Mode</h1>
+        <p className="mt-1 text-sm text-slate-500">
           Replay historical tickets through the AI pipeline — no writes, no messages sent.
           Compare what the AI <em>would</em> do against what actually happened.
         </p>
       </div>
 
       {/* Config */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Configuration</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="relative overflow-hidden rounded-2xl border border-blue-400/15 bg-[linear-gradient(135deg,#07101f_0%,#0b2251_100%)] p-5 shadow-[0_24px_65px_-36px_rgba(37,99,235,0.85)] sm:p-6">
+        <div className="pointer-events-none absolute -right-12 -top-24 h-52 w-52 rounded-full bg-cyan-400/15 blur-3xl" />
+        <h2 className="relative text-xs font-semibold uppercase tracking-[0.16em] text-blue-200">Simulation controls</h2>
+        <div className="relative mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label className="block text-xs text-gray-400 mb-1">Tickets to replay</label>
             <input
@@ -184,7 +189,7 @@ export default function SimulationPage() {
         <button
           onClick={run}
           disabled={running}
-          className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors"
+          className="relative mt-5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-950/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {running ? 'Running simulation…' : 'Run simulation'}
         </button>

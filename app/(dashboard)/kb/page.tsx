@@ -570,10 +570,14 @@ export default function KBPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="dashboard-page max-w-6xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-gray-900">Knowledge Base</h1>
-        <p className="text-sm text-gray-500">Resolved answers, uploaded docs, and crawled pages — all semantically searchable</p>
+        <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+          <span className="h-px w-6 bg-blue-500" />
+          Answer intelligence
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Knowledge Base</h1>
+        <p className="mt-1 text-sm text-slate-500">Give every channel one current, searchable source of truth.</p>
       </div>
 
       <GitHubKBSection onSynced={loadAll} />
@@ -581,7 +585,7 @@ export default function KBPage() {
       <UrlIngestSection onImported={loadAll} />
       <SourcesList key={sourcesKey} onDeleted={() => { loadAll(); refreshSources() }} />
 
-      <form onSubmit={search} className="flex flex-wrap items-center gap-2">
+      <form onSubmit={search} className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
         <div className="relative w-full sm:flex-1 sm:w-auto">
           <input
             value={query}

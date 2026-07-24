@@ -33,12 +33,16 @@ export default function FAQPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="dashboard-page max-w-5xl space-y-6">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">FAQ</h1>
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+            <span className="h-px w-6 bg-blue-500" />
+            Published answers
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">FAQ</h1>
           {faq && (
-            <p className="text-sm text-gray-500">
+            <p className="mt-1 text-sm text-slate-500">
               Generated {new Date(faq.generated_at).toLocaleDateString()} · {faq.ticket_count} tickets
             </p>
           )}
@@ -60,7 +64,7 @@ export default function FAQPage() {
       )}
 
       {faq?.content && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6 prose prose-sm max-w-none">
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 prose prose-sm max-w-none sm:p-8">
           <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans leading-relaxed">{faq.content}</pre>
         </div>
       )}

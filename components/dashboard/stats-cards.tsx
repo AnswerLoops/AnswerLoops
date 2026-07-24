@@ -23,6 +23,7 @@ export function StatsCards({ total, open, inProgress, resolved, slaBreaches, pen
       ),
       accent: autoDeflected > 0,
       accentClass: 'text-brand-600',
+      featured: 'dark',
     },
     {
       label: 'Deflection Rate',
@@ -34,6 +35,7 @@ export function StatsCards({ total, open, inProgress, resolved, slaBreaches, pen
       ),
       accent: deflectionRate > 0,
       accentClass: 'text-brand-600',
+      featured: 'blue',
     },
     {
       label: 'Open',
@@ -101,23 +103,45 @@ export function StatsCards({ total, open, inProgress, resolved, slaBreaches, pen
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {cards.map((card) => (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {cards.map((card, index) => {
+        const featured = 'featured' in card ? card.featured : undefined
+        const isDark = featured === 'dark'
+        const isBlue = featured === 'blue'
+        return (
         <div
           key={card.label}
-          className="rounded-xl border border-border bg-surface p-4 shadow-sm shadow-ink-900/[0.03] transition-shadow hover:shadow-md hover:shadow-ink-900/[0.05]"
+          className={`group relative overflow-hidden rounded-2xl border p-4 transition duration-200 hover:-translate-y-0.5 ${
+            isDark
+              ? 'border-blue-400/15 bg-[#07101f] text-white shadow-[0_18px_45px_rgba(15,23,42,0.17)]'
+              : isBlue
+                ? 'border-blue-500/15 bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-[0_18px_45px_rgba(37,99,235,0.18)]'
+                : 'border-slate-200/80 bg-white/90 shadow-[0_12px_32px_rgba(30,64,175,0.05)] hover:shadow-[0_16px_40px_rgba(30,64,175,0.09)]'
+          }`}
         >
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-ink-500">{card.label}</p>
-            <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${card.accent ? 'bg-brand-50' : 'bg-gray-100'} ${card.accent && card.accentClass ? card.accentClass : 'text-ink-400'}`}>
+          {(isDark || isBlue) && <div className="landing-grid pointer-events-none absolute inset-0 opacity-25" />}
+          <div className="relative mb-4 flex items-center justify-between">
+            <p className={`text-[11px] font-semibold ${isDark || isBlue ? 'text-white/65' : 'text-slate-500'}`}>{card.label}</p>
+            <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${
+              isDark || isBlue
+                ? 'border border-white/10 bg-white/[0.08] text-cyan-200'
+                : card.accent
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'bg-slate-100 text-slate-400'
+            }`}>
               {card.icon}
             </div>
           </div>
-          <p className={`text-2xl font-bold tracking-tight ${card.accent && card.accentClass ? card.accentClass : 'text-ink-900'}`}>
+          <p className={`relative text-3xl font-semibold tracking-[-0.045em] ${
+            isDark || isBlue ? 'text-white' : card.accent && card.accentClass ? card.accentClass : 'text-slate-950'
+          }`}>
             {card.display}
           </p>
+          <div className={`relative mt-3 h-0.5 overflow-hidden rounded-full ${isDark || isBlue ? 'bg-white/10' : 'bg-slate-100'}`}>
+            <div className={`h-full rounded-full ${index < 2 ? 'w-3/4 bg-cyan-300' : 'w-1/3 bg-blue-400/55'}`} />
+          </div>
         </div>
-      ))}
+      )})}
     </div>
   )
 }

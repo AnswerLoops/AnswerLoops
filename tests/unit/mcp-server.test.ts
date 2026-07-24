@@ -300,6 +300,13 @@ describe('lib/db/queries/api-keys: org-scoped key lifecycle', () => {
     expect(fnBody).toContain('and(eq(apiKeys.id, keyId), eq(apiKeys.orgId, orgId))')
   })
 
+  it('listApiKeys excludes revoked records from the workspace credential list', () => {
+    const s = src()
+    const fnStart = s.indexOf('export async function listApiKeys')
+    const fnBody = s.slice(fnStart, fnStart + 500)
+    expect(fnBody).toContain('and(eq(apiKeys.orgId, orgId), isNull(apiKeys.revokedAt))')
+  })
+
   it('resolveApiKey rejects revoked keys (isNull filter) and expired keys (explicit date check)', () => {
     const s = src()
     const fnStart = s.indexOf('export async function resolveApiKey')

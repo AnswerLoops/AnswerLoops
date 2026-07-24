@@ -31,7 +31,7 @@ Not using an MCP-native client? The [Agent API](/integrations/agent-api) exposes
 }
 ```
 
-Revoke a key any time from the same page — revoked keys are rejected immediately and shown greyed out in the list rather than deleted, so usage history stays auditable.
+Revoke a key any time from the same page. It is rejected immediately and removed from the active-key list. AnswerLoops retains the revoked database record for audit history without presenting it as a usable workspace credential.
 
 ## Transport
 
