@@ -79,7 +79,7 @@ describe('API keys settings section', () => {
   })
 
   it('removes a revoked key row immediately after the server confirms success', async () => {
-    vi.mocked(revokeApiKeyAction).mockResolvedValue({ success: true })
+    vi.mocked(revokeApiKeyAction).mockResolvedValue(null)
     const user = userEvent.setup()
     render(<ApiKeysSection />)
 

@@ -31,6 +31,11 @@ minimumReleaseAgeExclude:
   - '@next/swc-linux-x64-musl@16.2.11'
   - '@next/swc-win32-arm64-msvc@16.2.11'
   - '@next/swc-win32-x64-msvc@16.2.11'
+  # 1 critical (email-normalizer homoglyph bypass) + 2 high Auth.js advisories
+  # fixed only in next-auth 5.0.0-beta.32 / @auth/core 0.41.3 — first-party
+  # Auth.js release, can't wait out the normal 7-day aging window.
+  - 'next-auth@5.0.0-beta.32'
+  - '@auth/core@0.41.3'
 overrides:
   ws: '>=8.21.0'
   shell-quote: '>=1.8.5'   # GHSA-395f-4hp3-45gv — >=1.8.4 wasn't actually patched, 1.8.4 itself is vulnerable
