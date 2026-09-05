@@ -126,6 +126,16 @@ These are platform-wide defaults. Individual orgs can override the AI model in *
 | `FIRECRAWL_API_KEY` | Firecrawl API key — required for KB URL crawl imports |
 | `FIRECRAWL_API_URL` | Optional. Point at a self-hosted Firecrawl instance instead of the managed service |
 
+## Per-org integrations (no environment variable)
+
+Discourse, Circle, and the Notion KB source are configured entirely per-organization — there is no platform-wide app or shared credential to set here. Each org pastes its own token or secret in Settings, encrypted at rest with `ENCRYPTION_KEY` (above).
+
+| Integration | Where it's configured | Setup guide |
+|---|---|---|
+| Discourse | Settings → Discourse | [Discourse](/docs/integrations/discourse) |
+| Circle | Settings → Circle | [Circle](/docs/integrations/circle) |
+| Notion KB source | Settings → Notion | [Notion](/docs/integrations/notion) |
+
 ## Analytics tuning
 
 | Variable | Description |
