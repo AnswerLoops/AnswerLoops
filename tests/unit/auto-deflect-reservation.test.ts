@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { sql } from 'drizzle-orm'
+import type { reserveAutoDeflect } from '@/lib/billing/usage'
 
 // Behavioural coverage for lib/billing/usage.ts's reserveAutoDeflect, the fix
 // for the ingest auto-deflect path (Discord/Slack/Telegram/Email) calling the
@@ -76,11 +77,20 @@ const find = (needle: string) => calls.filter((c) => c.sql.includes(needle))
 
 // The write-marker query lets a caller-supplied writeDecision leave a trace
 // in `calls` tagged with whichever handle it actually received.
+// Derived from the real signature rather than restated, so this follows any
+// change to reserveAutoDeflect's contract instead of drifting from it.
+type DecisionTx = Parameters<Parameters<typeof reserveAutoDeflect>[1]>[0]
+
 function markerWriteDecision() {
   const invocations: { tx: unknown; allowed: boolean }[] = []
-  const fn = vi.fn(async (tx: { execute: (q: ReturnType<typeof sql>) => Promise<unknown> }, allowed: boolean) => {
+  // `tx` is typed as the production contract (Pick<db, 'insert'>) so the mock
+  // is actually assignable to it. The marker write reaches past that contract
+  // on purpose: the handle really is a full drizzle driver at runtime, and
+  // `execute` is what tags the statement with which handle it landed on.
+  const fn = vi.fn(async (tx: DecisionTx, allowed: boolean) => {
     invocations.push({ tx, allowed })
-    await tx.execute(sql`-- writeDecision marker ${allowed}`)
+    const executable = tx as DecisionTx & { execute: (q: ReturnType<typeof sql>) => Promise<unknown> }
+    await executable.execute(sql`-- writeDecision marker ${allowed}`)
   })
   return { fn, invocations }
 }

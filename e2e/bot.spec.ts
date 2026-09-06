@@ -36,6 +36,9 @@ function message(over: Partial<IncomingMessage> = {}): IncomingMessage {
     id: 'msg-1',
     content: 'a sufficiently long question',
     channelId: 'chan-1',
+    // Required on IncomingMessage. Without it here the Partial<> spread leaves
+    // guildId possibly-undefined, which the return type does not allow.
+    guildId: null,
     author: { bot: false, id: 'user-1', username: 'bob' },
     channel: { isThread: () => false, parentId: null },
     ...over,
