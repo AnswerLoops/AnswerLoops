@@ -1701,6 +1701,10 @@ function EmailDomainSection({ onVerified }: { onVerified: () => void }) {
     }
   }
 
+  // Mount-only. `reload` is redeclared every render and closes over the
+  // `onVerified` prop, which the parent does not memoize — adding either to the
+  // dep array re-runs this fetch on every parent render rather than once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload() }, [])
 
   const [startState, startAction, startPending] = useActionState(
@@ -1904,6 +1908,10 @@ function EmailOauthSection({ onConnected }: { onConnected: () => void }) {
     if (data?.status === 'connected') onConnected()
   }
 
+  // Mount-only. `reload` is redeclared every render and closes over the
+  // `onConnected` prop, which the parent does not memoize — adding either to the
+  // dep array re-runs this fetch on every parent render rather than once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload() }, [])
 
   useEffect(() => {
