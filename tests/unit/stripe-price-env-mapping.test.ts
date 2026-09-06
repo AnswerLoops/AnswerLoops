@@ -94,11 +94,11 @@ describe('each plan resolves the env var matching its own id', () => {
 describe('documented env vars match what the code reads', () => {
   // The docs are how a deployment gets configured, so a var named in the code
   // but absent from the docs produces exactly this bug in the next environment.
-  // .env.example is the canonical local reference (README's setup flow is
-  // literally `cp .env.example .env`); ENV-VARS.md was a hand-maintained
-  // duplicate of it that drifted and was retired rather than kept in sync.
+  // .env.example is deliberately NOT one of these: it's the self-hosting
+  // quick-start template, and Stripe/billing vars are cloud-platform-only —
+  // a self-hoster never sets them. content/docs/reference/environment-variables.mdx
+  // is the canonical reference for every variable, self-hosted or not.
   const docs = [
-    '.env.example',
     'content/docs/reference/environment-variables.mdx',
   ]
 
