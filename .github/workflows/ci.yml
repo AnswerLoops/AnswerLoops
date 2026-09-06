@@ -67,3 +67,36 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build
+
+  lint-and-types:
+    name: Lint + types
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `.source` is generated and gitignored, so it does not exist on a fresh
+      # checkout — without this, typecheck fails on lib/docs/source.ts alone
+      # ("Cannot find module '@/.source/server'"). Same ordering `prebuild` uses.
+      - run: pnpm exec fumadocs-mdx
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm test:e2e:typecheck

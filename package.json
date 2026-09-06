@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "oxlint",
+    "typecheck": "tsc --noEmit",
     "bot": "tsx watch bot/index.ts",
     "bot:start": "tsx bot/index.ts",
     "dev:all": "concurrently \"pnpm dev\" \"pnpm bot\"",
