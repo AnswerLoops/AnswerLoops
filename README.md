@@ -12,7 +12,7 @@
 
 </div>
 
-# AnswerLoops — AI support that lives in your community
+# answerLoops — AI support that lives in your community
 
 **Your community asks the same questions every day. AnswerLoops answers them in the channel, and only when it has a good answer.**
 
