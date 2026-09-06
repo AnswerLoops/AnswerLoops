@@ -10,21 +10,24 @@ scope spans 3+ files.
 
 ## Step 1 — full scan (both tools, all severities)
 
-Run Trivy and Semgrep in parallel:
+Run Trivy and Semgrep in parallel. Write logs to a private scratch dir, not
+`/tmp` (scan output can contain redacted-but-sensitive context):
 
 ```bash
+SCAN_DIR=$(mktemp -d)
+
 # Terminal 1 (background)
 trivy fs \
   --scanners vuln,secret,misconfig \
   --severity CRITICAL,HIGH,MEDIUM,LOW \
   --skip-dirs .pnpm-store,node_modules/.cache \
-  . 2>&1 | tee /tmp/trivy-full.txt &
+  . 2>&1 | tee "$SCAN_DIR/trivy-full.txt" &
 
 # Terminal 2 (background)
 semgrep scan \
   --config=auto \
   --no-rewrite-rule-ids \
-  . 2>&1 | tee /tmp/semgrep-full.txt &
+  . 2>&1 | tee "$SCAN_DIR/semgrep-full.txt" &
 
 wait
 ```
@@ -37,6 +40,10 @@ trivy fs --scanners vuln,secret,misconfig --severity CRITICAL,HIGH,MEDIUM,LOW \
 
 semgrep scan --config=auto --no-rewrite-rule-ids . 2>&1
 ```
+
+`semgrep --config=auto` fetches rules from the Semgrep registry over the
+network (rules only, not your code). If that call must be avoided, pin a local
+ruleset with `--config=<path>` instead.
 
 ---
 
@@ -55,7 +62,10 @@ For each finding, classify before touching any code:
 **Secret finding protocol:** if Trivy or Semgrep finds a secret (any severity):
 1. Stop everything else.
 2. Identify the file and line.
-3. Alert the user: file, line, secret type.
+3. Alert the user: file, line, secret type, and the env-var name if it can be
+   established. **Never print, quote, log, or paste the secret value** — not in
+   chat, tool output, commits, or the sign-off block. Redact scan output that
+   would carry it.
 4. Instruct user to cycle (revoke + regenerate) the credential immediately — assume compromised.
 5. Do not continue until the secret is removed from file AND git history.
 
@@ -107,22 +117,36 @@ If new findings appear that weren't in Step 1 — stop, triage, fix before proce
 
 ## Step 6 — commit
 
+This repo is public. Per AGENTS.md "Security information disclosure — HARD RULE",
+a commit message may say **only that a security issue was fixed** — nothing
+about how it worked, what it touched, which advisory it maps to, or why a
+suppression is safe.
+
 ```bash
 git add <changed files>
-git commit -m "security: <what was fixed>
+git commit -m "fix: patch a security issue in <area>
 
-<root cause of each finding>
-<why the fix addresses it>
-<any suppressed findings and why they are safe>"
+<one or two neutral sentences naming the part of the code that changed, in
+ plain terms. Keep it factual; say nothing about behaviour before the change.>"
 ```
 
-Commit message body must include:
-- Root cause for every fixed finding
-- Suppression justification for every nosemgrep / semgrepignore entry added
+Do not run `git commit` without explicit user approval (global rule). Stage,
+show the diff, and ask.
+
+The real detail — root cause per finding, why each fix works, every
+nosemgrep / semgrepignore justification — goes to the **internal Security page**
+(`$NOTION_SECURITY_ID`), never to the commit, PR, branch, or an issue. The
+`commit-msg` / `pre-commit` disclosure hooks are a backstop that matches
+vocabulary, not meaning — keep the message clean regardless.
 
 ---
 
 ## Step 7 — sign-off block
+
+**Local console only.** Never paste this block into a PR description, PR comment,
+issue, commit message, or any pushed file — it lists findings and their
+handling, which the disclosure rule keeps off every public surface. It is for
+the maintainer's terminal.
 
 Output this block when all findings are resolved and scans are clean:
 
