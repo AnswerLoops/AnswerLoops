@@ -166,9 +166,17 @@ If absent, email notifications skip silently — nothing breaks. Without `RESEND
 |---|---|
 | `FIRECRAWL_API_KEY` | API key from firecrawl.dev. Enables Settings → Import from URL to crawl docs sites into the KB. |
 
+## Discourse
+
+No environment variable. Each org connects its own Discourse forum in **Settings → Discourse** by pasting a bot-scoped API key, which is stored encrypted — make sure `ENCRYPTION_KEY` (above) is set before connecting in any real deployment. See [Discourse](/docs/integrations/discourse) for the full setup.
+
+## Circle
+
+No environment variable. Each org connects its own Circle community in **Settings → Circle** using a per-org webhook secret — make sure `ENCRYPTION_KEY` (above) is set before connecting in any real deployment. See [Circle](/docs/integrations/circle) for the full setup.
+
 ## Notion KB source
 
-No environment variable. Each org connects its own Notion workspace in **Settings → Notion** by pasting an internal integration token, which is stored encrypted — make sure `ENCRYPTION_KEY` (above) is set before connecting in any real deployment.
+No environment variable. Each org connects its own Notion workspace in **Settings → Notion** by pasting an internal integration token, which is stored encrypted — make sure `ENCRYPTION_KEY` (above) is set before connecting in any real deployment. See [Notion](/docs/integrations/notion) for the full setup.
 
 ## Web push notifications (optional)
 
