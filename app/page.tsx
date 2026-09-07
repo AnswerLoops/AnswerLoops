@@ -12,7 +12,7 @@ import { WorkflowDiagram } from '@/components/marketing/workflow-diagram'
 export const metadata: Metadata = {
   title: 'AnswerLoops — Support that lives in your community',
   description:
-    "Someone asks a question your community has already answered. AnswerLoops answers it again, right in your community channel — Discord, Slack, forums, GitHub, Telegram, email, and website chat — grounded in your knowledge, and only when it's confident enough to be right. Open source, self-hosted, and MCP/API-ready.",
+    "Someone asks a question your community has already answered. The AnswerLoops agent answers it again, right in your community channel — Discord, Slack, forums, GitHub, Telegram, email, and website chat — grounded in your knowledge, and checked by a second agent before it's confident enough to be right. Open source, self-hosted, and MCP/API-ready.",
   alternates: { canonical: '/' },
 }
 
@@ -72,7 +72,7 @@ function Hero() {
           </h1>
 
           <p className="landing-hero-rise [animation-delay:160ms] mx-auto mt-7 max-w-2xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-            Someone in your Discord asks a question you&apos;ve already answered. Nobody remembers, so they type it out again. AnswerLoops stops that: it reads your docs and resolved tickets, drafts a real answer right in your community channel — Discord, Slack, your forum, email — checks its own work, and only posts when it&apos;s confident enough to be right.
+            Someone in your Discord asks a question you&apos;ve already answered. Nobody remembers, so they type it out again. The AnswerLoops agent stops that: it reads your docs and resolved tickets, drafts a real answer right in your community channel — Discord, Slack, your forum, email — a second agent checks its work, and it only posts when that answer is confident enough to be right.
           </p>
 
           <div className="landing-hero-rise [animation-delay:240ms] mx-auto mt-9 max-w-xl">
@@ -626,7 +626,7 @@ function StructuredData() {
 export default function LandingPage() {
   return (
     <div className="landing-monochrome min-h-screen bg-white">
-      <PageSchema name="AnswerLoops — support that lives in your community" description="AI support that lives in your community across Discord, Slack, Discourse and Circle forums, GitHub, Telegram, email, and website chat — answered in your community channel, and only when confident enough to be right." path="/" />
+      <PageSchema name="AnswerLoops — support that lives in your community" description="AI support that lives in your community across Discord, Slack, Discourse and Circle forums, GitHub, Telegram, email, and website chat — answered in the channel, and only when confident enough to be right." path="/" />
       <StructuredData />
       <Nav />
       <main>
