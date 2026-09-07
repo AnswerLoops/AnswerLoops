@@ -12,7 +12,7 @@ import { WorkflowDiagram } from '@/components/marketing/workflow-diagram'
 export const metadata: Metadata = {
   title: 'AnswerLoops — Support that lives in your community',
   description:
-    'AI support that lives in your community: answer repeat questions right in the channel — Discord, Slack, forums, GitHub, Telegram, email, and website chat — and only when the answer is confident enough to be right. Open source, self-hosted, and MCP/API-ready.',
+    "Someone asks a question your community has already answered. AnswerLoops answers it again, right in the channel — Discord, Slack, forums, GitHub, Telegram, email, and website chat — grounded in your knowledge, and only when it's confident enough to be right. Open source, self-hosted, and MCP/API-ready.",
   alternates: { canonical: '/' },
 }
 
@@ -72,7 +72,7 @@ function Hero() {
           </h1>
 
           <p className="landing-hero-rise [animation-delay:160ms] mx-auto mt-7 max-w-2xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-            Your community asks the same questions every day. AnswerLoops answers them right in the channel — Discord, Slack, your forum, email — grounded in your knowledge, checked by a second model, and only when it&apos;s confident enough to be right.
+            Someone in your Discord asks a question you&apos;ve already answered. Nobody remembers, so they type it out again. AnswerLoops stops that: it reads your docs and resolved tickets, drafts a real answer right in the channel — Discord, Slack, your forum, email — checks its own work, and only posts when it&apos;s confident enough to be right.
           </p>
 
           <div className="landing-hero-rise [animation-delay:240ms] mx-auto mt-9 max-w-xl">

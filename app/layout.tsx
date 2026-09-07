@@ -18,13 +18,13 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://answerloops.com'),
   title: "AnswerLoops",
   description:
-    "AI support that lives in your community: AnswerLoops answers repeat questions right in the channel — Discord, Slack, Discourse and Circle forums, GitHub, Telegram, email, and website chat — and only when it's confident enough to be right. Open source, self-hosted, and MCP/API-ready.",
+    "Someone in your community asks a question you've already answered. AnswerLoops answers it again, right in the channel — Discord, Slack, Discourse and Circle forums, GitHub, Telegram, email, and website chat — grounded in your knowledge, and only when it's confident enough to be right. Open source, self-hosted, and MCP/API-ready.",
   openGraph: {
     type: 'website',
     siteName: 'AnswerLoops',
     title: 'AnswerLoops — Support that lives in your community',
     description:
-      'Answer repeat questions in the channel where your community already asks — with confidence-gated automation. Open source, self-hosted, and MCP/API-ready.',
+      "Your community keeps asking questions you've already answered. AnswerLoops remembers, and answers them again in the channel — with confidence-gated automation. Open source, self-hosted, and MCP/API-ready.",
     // Social card image comes from app/opengraph-image.tsx (1200×630) via the
     // Next file convention — it fills both openGraph and twitter automatically.
   },
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AnswerLoops — Support that lives in your community',
     description:
-      'Answer repeat questions in the channel where your community already asks — with confidence-gated automation. Open source, self-hosted, and MCP/API-ready.',
+      "Your community keeps asking questions you've already answered. AnswerLoops remembers, and answers them again in the channel — with confidence-gated automation. Open source, self-hosted, and MCP/API-ready.",
   },
   icons: {
     icon: [
