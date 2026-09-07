@@ -64,7 +64,7 @@ export default function AgenticSupportPage() {
               What is an agentic support platform?
             </h1>
             <p className="mx-auto mt-7 max-w-3xl text-pretty text-base leading-relaxed text-slate-200/75 sm:text-xl">
-              Your users keep asking questions your community has already answered. An agentic support platform is what closes that loop: AnswerLoops reads your docs and resolved tickets, drafts a grounded answer in the channel where the question was asked, and only hands it to a human when it isn&apos;t confident enough to be right.
+              Your users keep asking questions your community has already answered. An agentic support platform is what closes that loop: AnswerLoops reads your docs and resolved tickets, drafts a grounded answer in the community channel where the question was asked — Discord, Slack, your forum, GitHub — and only hands it to a human when it isn&apos;t confident enough to be right.
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link href="/login" className="w-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:brightness-110 sm:w-auto">
