@@ -44,8 +44,11 @@ export function answerMessageId(channelId: string): string {
 }
 
 /** Poll until `predicate` returns truthy or the timeout elapses. */
+// The falsy sentinel means "not ready, keep polling" and is never returned —
+// the loop only resolves on a truthy value. Keeping it out of `T` is what lets
+// callers use the result directly instead of re-narrowing a `T | false`.
 export async function waitFor<T>(
-  fn: () => T | Promise<T>,
+  fn: () => T | false | null | undefined | Promise<T | false | null | undefined>,
   { timeout = 15_000, interval = 150 }: { timeout?: number; interval?: number } = {}
 ): Promise<T> {
   const deadline = Date.now() + timeout
@@ -89,9 +92,7 @@ export async function waitForPipeline(
   request: APIRequestContext,
   ticketId: number
 ): Promise<Record<string, unknown>> {
-  return waitFor(async () => (await fetchTicket(request, ticketId))?.assessment ?? false) as Promise<
-    Record<string, unknown>
-  >
+  return waitFor(async () => (await fetchTicket(request, ticketId))?.assessment ?? false)
 }
 
 /** Poll a ticket field through the API until it matches. */

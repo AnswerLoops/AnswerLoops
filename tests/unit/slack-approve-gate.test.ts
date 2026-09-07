@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { Integration } from '@/lib/db/queries/integrations'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -48,7 +49,7 @@ const {
 } = vi.hoisted(() => ({
   sendToSlackChannel: vi.fn(async (_channel: string, _content: string, _orgId: number, _threadTs?: string) => 'posted-ts'),
   updateTicketAIDraftStatus: vi.fn(),
-  getIntegration: vi.fn(async () => null),
+  getIntegration: vi.fn(async (): Promise<Partial<Integration> | null> => null),
   generateText: vi.fn(async () => ({ text: 'a low-confidence draft answer' })),
   assessAnswer: vi.fn(async () => ({ confidence: 0.3, answered_fully: false, reasoning: 'x' })),
 }))

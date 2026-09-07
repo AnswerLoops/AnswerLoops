@@ -32,9 +32,9 @@ const prepare: string = JSON.parse(
  * when run from a commit. Strip them from every subprocess this test
  * spawns so it behaves identically run from the hook and run on its own.
  */
-const cleanEnv: NodeJS.ProcessEnv = Object.fromEntries(
+const cleanEnv = Object.fromEntries(
   Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')),
-)
+) as NodeJS.ProcessEnv
 
 function runIn(dir: string): number {
   return spawnSync('sh', ['-c', prepare], { cwd: dir, encoding: 'utf-8', env: cleanEnv }).status ?? 1

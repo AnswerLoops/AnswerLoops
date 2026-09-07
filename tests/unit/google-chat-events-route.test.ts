@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { PipelineResult } from '@/lib/ingest/pipeline'
 
 // app/api/google-chat/events/route.ts — the HTTP endpoint Google Chat posts
 // events to. Covers: the /connect pairing command, routing a regular
@@ -17,7 +18,7 @@ const {
   getIntegrationByPairingCode: vi.fn(),
   completeGoogleChatPairing: vi.fn(async () => {}),
   getTicketByThreadId: vi.fn(async (): Promise<{ id: number } | null> => null),
-  processCommunityMessage: vi.fn(async () => ({ ticket_id: 42 })),
+  processCommunityMessage: vi.fn(async (): Promise<PipelineResult> => ({ ticket_id: 42 })),
 }))
 
 vi.mock('@/lib/db/queries/integrations', () => ({
