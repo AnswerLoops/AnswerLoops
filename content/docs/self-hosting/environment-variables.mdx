@@ -37,6 +37,10 @@ Only relevant if you're running the dashboard on a separate subdomain from your 
 | `AUTH_COOKIE_DOMAIN` | Shares the session cookie across every subdomain of your apex domain. Required alongside `NEXT_PUBLIC_APP_URL` — without it, a user signed in on the root domain appears logged out the moment they land on the app subdomain, since a session cookie is host-only by default. Leave unset for a single-domain deployment. | `.example.com` |
 
 <Warning>
+  With `NEXT_PUBLIC_APP_URL` set, `auth.ts` redirects any request for a path *not* listed in its `WEBSITE_PATHS`/`PUBLIC_PATHS` arrays from the root domain over to the app subdomain — that's how a dashboard link typed on the marketing domain still lands in the app. Every marketing page you add (a new landing page, comparison page, etc.) must be added to both arrays, or it 307s off the marketing domain to the app subdomain's login screen instead of rendering — unreachable to visitors and to search crawlers alike.
+</Warning>
+
+<Warning>
   Set this to the actual number of proxies in front of the app. Too high and you read a value the client controls, which defeats per-IP limiting. Too low and everyone behind your edge shares one bucket, which throttles legitimate traffic. The default of `1` is correct for a single load balancer or CDN (Railway, Fly, a lone nginx). Add one for each additional layer — Cloudflare in front of Railway is `2`.
 </Warning>
 

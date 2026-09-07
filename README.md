@@ -14,15 +14,15 @@
 
 # answerLoops — AI support that lives in your community
 
-**Your community asks the same questions every day. AnswerLoops AI agents answers them in your community channel, based on your knowledge source.**
+**Someone in your Discord asks how to set up webhooks. Someone answered that exact question three weeks ago. Nobody remembers, so they type it out again.**
 
-Most communities have the same problem: the same questions come up over and over in Discord, in Slack, on the forum, in the issue tracker, and someone on the team answers them again. AnswerLoops takes the first pass. It watches the channels you connect, checks each new question against your docs and your past answers, and replies in the thread when it can. When it can't, it hands the question to a person with a draft already written.
+That's the job AnswerLoops takes off your hands. It sits in the channels where your users already ask for help — Discord, Slack, your forum, GitHub Issues, email, a chat widget — and answers the questions it's already seen the answer to. Not with a canned macro. It reads your docs, your resolved tickets, whatever you've fed it, drafts a real answer, and checks its own work before it posts. If it's not confident, it doesn't guess — it hands the question to a person with the draft already written, so the human is editing, not starting from a blank reply.
 
-It's for teams whose support happens in public: software and API companies, open-source projects, course creators running a paid community, game studios with a player Discord, DAOs. If your users ask for help in a chat channel instead of a ticket form, this fits. If you run a Zendesk-style help desk, it probably doesn't.
+Every question it handles is one your team didn't have to. Every one it can't handle yet shows up in a knowledge-gaps list, so you know exactly what to document next instead of guessing.
 
-What matters is the step before a reply goes out. Every draft is scored by a second pass that checks it against the evidence it used. Answers that clear your threshold post on their own. Anything shaky waits in a queue for a human, with the context and the draft attached. You set where the line is.
+It's for teams whose support already happens in public — a dev tool with a Discord, an open-source project with recurring Issues, a course community, a game studio's player base. If your users type into a chat channel instead of filing a ticket, this is built for that. If you run a help desk, it's not.
 
-Answers don't disappear when a ticket closes. A good one can go back into the knowledge base; a bad one gets down-voted and drops out of search. The knowledge-gaps view shows which questions the system still can't answer, so you know what to write next.
+Self-hostable under AGPL — clone it, run `docker compose up`, keep every answer and every byte of data on your own infrastructure. No usage caps, nothing metered, nothing phoning home.
 
 <div align="center">
   <img src="./.github/readme/dashboard.png" alt="AnswerLoops dashboard showing deflection rate, open tickets, AI drafts, SLA status, and recent support activity" width="100%" />
