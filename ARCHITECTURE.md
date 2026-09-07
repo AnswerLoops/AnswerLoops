@@ -90,10 +90,10 @@ Every tenant-data query requires an explicit `org_id` — there is no silent def
 ## 7. Deployment
 
 - Multi-stage `Dockerfile` (deps → build → runner, no build toolchain in the final image), non-root user.
-- Two services: **app** (dashboard + API, `pnpm start`) and **bot** (Discord gateway listener, `pnpm bot:start`) — both built from the same image.
-- `docker-compose.prod.yml` for production; `docker compose up` (dev target) for local development with a local Postgres.
+- Two services: **app** (dashboard + API, `pnpm start`) and **bot** (Discord gateway listener, `pnpm bot:start`).
+- `docker-compose.prod.yml` (self-hosted, both services from the one image) for production; `docker compose up` (dev target) for local development with a local Postgres.
 - Migrations run automatically on startup — no manual migration step.
-- Deploys to Railway or Fly.io; see `docs/self-hosting/` for the full self-host guide.
+- The `Dockerfile` / compose files above are the self-hosted path. A PaaS deploy builds from the repo instead — Railway reads `railway.toml` / `railway.bot.toml` and builds each service with Nixpacks. See `docs/self-hosting/` for the full self-host guide.
 
 ---
 
