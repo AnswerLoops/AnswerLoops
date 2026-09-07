@@ -155,4 +155,35 @@ export async function runMigrations() {
       AFTER UPDATE ON invitations
       FOR EACH ROW EXECUTE FUNCTION notify_invite_accepted();
   `)
+
+  // Idempotent trigger: fires pg_notify('data_changed', org_id) whenever a
+  // ticket or notification row changes. The dashboard SSE stream
+  // (/api/events/stream) LISTENs and pushes a single refresh to open
+  // dashboard tabs for that org, replacing a fixed 5-second client poll that
+  // re-ran every dashboard query whether or not anything had changed. Payload
+  // is the org_id so the stream only wakes the right tenant. Postgres
+  // collapses duplicate (channel, payload) notifications raised in the same
+  // transaction, so a burst of writes to one org's tickets delivers once.
+  await db.execute(sql`
+    CREATE OR REPLACE FUNCTION notify_data_changed()
+    RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      PERFORM pg_notify('data_changed', COALESCE(NEW.org_id, OLD.org_id)::text);
+      RETURN COALESCE(NEW, OLD);
+    END;
+    $$;
+
+    DROP TRIGGER IF EXISTS trg_data_changed_tickets ON tickets;
+    CREATE TRIGGER trg_data_changed_tickets
+      AFTER INSERT OR UPDATE OR DELETE ON tickets
+      FOR EACH ROW EXECUTE FUNCTION notify_data_changed();
+
+    -- INSERT OR DELETE only: marking notifications read is a bulk UPDATE
+    -- driven by a user action already on the page, so refreshing off it adds
+    -- load with nothing new to show.
+    DROP TRIGGER IF EXISTS trg_data_changed_notifications ON notifications;
+    CREATE TRIGGER trg_data_changed_notifications
+      AFTER INSERT OR DELETE ON notifications
+      FOR EACH ROW EXECUTE FUNCTION notify_data_changed();
+  `)
 }

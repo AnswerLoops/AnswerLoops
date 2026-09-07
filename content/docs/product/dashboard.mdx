@@ -28,6 +28,29 @@ Tickets classified as `bug` are excluded from this metric entirely — the knowl
 
 The dashboard surfaces quick links to the most common tasks: adding knowledge, reviewing deflection trends, configuring AI behavior, and reviewing the generated FAQ. The open-ticket panel prioritizes unresolved work, while the SLA panel separates time-sensitive conversations from the rest of the queue.
 
+## Live updates
+
+The dashboard updates itself as work comes in — a new ticket from any
+channel, a status change, an AI draft becoming ready, a teammate accepting an
+invite — without a manual refresh and without polling on a timer.
+
+It holds one Server-Sent Events connection to the app while a dashboard tab
+is open and focused. A database trigger notifies that connection when a
+ticket or notification for your workspace changes, and the page re-fetches
+once in response. When nothing is changing, nothing is requested. The
+connection is dropped while the tab is in the background and re-established
+when you return to it.
+
+If that connection is interrupted (a proxy timeout, a database failover, a
+laptop waking from sleep), the page reconnects on its own; a background
+refresh every 60 seconds acts as a safety net so an update is never missed
+for longer than that.
+
+On a pooled Postgres connection (Neon's `-pooler` endpoint, PgBouncer,
+Supabase's pooled port), set `DIRECT_DATABASE_URL` to the non-pooled
+connection string — the same requirement as bot config hot-reload. Without
+it, live updates fall back to the 60-second safety refresh.
+
 ## Navigation
 
 The workspace sidebar groups pages by the job they support:
