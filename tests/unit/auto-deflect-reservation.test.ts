@@ -81,16 +81,18 @@ const find = (needle: string) => calls.filter((c) => c.sql.includes(needle))
 // change to reserveAutoDeflect's contract instead of drifting from it.
 type DecisionTx = Parameters<Parameters<typeof reserveAutoDeflect>[1]>[0]
 
+// The contract only promises `insert`, but the handle really is a full drizzle
+// driver at runtime and `execute` is what tags a statement with which physical
+// handle it landed on. Intersected rather than asserted straight to `{ execute }`,
+// which TS rejects as a non-overlapping conversion.
+type TracedTx = DecisionTx & { execute: (q: ReturnType<typeof sql>) => Promise<unknown> }
+
 function markerWriteDecision() {
   const invocations: { tx: unknown; allowed: boolean }[] = []
-  // `tx` is typed as the production contract (Pick<db, 'insert'>) so the mock
-  // is actually assignable to it. The marker write reaches past that contract
-  // on purpose: the handle really is a full drizzle driver at runtime, and
-  // `execute` is what tags the statement with which handle it landed on.
+  // `tx` is typed as the production contract so the mock is assignable to it.
   const fn = vi.fn(async (tx: DecisionTx, allowed: boolean) => {
     invocations.push({ tx, allowed })
-    const executable = tx as DecisionTx & { execute: (q: ReturnType<typeof sql>) => Promise<unknown> }
-    await executable.execute(sql`-- writeDecision marker ${allowed}`)
+    await (tx as TracedTx).execute(sql`-- writeDecision marker ${allowed}`)
   })
   return { fn, invocations }
 }
