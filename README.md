@@ -14,15 +14,15 @@
 
 # answerLoops — AI support that lives in your community
 
-**Someone in your Discord asks how to set up webhooks. Someone answered that exact question three weeks ago. Nobody remembers, so they type it out again.**
+**Scenario: Someone in your community Discord asks how to set up webhooks using YOUR software. That question has already been asked multiple times, but now it can be added to your knowledge source .**
 
-That's the job AnswerLoops takes off your hands. It sits in the channels where your users already ask for help — Discord, Slack, your forum, GitHub Issues, email, a chat widget — and answers the questions it's already seen the answer to. Not with a canned macro. It reads your docs, your resolved tickets, whatever you've fed it, drafts a real answer, and checks its own work before it posts. If it's not confident, it doesn't guess — it hands the question to a person with the draft already written, so the human is editing, not starting from a blank reply.
+That's the job AnswerLoops takes off your hands. It sits in the community channels where your users already ask for help — Discord, Slack, your forum, GitHub Issues, email, a chat widget — and answers the questions it's already seen the answer to. Not with a canned macro. The answerLoops agent reads your docs, your resolved tickets, whatever you've fed it, drafts a confident answer, and a second agent checks its own work before it posts. If it's not confident, it doesn't guess — it hands the question to a person with the draft already written, so the human is editing, not starting from a blank reply.
 
-Every question it handles is one your team didn't have to. Every one it can't handle yet shows up in a knowledge-gaps list, so you know exactly what to document next instead of guessing.
+Every question the agent handles is one your team didn't have to. Every one it can't handle yet shows up in a knowledge-gaps list, so you know exactly what to document next to continue filling the documentation gap.
 
 It's for teams whose support already happens in public — a dev tool with a Discord, an open-source project with recurring Issues, a course community, a game studio's player base. If your users type into a chat channel instead of filing a ticket, this is built for that. If you run a help desk, it's not.
 
-Self-hostable under AGPL — clone it, run `docker compose up`, keep every answer and every byte of data on your own infrastructure. No usage caps, nothing metered, nothing phoning home.
+Self-hostable — clone it, run `docker compose up`, keep every answer and every byte of data on your own infrastructure. No usage caps, nothing metered, nothing phoning home.
 
 <div align="center">
   <img src="./.github/readme/dashboard.png" alt="AnswerLoops dashboard showing deflection rate, open tickets, AI drafts, SLA status, and recent support activity" width="100%" />
