@@ -40,6 +40,18 @@ describe('auth.ts PUBLIC_PATHS covers every self-authenticating API route', () =
     '/pricing', // pricing page
     '/privacy', // legal policy must be readable before account creation
     '/terms', // contract terms must be readable before account creation
+    // Intent pages listed in sitemap.ts but missing from PUBLIC_PATHS /
+    // WEBSITE_PATHS shipped 307ing off the marketing domain to
+    // app.answerloops.com/login — every one of them unreachable to Google
+    // despite being submitted for indexing.
+    '/architecture',
+    '/discord-github-support',
+    '/mcp-support-agents',
+    '/open-source-support',
+    '/self-hosted-ai-support',
+    '/self-hosting-proof',
+    '/support-example',
+    '/support-workflow',
   ]
 
   it.each(publicPageRoutes)('%s is listed in (or covered by a prefix in) PUBLIC_PATHS', (route) => {
