@@ -91,7 +91,7 @@ function emit(event: LiveEvent) {
       // Not lib/logger: in production that writes to process.stdout, which
       // does not exist in the browser bundle, so the handler meant to contain
       // a throw would throw itself.
-      console.error(`[live-events] subscriber threw on ${event}`, err)
+      console.error('[live-events] subscriber threw on', event, err)
     }
   }
 }
