@@ -7,18 +7,18 @@ import { MARKETED_CHANNEL_NAMES } from '@/lib/marketing/channels'
 export const metadata: Metadata = {
   title: 'What Is an Agentic Support Platform? — AnswerLoops',
   description:
-    'AnswerLoops is an open-source, self-hostable agentic support platform for teams whose users ask for help in a community. Resolve repeat questions across Discord, Slack, Discourse and Circle forums, GitHub, email, Telegram, and web chat.',
+    "AnswerLoops is open source and you can run it yourself. One agent writes the answer, a second one checks it, and it answers repeat questions across Discord, Slack, Discourse and Circle forums, GitHub, email, Telegram, and web chat.",
   alternates: { canonical: '/agentic-support' },
   openGraph: {
     title: 'What Is an Agentic Support Platform? — AnswerLoops',
     description:
-      'An open-source, self-hostable support agent that resolves repeat questions across every community channel while keeping your team in control.',
+      "An agent drafts the answer, a second one checks it, and your team only sees the ones it's not sure about. Open source, self-hostable.",
     url: '/agentic-support',
   },
   twitter: {
     title: 'Agentic Support for Your Community — AnswerLoops',
     description:
-      'Open-source, self-hostable agentic support across Discord, Slack, Discourse and Circle forums, GitHub, email, Telegram, and web chat.',
+      "An agent drafts the answer, a second one checks it, and your team only sees the ones it's not sure about. Open source, self-hostable.",
   },
 }
 
@@ -28,23 +28,23 @@ const CHANNELS = MARKETED_CHANNEL_NAMES
 const CAPABILITIES = [
   {
     title: 'Answers grounded in your knowledge',
-    body: 'AnswerLoops searches your documentation, knowledge base, and resolved tickets before drafting a response, so the agent works from what your team already knows.',
+    body: 'Before it writes anything, the AnswerLoops agent searches your docs, knowledge base, and old tickets — so the answer comes from what your team already knows, not a guess.',
   },
   {
     title: 'A second agent checks the work',
-    body: 'One agent drafts the answer; a second agent verifies it against your knowledge before it posts. Uncertain answers go to a human with an editable draft instead.',
+    body: "One agent drafts the answer, a second agent checks it against your knowledge before it posts. If either one isn't sure, a human gets the draft instead.",
   },
   {
     title: 'One support brain across every channel',
-    body: 'Bring community questions into one consistent workflow instead of maintaining a separate bot, inbox, and knowledge source for each platform.',
+    body: "One workflow handles every channel, so you're not running a separate bot and inbox for each one.",
   },
   {
     title: 'Agent-first access',
-    body: 'MCP and REST API access lets compatible agents search your knowledge base, read FAQs, create tickets, and generate grounded answers through the same pipeline.',
+    body: 'MCP and the REST API let your own agents search the same knowledge base, read FAQs, create tickets, and pull a grounded answer through the same pipeline.',
   },
   {
     title: 'Open source and self-hostable',
-    body: 'Run the platform on your own infrastructure with the source available for inspection and control, or use the hosted service when you want a managed deployment.',
+    body: "Run it on your own infrastructure and read the source, or use the hosted version if you'd rather not manage it.",
   },
 ]
 
@@ -64,7 +64,7 @@ export default function AgenticSupportPage() {
               What is an agentic support platform?
             </h1>
             <p className="mx-auto mt-7 max-w-3xl text-pretty text-base leading-relaxed text-slate-200/75 sm:text-xl">
-              Your users keep asking questions your community has already answered. An agentic support platform is what closes that loop: The AnswerLoops agent reads your docs and resolved tickets, drafts a grounded answer in the community channel where the question was asked — Discord, Slack, your forum, GitHub — and a second agent checks that answer before it posts, handing it to a human only when it isn&apos;t confident enough to be right.
+              An agentic support platform means two agents work before anyone sees an answer: one writes it, one checks it. That&apos;s what AnswerLoops does — the AnswerLoops agent reads your docs and old tickets and drafts a reply where the question came from, then a second agent has to confirm it before it posts. If it&apos;s not sure, your team gets the draft instead.
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link href="/login" className="w-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:brightness-110 sm:w-auto">

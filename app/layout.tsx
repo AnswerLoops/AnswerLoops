@@ -18,13 +18,13 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://answerloops.com'),
   title: "AnswerLoops",
   description:
-    "Someone in your community asks a question you've already answered. The AnswerLoops agent answers it again, right in your community channel — Discord, Slack, Discourse and Circle forums, GitHub, Telegram, email, and website chat — grounded in your knowledge, and checked by a second agent before it's confident enough to be right. Open source, self-hosted, and MCP/API-ready.",
+    "Somebody in your community asks a question that's already been answered. The AnswerLoops agent finds the old answer in your docs or tickets and writes a new reply — Discord, Slack, Discourse and Circle forums, GitHub, Telegram, email, or website chat. A second agent checks it before it posts. Open source, and you can run it yourself.",
   openGraph: {
     type: 'website',
     siteName: 'AnswerLoops',
     title: 'AnswerLoops — Support that lives in your community',
     description:
-      "Your community keeps asking questions you've already answered. The AnswerLoops agent remembers, and answers them again in your community channel — Discord, Slack, GitHub, and more — checked by a second agent before it posts. Open source, self-hosted, and MCP/API-ready.",
+      "Your community keeps asking questions you've already answered. The AnswerLoops agent remembers — Discord, Slack, GitHub, and more — and a second agent checks the reply before it posts. Open source, and you can run it yourself.",
     // Social card image comes from app/opengraph-image.tsx (1200×630) via the
     // Next file convention — it fills both openGraph and twitter automatically.
   },
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AnswerLoops — Support that lives in your community',
     description:
-      "Your community keeps asking questions you've already answered. The AnswerLoops agent remembers, and answers them again in your community channel — Discord, Slack, GitHub, and more — checked by a second agent before it posts. Open source, self-hosted, and MCP/API-ready.",
+      "Your community keeps asking questions you've already answered. The AnswerLoops agent remembers — Discord, Slack, GitHub, and more — and a second agent checks the reply before it posts. Open source, and you can run it yourself.",
   },
   icons: {
     icon: [
