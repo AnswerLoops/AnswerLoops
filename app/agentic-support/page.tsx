@@ -7,7 +7,7 @@ import { MARKETED_CHANNEL_NAMES } from '@/lib/marketing/channels'
 export const metadata: Metadata = {
   title: 'What Is an Agentic Support Platform? — AnswerLoops',
   description:
-    "AnswerLoops is open source and you can run it yourself. One agent writes the answer, a second one checks it, and it answers repeat questions across Discord, Slack, Discourse and Circle forums, GitHub, email, Telegram, and web chat.",
+    "AnswerLoops is open source, self-hostable agentic support platform. One agent writes the answer based on your knowledge source. A second agent checks it's work, and it answers repeat questions across Discord, Slack, Discourse and Circle forums, GitHub, email, Telegram, and web chat.",
   alternates: { canonical: '/agentic-support' },
   openGraph: {
     title: 'What Is an Agentic Support Platform? — AnswerLoops',
