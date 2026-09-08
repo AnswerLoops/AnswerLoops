@@ -185,6 +185,19 @@ describe('DashboardLive — staleness watchdog', () => {
     expect(MockEventSource.last.closed).toBe(false)
   })
 
+  it('refreshes immediately when the watchdog rebuilds a stale stream', () => {
+    render(<DashboardLive />)
+
+    advance(60_000)
+    mockRefresh.mockClear() // discard the 60s backstop refresh
+
+    advance(15_000) // watchdog tick at 75s: > 70s with no beat
+
+    // The reopen emits `resync`: the connection was down, so a change may have
+    // been missed. That refresh is immediate, not debounced.
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+
   it('a ping within the window resets lastBeat and prevents the reopen', () => {
     render(<DashboardLive />)
     const first = MockEventSource.last
@@ -202,10 +215,18 @@ describe('DashboardLive — backstop refresh', () => {
   it('router.refresh() fires roughly every 60s while visible', () => {
     render(<DashboardLive />)
 
-    advance(60_000)
+    // Keep the stream healthy so the staleness watchdog stays out of the way
+    // and the only refreshes counted here are the backstop's.
+    const keepAlive = () => emit('ping')
+
+    advance(30_000)
+    keepAlive()
+    advance(30_000)
     expect(mockRefresh).toHaveBeenCalledTimes(1)
 
-    advance(60_000)
+    advance(30_000)
+    keepAlive()
+    advance(30_000)
     expect(mockRefresh).toHaveBeenCalledTimes(2)
   })
 
