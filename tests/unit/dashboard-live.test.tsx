@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { MockEventSource, defineVisibility } from './mock-event-source'
 import { render, act } from '@testing-library/react'
 import { DashboardLive } from '@/components/dashboard-live'
 
@@ -30,59 +31,8 @@ vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({ refresh: mockRefresh })),
 }))
 
-type Listener = (ev: Event) => void
 
-class MockEventSource {
-  static instances: MockEventSource[] = []
 
-  url: string
-  listeners: Record<string, Set<Listener>> = {}
-  closed = false
-  closeCalls = 0
-  onerror: ((ev: Event) => void) | null = null
-
-  constructor(url: string) {
-    this.url = url
-    MockEventSource.instances.push(this)
-  }
-
-  addEventListener(type: string, cb: Listener) {
-    ;(this.listeners[type] ??= new Set()).add(cb)
-  }
-
-  removeEventListener(type: string, cb: Listener) {
-    this.listeners[type]?.delete(cb)
-  }
-
-  close() {
-    this.closed = true
-    this.closeCalls += 1
-  }
-
-  emit(type: string) {
-    this.listeners[type]?.forEach((cb) => cb(new Event(type)))
-  }
-
-  static reset() {
-    MockEventSource.instances = []
-  }
-
-  static get openCount() {
-    return MockEventSource.instances.length
-  }
-
-  static get last() {
-    return MockEventSource.instances[MockEventSource.instances.length - 1]
-  }
-}
-
-function defineVisibility(hidden: boolean) {
-  Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden })
-  Object.defineProperty(document, 'visibilityState', {
-    configurable: true,
-    get: () => (hidden ? 'hidden' : 'visible'),
-  })
-}
 
 function fireVisibilityChange(hidden: boolean) {
   defineVisibility(hidden)
@@ -185,6 +135,19 @@ describe('DashboardLive — staleness watchdog', () => {
     expect(MockEventSource.last.closed).toBe(false)
   })
 
+  it('refreshes immediately when the watchdog rebuilds a stale stream', () => {
+    render(<DashboardLive />)
+
+    advance(60_000)
+    mockRefresh.mockClear() // discard the 60s backstop refresh
+
+    advance(15_000) // watchdog tick at 75s: > 70s with no beat
+
+    // The reopen emits `resync`: the connection was down, so a change may have
+    // been missed. That refresh is immediate, not debounced.
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+
   it('a ping within the window resets lastBeat and prevents the reopen', () => {
     render(<DashboardLive />)
     const first = MockEventSource.last
@@ -202,10 +165,18 @@ describe('DashboardLive — backstop refresh', () => {
   it('router.refresh() fires roughly every 60s while visible', () => {
     render(<DashboardLive />)
 
-    advance(60_000)
+    // Keep the stream healthy so the staleness watchdog stays out of the way
+    // and the only refreshes counted here are the backstop's.
+    const keepAlive = () => emit('ping')
+
+    advance(30_000)
+    keepAlive()
+    advance(30_000)
     expect(mockRefresh).toHaveBeenCalledTimes(1)
 
-    advance(60_000)
+    advance(30_000)
+    keepAlive()
+    advance(30_000)
     expect(mockRefresh).toHaveBeenCalledTimes(2)
   })
 
@@ -241,6 +212,23 @@ describe('DashboardLive — visibilitychange', () => {
     expect(mockRefresh).toHaveBeenCalledTimes(1)
     expect(MockEventSource.openCount).toBe(2)
     expect(MockEventSource.last.closed).toBe(false)
+  })
+})
+
+describe('DashboardLive — resync supersedes a pending debounce', () => {
+  it('refreshes once when resync lands on top of an armed data_changed', () => {
+    render(<DashboardLive />)
+
+    emit('data_changed') // arms the 400ms debounce
+    advance(100)
+
+    fireVisibilityChange(true)
+    fireVisibilityChange(false) // reopen -> resync -> immediate refresh
+    advance(1_000)
+
+    // The debounced refresh must be cancelled, not left to fire behind the
+    // resync's — the two would refresh the same route twice for one event.
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
   })
 })
 
