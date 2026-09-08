@@ -190,7 +190,7 @@ describe('GET /api/events/stream — connection teardown', () => {
     const res = await GET(new Request('https://app.example.com/api/events/stream') as never)
     await firstFrame(res)
     const err = Object.assign(new Error('connection terminated'), {
-      connection_string: 'postgres://user:secret@db.example.com:5432/app',
+      connection_string: 'postgres://<user>:<password>@db.example.com:5432/app',
     })
     conn().unsafe.mockRejectedValueOnce(err as never)
 
@@ -201,7 +201,36 @@ describe('GET /api/events/stream — connection teardown', () => {
     const logged = warn.mock.calls.find(([msg]) => msg === 'SSE listener heartbeat failed')
     expect(logged).toBeDefined()
     expect(logged![1].error).toBe('connection terminated')
-    expect(JSON.stringify(logged![1])).not.toContain('secret')
+    expect(JSON.stringify(logged![1])).not.toContain('<password>')
+  })
+
+  it('logs only the message when LISTEN registration fails', async () => {
+    // Sibling of the heartbeat catch. Both take a driver error that can carry
+    // the connection it failed on, so both narrow it to the message.
+    postgresFactory.mockImplementationOnce((_url: string, options: Record<string, unknown>) => {
+      const sql = () => {}
+      Object.assign(sql, {
+        queries: [],
+        options,
+        unsafe: vi.fn(async () => {
+          throw Object.assign(new Error('permission denied'), {
+            connection_string: 'postgres://<user>:<password>@db.example.com:5432/app',
+          })
+        }),
+        listen: vi.fn(),
+        end: vi.fn(async () => {}),
+      })
+      instances.push(sql as unknown as FakeSql)
+      return sql
+    })
+
+    const res = await GET(new Request('https://app.example.com/api/events/stream') as never)
+    await res.body!.cancel().catch(() => {})
+
+    const logged = warn.mock.calls.find(([msg]) => msg === 'SSE listen setup failed')
+    expect(logged).toBeDefined()
+    expect(logged![1].error).toBe('permission denied')
+    expect(JSON.stringify(logged![1])).not.toContain('<password>')
   })
 
   it('closes the stream when a heartbeat hangs on a half-open socket', async () => {

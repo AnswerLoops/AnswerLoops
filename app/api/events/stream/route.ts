@@ -29,12 +29,6 @@ const STREAM_MAX_AGE_MS = 15 * 60 * 1000
 // ends the stream, the browser reconnects, and every subscriber gets a
 // `resync` — which is what makes the client's backstop affordable at ten
 // minutes instead of one.
-//
-// An earlier revision of this route omitted the heartbeat on the grounds that
-// it would generate steady database load. That reasoning does not survive the
-// arithmetic: one SELECT 1 every four minutes is 15 trivial queries an hour,
-// against the ~780 real ones a 60-second client backstop was already spending
-// per open tab. This is a net reduction, not an addition.
 const LISTEN_HEARTBEAT_MS = 4 * 60 * 1000
 
 export async function GET(_request: NextRequest) {
@@ -161,7 +155,11 @@ export async function GET(_request: NextRequest) {
         await listener.unsafe('LISTEN member_joined')
         send('connected')
       } catch (err) {
-        logger.warn('SSE listen setup failed', { module: MOD, orgId, error: err })
+        logger.warn('SSE listen setup failed', {
+          module: MOD,
+          orgId,
+          error: err instanceof Error ? err.message : String(err),
+        })
         close()
       }
     },
