@@ -65,21 +65,75 @@ export async function GET(_request: NextRequest) {
         }
       }
 
+      const forOrg = (event: string) => (payload: string) => {
+        if (Number(payload) === orgId) send(event)
+      }
+      const channels: Record<string, (payload: string) => void> = {
+        data_changed: forOrg('data_changed'),
+        member_joined: forOrg('member_joined'),
+      }
+
       // Dedicated connection: a NOTIFY arrives on whichever backend Postgres
       // picks, so a pooled connection can miss it (same reason as the bot's
       // config listener). postgres.js does not idle-close a connection by
       // default, so the LISTEN stays registered between notifications.
-      const listener = postgres(url, { max: 1 })
+      //
+      // The raw connection is managed here rather than through postgres.js's
+      // `.listen()` sugar, which opens its own hidden internal instance
+      // (`listen.sql = Postgres({ max: 1 })`, src/index.js) and runs LISTEN on
+      // that socket. A heartbeat on this object would then exercise a
+      // different, otherwise-idle socket and prove nothing about the
+      // subscription — and hold a second connection per tab. bot/index.ts
+      // avoids the sugar for the same reason.
+      const options: postgres.Options<{}> & {
+        onnotify: (channel: string, payload: string) => void
+      } = {
+        max: 1,
+        // Load-bearing: postgres.js otherwise retires a connection after a
+        // randomised 30-60 minutes (max_lifetime(), src/index.js). LISTEN is
+        // registered by hand here, so nothing re-subscribes on the replacement
+        // socket — the subscription would go silently dead while the heartbeat
+        // kept passing on the new connection.
+        max_lifetime: null,
+        onnotify: (channel, payload) => channels[channel]?.(payload),
+        // A dropped socket ends the stream immediately; the browser rebuilds
+        // it rather than waiting for the next heartbeat to notice.
+        onclose: () => close(),
+      }
+      const listener = postgres(url, options)
 
       const keepalive = setInterval(() => send('ping'), KEEPALIVE_MS)
 
       // If the connection is gone, close the stream rather than sitting on a
       // dead LISTEN: the browser reopens and the server registers a fresh one.
+      // Runs on the same socket as the LISTEN above, which is the whole point.
+      let beatInFlight = false
       const heartbeat = setInterval(() => {
-        listener.unsafe('SELECT 1').catch((err) => {
-          logger.warn('SSE listener heartbeat failed', { module: MOD, orgId, error: err })
+        // A half-open socket can swallow a query without ever resolving or
+        // rejecting. Without this the interval would queue another SELECT 1
+        // every four minutes with nothing ever reaching .catch(), and the
+        // stream would never be torn down.
+        if (beatInFlight) {
+          logger.warn('SSE listener heartbeat stalled', { module: MOD, orgId })
           close()
-        })
+          return
+        }
+        beatInFlight = true
+        listener
+          .unsafe('SELECT 1')
+          .then(() => {
+            beatInFlight = false
+          })
+          .catch((err: unknown) => {
+            beatInFlight = false
+            // Message only: a driver error object can carry connection detail.
+            logger.warn('SSE listener heartbeat failed', {
+              module: MOD,
+              orgId,
+              error: err instanceof Error ? err.message : String(err),
+            })
+            close()
+          })
       }, LISTEN_HEARTBEAT_MS)
 
       const recycle = setTimeout(() => {
@@ -102,13 +156,9 @@ export async function GET(_request: NextRequest) {
       }
       teardown = close
 
-      const forOrg = (event: string) => (payload: string) => {
-        if (Number(payload) === orgId) send(event)
-      }
-
       try {
-        await listener.listen('data_changed', forOrg('data_changed'))
-        await listener.listen('member_joined', forOrg('member_joined'))
+        await listener.unsafe('LISTEN data_changed')
+        await listener.unsafe('LISTEN member_joined')
         send('connected')
       } catch (err) {
         logger.warn('SSE listen setup failed', { module: MOD, orgId, error: err })

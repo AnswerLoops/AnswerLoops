@@ -26,24 +26,16 @@ import { subscribeLiveEvents } from '@/lib/live-events'
  * On top of that, a backstop `router.refresh()` bounds how long the page can
  * show stale data if the stream is healthy but its upstream LISTEN is not.
  *
- * The backstop is a dead-man's switch, not a poll: every refresh re-arms it,
- * so it only ever fires after BACKSTOP_MS of complete silence. A dashboard
- * that is receiving events never runs it at all, because an arriving event is
- * itself proof the LISTEN is alive. This matters because the backstop is the
- * entire remaining database cost of an idle open tab — the stream itself
- * issues no queries, and the server's keepalive pings never reach Postgres.
- * At the old fixed 60s it re-ran every Server Component query on the route
- * sixty times an hour, per open tab, forever.
+ * It is a dead-man's switch rather than a poll: every refresh re-arms it, so
+ * it fires only after BACKSTOP_MS of complete silence and a dashboard that is
+ * receiving events never runs it. Only real events re-arm it — a keepalive
+ * `ping` proves the HTTP stream is alive but says nothing about the LISTEN
+ * behind it, which is the failure this guards against, and `lib/live-events`
+ * forwards only the events that carry meaning.
  *
- * Note that only real events may re-arm it. A keepalive `ping` proves the HTTP
- * stream is alive but says nothing about the LISTEN behind it, which is the
- * exact failure this guards against; `lib/live-events` keeps that distinction
- * and only forwards the events that carry meaning.
- *
- * The interval can be this long because the server now heartbeats its own
- * LISTEN connection every 4 minutes and tears the stream down when that fails,
- * which surfaces as a `resync` here. Detection is the heartbeat's job; this is
- * only the last line of defence.
+ * The window can be this wide because the server heartbeats its own LISTEN
+ * connection and tears the stream down when that fails, surfacing here as a
+ * `resync`. Detection is the heartbeat's job; this is the last line of defence.
  */
 
 const BACKSTOP_MS = 10 * 60 * 1000
@@ -61,8 +53,10 @@ export function DashboardLive() {
     const armBackstop = () => {
       clearTimeout(backstop)
       backstop = setTimeout(() => {
-        if (!document.hidden) refreshNow()
-        else armBackstop() // hidden: skip the refresh, keep the switch armed
+        // A hidden tab holds no stream, so there is nothing to have missed and
+        // nothing to refresh; it re-arms either way so the switch survives.
+        if (!document.hidden) router.refresh()
+        armBackstop()
       }, BACKSTOP_MS)
     }
 
@@ -74,6 +68,12 @@ export function DashboardLive() {
     const unsubscribe = subscribeLiveEvents(
       ['data_changed', 'member_joined', 'resync'],
       (event) => {
+        // Re-arm on receipt, not when the refresh lands. An arriving event is
+        // itself proof the LISTEN is alive, and deferring the re-arm until
+        // after the debounce leaves a DEBOUNCE_MS blind spot before the
+        // deadline: the backstop fires, then the debounced refresh follows it
+        // 400ms later, refreshing twice for one event.
+        armBackstop()
         if (event === 'resync') {
           // Supersedes any debounced refresh already armed — otherwise a
           // data_changed from 400ms ago fires a second, redundant refresh.

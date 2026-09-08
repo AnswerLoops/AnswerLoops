@@ -68,7 +68,8 @@ cannot linger.
 On a pooled Postgres connection (Neon's `-pooler` endpoint, PgBouncer,
 Supabase's pooled port), set `DIRECT_DATABASE_URL` to the non-pooled
 connection string — the same requirement as bot config hot-reload. Without
-it, live updates fall back to the 60-second safety refresh.
+it, live updates stop arriving and the page falls back to the idle refresh
+described above.
 
 ## Navigation
 

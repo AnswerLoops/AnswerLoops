@@ -87,8 +87,8 @@ describe('app/api/events/stream/route.ts — listeners', () => {
   const src = read('app/api/events/stream/route.ts')
 
   it('registers a data_changed LISTEN as well as member_joined', () => {
-    expect(src).toContain("listener.listen('data_changed'")
-    expect(src).toContain("listener.listen('member_joined'")
+    expect(src).toContain("listener.unsafe('LISTEN data_changed')")
+    expect(src).toContain("listener.unsafe('LISTEN member_joined')")
   })
 
   it('filters both channels by the session orgId via Number(payload) === orgId', () => {
@@ -128,20 +128,25 @@ describe('app/api/events/stream/route.ts — recycle timer and LISTEN heartbeat'
   it('heartbeats the listener connection on a LISTEN_HEARTBEAT_MS interval', () => {
     expect(src).toContain('LISTEN_HEARTBEAT_MS')
     expect(src).toMatch(/setInterval\([\s\S]*?LISTEN_HEARTBEAT_MS\s*\)/)
-    expect(src).toMatch(/listener\.unsafe\('SELECT 1'\)/)
+    expect(src).toMatch(/listener\s*\.unsafe\('SELECT 1'\)/)
   })
 
-  it('runs the heartbeat on the LISTEN connection itself, not a fresh one', () => {
-    // A heartbeat on any other connection proves nothing about this LISTEN —
-    // it would keep the compute warm while the subscription stayed dead.
-    const beat = src.slice(src.indexOf('LISTEN_HEARTBEAT_MS)'))
-    expect(src).toMatch(/listener\.unsafe\('SELECT 1'\)/)
-    expect(beat).not.toContain('postgres(url')
+  it('registers LISTEN on the raw connection, never via the .listen() sugar', () => {
+    // postgres.js's .listen() runs LISTEN on a hidden second instance
+    // (`listen.sql = Postgres({ max: 1 })`, src/index.js), so a heartbeat on
+    // the object this route holds would exercise a different, idle socket —
+    // proving nothing about the subscription and costing an extra connection
+    // per tab. Behavioural coverage is in events-stream-teardown.test.ts; this
+    // is the cheap source-level guard against the sugar creeping back.
+    expect(src).toMatch(/listener\.unsafe\('LISTEN data_changed'\)/)
+    expect(src).toMatch(/listener\.unsafe\('LISTEN member_joined'\)/)
+    expect(src).not.toMatch(/listener\.listen\(/)
+    expect(src).toContain('onnotify')
   })
 
   it('closes the stream when a heartbeat fails, so the browser reconnects', () => {
     // Without this the route would detect the dead LISTEN and then sit on it.
-    expect(src).toMatch(/listener\.unsafe\('SELECT 1'\)[\s\S]{0,200}?\.catch\([\s\S]{0,200}?close\(\)/)
+    expect(src).toMatch(/listener\s*\.unsafe\('SELECT 1'\)[\s\S]{0,600}?\.catch\([\s\S]{0,400}?close\(\)/)
   })
 
   it('clears the heartbeat on teardown alongside the keepalive', () => {
