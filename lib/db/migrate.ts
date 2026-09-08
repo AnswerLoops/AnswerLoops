@@ -161,9 +161,12 @@ export async function runMigrations() {
   // (/api/events/stream) LISTENs and pushes a single refresh to open
   // dashboard tabs for that org, replacing a fixed 5-second client poll that
   // re-ran every dashboard query whether or not anything had changed. Payload
-  // is the org_id so the stream only wakes the right tenant. Postgres
-  // collapses duplicate (channel, payload) notifications raised in the same
-  // transaction, so a burst of writes to one org's tickets delivers once.
+  // is the org_id so the stream only wakes the right tenant. A single ingest
+  // touches tickets and notifications across several separate transactions, so
+  // one message produces several data_changed notifications — Postgres only
+  // de-dups identical (channel, payload) pairs within one transaction, not
+  // across them. The dashboard client debounces the resulting refresh; do not
+  // rely on server-side collapsing here.
   await db.execute(sql`
     CREATE OR REPLACE FUNCTION notify_data_changed()
     RETURNS trigger LANGUAGE plpgsql AS $$

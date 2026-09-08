@@ -58,17 +58,18 @@ export function DashboardLive() {
       if (stopped || es) return
       beat()
       es = new EventSource('/api/events/stream')
+      // connected / ping / cycle are keepalive signals — they only reset the
+      // staleness clock. data_changed / member_joined additionally trigger a
+      // refresh.
+      const onData = () => {
+        beat()
+        refreshDebounced()
+      }
       es.addEventListener('connected', beat)
       es.addEventListener('ping', beat)
       es.addEventListener('cycle', beat)
-      es.addEventListener('data_changed', () => {
-        beat()
-        refreshDebounced()
-      })
-      es.addEventListener('member_joined', () => {
-        beat()
-        refreshDebounced()
-      })
+      es.addEventListener('data_changed', onData)
+      es.addEventListener('member_joined', onData)
       // EventSource retries on its own after a transient network error; a
       // silently-dead upstream LISTEN never reaches here, which is what the
       // watchdog below is for.

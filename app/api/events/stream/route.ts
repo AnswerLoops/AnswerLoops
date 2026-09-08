@@ -41,10 +41,12 @@ export async function GET(_request: NextRequest) {
     async start(controller) {
       let closed = false
 
-      const send = (event: string, data: string) => {
+      // Every event this stream sends is a bare signal with no payload — the
+      // client re-fetches on its own — so the data line is always `{}`.
+      const send = (event: string) => {
         if (closed) return
         try {
-          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${data}\n\n`))
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: {}\n\n`))
         } catch {
           // Client already gone — teardown runs via cancel().
         }
@@ -56,10 +58,10 @@ export async function GET(_request: NextRequest) {
       // default, so the LISTEN stays registered between notifications.
       const listener = postgres(url, { max: 1 })
 
-      const keepalive = setInterval(() => send('ping', '{}'), KEEPALIVE_MS)
+      const keepalive = setInterval(() => send('ping'), KEEPALIVE_MS)
 
       const recycle = setTimeout(() => {
-        send('cycle', '{}')
+        send('cycle')
         close()
       }, STREAM_MAX_AGE_MS)
 
@@ -78,13 +80,13 @@ export async function GET(_request: NextRequest) {
       teardown = close
 
       const forOrg = (event: string) => (payload: string) => {
-        if (Number(payload) === orgId) send(event, '{}')
+        if (Number(payload) === orgId) send(event)
       }
 
       try {
         await listener.listen('data_changed', forOrg('data_changed'))
         await listener.listen('member_joined', forOrg('member_joined'))
-        send('connected', '{}')
+        send('connected')
       } catch (err) {
         logger.warn('SSE listen setup failed', { module: MOD, orgId, error: err })
         close()

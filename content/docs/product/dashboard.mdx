@@ -36,15 +36,21 @@ invite — without a manual refresh and without polling on a timer.
 
 It holds one Server-Sent Events connection to the app while a dashboard tab
 is open and focused. A database trigger notifies that connection when a
-ticket or notification for your workspace changes, and the page re-fetches
-once in response. When nothing is changing, nothing is requested. The
-connection is dropped while the tab is in the background and re-established
-when you return to it.
+ticket changes or a notification is raised or cleared for your workspace, and
+the page re-fetches once in response. (Marking a notification read is not
+pushed to other open tabs — their unread count catches up on the next
+refresh.) When nothing is changing, nothing is requested. The connection is
+dropped while the tab is in the background and re-established when you return
+to it.
 
 If that connection is interrupted (a proxy timeout, a database failover, a
-laptop waking from sleep), the page reconnects on its own; a background
-refresh every 60 seconds acts as a safety net so an update is never missed
-for longer than that.
+laptop waking from sleep), the page reconnects on its own. While a tab is
+focused, a background refresh every 60 seconds acts as a safety net, so a
+missed event surfaces within a minute; a backgrounded tab has no timer and
+instead refreshes the moment you switch back to it. The connection is also
+recycled roughly every 15 minutes on its own — the page rebuilds it with no
+visible interruption — so a connection that has gone stale without signalling
+it cannot linger.
 
 On a pooled Postgres connection (Neon's `-pooler` endpoint, PgBouncer,
 Supabase's pooled port), set `DIRECT_DATABASE_URL` to the non-pooled
