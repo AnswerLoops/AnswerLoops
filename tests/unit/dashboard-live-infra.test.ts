@@ -19,8 +19,9 @@ import path from 'node:path'
 //      connection + keepalive + recycle timer. The old code returned a
 //      cleanup fn from start() that never ran — a leaked postgres connection
 //      per disconnected browser tab. A fixed STREAM_MAX_AGE_MS recycle timer
-//      forces EventSource to rebuild the stream; there is deliberately NO
-//      server-side heartbeat query (no SELECT 1) on the listener connection.
+//      forces EventSource to rebuild the stream, and a LISTEN_HEARTBEAT_MS
+//      SELECT 1 on the listener connection detects a LISTEN that has died
+//      underneath a still-healthy HTTP stream (#128).
 //
 // No live DB / Docker here: assertions are string/regex checks on source,
 // same style as listen-notify-direct-connection.test.ts. The direct-connection
@@ -86,8 +87,8 @@ describe('app/api/events/stream/route.ts — listeners', () => {
   const src = read('app/api/events/stream/route.ts')
 
   it('registers a data_changed LISTEN as well as member_joined', () => {
-    expect(src).toContain("listener.listen('data_changed'")
-    expect(src).toContain("listener.listen('member_joined'")
+    expect(src).toContain("listener.unsafe('LISTEN data_changed')")
+    expect(src).toContain("listener.unsafe('LISTEN member_joined')")
   })
 
   it('filters both channels by the session orgId via Number(payload) === orgId', () => {
@@ -112,7 +113,7 @@ describe('app/api/events/stream/route.ts — teardown regression guard', () => {
   })
 })
 
-describe('app/api/events/stream/route.ts — recycle timer, no server heartbeat', () => {
+describe('app/api/events/stream/route.ts — recycle timer and LISTEN heartbeat', () => {
   const src = read('app/api/events/stream/route.ts')
 
   it('defines a STREAM_MAX_AGE_MS recycle timeout that ends the stream', () => {
@@ -121,10 +122,34 @@ describe('app/api/events/stream/route.ts — recycle timer, no server heartbeat'
     expect(src).toContain('clearTimeout(recycle)')
   })
 
-  it('does NOT run a server-side heartbeat / SELECT 1 poll on the listener connection', () => {
-    expect(src).not.toMatch(/SELECT\s+1/i)
-    expect(src).not.toContain('sql.unsafe')
-    expect(src).not.toMatch(/listener`/)
-    expect(src).not.toMatch(/listener\.unsafe/)
+  // #126 deliberately shipped without this and a test here pinned its absence.
+  // #128 reverses that: the browser-ward `ping` never touches Postgres, so a
+  // LISTEN that dies under a healthy HTTP stream is otherwise undetectable.
+  it('heartbeats the listener connection on a LISTEN_HEARTBEAT_MS interval', () => {
+    expect(src).toContain('LISTEN_HEARTBEAT_MS')
+    expect(src).toMatch(/setInterval\([\s\S]*?LISTEN_HEARTBEAT_MS\s*\)/)
+    expect(src).toMatch(/listener\s*\.unsafe\('SELECT 1'\)/)
+  })
+
+  it('registers LISTEN on the raw connection, never via the .listen() sugar', () => {
+    // postgres.js's .listen() runs LISTEN on a hidden second instance
+    // (`listen.sql = Postgres({ max: 1 })`, src/index.js), so a heartbeat on
+    // the object this route holds would exercise a different, idle socket —
+    // proving nothing about the subscription and costing an extra connection
+    // per tab. Behavioural coverage is in events-stream-teardown.test.ts; this
+    // is the cheap source-level guard against the sugar creeping back.
+    expect(src).toMatch(/listener\.unsafe\('LISTEN data_changed'\)/)
+    expect(src).toMatch(/listener\.unsafe\('LISTEN member_joined'\)/)
+    expect(src).not.toMatch(/listener\.listen\(/)
+    expect(src).toContain('onnotify')
+  })
+
+  it('closes the stream when a heartbeat fails, so the browser reconnects', () => {
+    // Without this the route would detect the dead LISTEN and then sit on it.
+    expect(src).toMatch(/listener\s*\.unsafe\('SELECT 1'\)[\s\S]{0,600}?\.catch\([\s\S]{0,400}?close\(\)/)
+  })
+
+  it('clears the heartbeat on teardown alongside the keepalive', () => {
+    expect(src).toContain('clearInterval(heartbeat)')
   })
 })

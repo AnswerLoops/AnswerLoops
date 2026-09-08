@@ -51,16 +51,25 @@ quickly depends on how the connection went: one that drops or is deliberately
 recycled is noticed and replaced at once, while one that dies silently, with
 no error reaching either end, takes up to about 70 seconds to be spotted.
 Either way the page re-fetches on reconnect rather than waiting for the next
-change. While a tab is focused, a background refresh every 60 seconds acts as
-a further safety net; a backgrounded tab has no timer and instead refreshes
-the moment you switch back to it. The connection is also recycled roughly
-every 15 minutes as a matter of course — rebuilt with no visible interruption
-— so a stale one cannot linger.
+change.
+
+The server also checks its own end of the connection every few minutes and
+rebuilds the stream if that check fails, which is what catches the awkward
+case: a connection that looks perfectly healthy from the browser while the
+database subscription behind it has quietly gone. On top of that, a focused
+tab refreshes itself if it has heard nothing at all for ten minutes — a last
+line of defence rather than a timer, so a dashboard that is receiving updates
+never runs it, and an idle one costs a single refresh rather than one every
+minute. A backgrounded tab has no timer and instead refreshes the moment you
+switch back to it. The connection is also recycled roughly every 15 minutes as
+a matter of course — rebuilt with no visible interruption — so a stale one
+cannot linger.
 
 On a pooled Postgres connection (Neon's `-pooler` endpoint, PgBouncer,
 Supabase's pooled port), set `DIRECT_DATABASE_URL` to the non-pooled
 connection string — the same requirement as bot config hot-reload. Without
-it, live updates fall back to the 60-second safety refresh.
+it, live updates stop arriving and the page falls back to the idle refresh
+described above.
 
 ## Navigation
 

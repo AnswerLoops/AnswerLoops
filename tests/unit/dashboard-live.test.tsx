@@ -16,7 +16,8 @@ import { DashboardLive } from '@/components/dashboard-live'
  *  - A staleness watchdog (every 15s) tears down and rebuilds the stream when no
  *    beat has arrived for > 70s; any keepalive (`ping`, `connected`, `cycle`)
  *    resets that clock.
- *  - A backstop `router.refresh()` every 60s while visible, suppressed while hidden.
+ *  - A backstop `router.refresh()` after BACKSTOP_MS of silence, re-armed by every
+ *    refresh and suppressed (but kept armed) while hidden.
  *  - `visibilitychange` closes the stream when hidden and reopens + refreshes on
  *    return.
  *  - Unmount clears both intervals, the debounce timeout, the visibility listener
@@ -51,6 +52,20 @@ function emit(type: string, source = MockEventSource.last) {
   act(() => {
     source.emit(type)
   })
+}
+
+const BACKSTOP = 10 * 60 * 1000
+
+// Advance time on a stream the server is keeping alive: it sends `ping` every
+// 25s, so the staleness watchdog never trips in production and must not trip
+// here either, or its reconnect resyncs would be counted as backstop
+// refreshes. A ping is deliberately NOT proof the LISTEN works, so it must not
+// re-arm the backstop — that distinction is what these tests pin.
+function advanceAlive(ms: number) {
+  for (let left = ms; left > 0; left -= 25_000) {
+    advance(Math.min(25_000, left))
+    emit('ping')
+  }
 }
 
 beforeEach(() => {
@@ -139,8 +154,6 @@ describe('DashboardLive — staleness watchdog', () => {
     render(<DashboardLive />)
 
     advance(60_000)
-    mockRefresh.mockClear() // discard the 60s backstop refresh
-
     advance(15_000) // watchdog tick at 75s: > 70s with no beat
 
     // The reopen emits `resync`: the connection was down, so a change may have
@@ -161,32 +174,56 @@ describe('DashboardLive — staleness watchdog', () => {
   })
 })
 
-describe('DashboardLive — backstop refresh', () => {
-  it('router.refresh() fires roughly every 60s while visible', () => {
+describe('DashboardLive — idle backstop', () => {
+  it('fires only after BACKSTOP_MS of silence, not on a fixed interval', () => {
     render(<DashboardLive />)
 
-    // Keep the stream healthy so the staleness watchdog stays out of the way
-    // and the only refreshes counted here are the backstop's.
-    const keepAlive = () => emit('ping')
+    advanceAlive(BACKSTOP - 30_000)
+    // The old fixed 60s interval would have refreshed nine times by now.
+    expect(mockRefresh).not.toHaveBeenCalled()
 
-    advance(30_000)
-    keepAlive()
-    advance(30_000)
+    advanceAlive(60_000)
     expect(mockRefresh).toHaveBeenCalledTimes(1)
 
-    advance(30_000)
-    keepAlive()
-    advance(30_000)
+    // And it re-arms itself: a LISTEN that stays dead must keep being caught,
+    // not caught once and then abandoned.
+    advanceAlive(BACKSTOP)
     expect(mockRefresh).toHaveBeenCalledTimes(2)
   })
 
-  it('does not fire the backstop refresh while the tab is hidden', () => {
+  it('a data_changed re-arms it, so an active dashboard never runs it', () => {
+    render(<DashboardLive />)
+
+    // An arriving event is itself proof the LISTEN is alive, which is exactly
+    // what the backstop exists to check — so it should reset the clock.
+    for (let i = 0; i < 5; i++) {
+      advanceAlive(BACKSTOP - 60_000)
+      emit('data_changed')
+      advance(400) // debounce
+    }
+
+    // Five refreshes from the events themselves, none from the backstop.
+    expect(mockRefresh).toHaveBeenCalledTimes(5)
+  })
+
+  it('a keepalive ping alone does not re-arm it', () => {
+    render(<DashboardLive />)
+
+    // A ping travels over HTTP and never touches Postgres, so it says nothing
+    // about whether the LISTEN behind it is alive. Treating it as proof would
+    // make the backstop blind to the exact failure it guards against.
+    advanceAlive(BACKSTOP + 30_000)
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not fire while the tab is hidden, and stays armed for its return', () => {
     render(<DashboardLive />)
 
     fireVisibilityChange(true)
     mockRefresh.mockClear()
 
-    advance(180_000)
+    advance(BACKSTOP * 3)
     expect(mockRefresh).not.toHaveBeenCalled()
   })
 })
@@ -212,6 +249,25 @@ describe('DashboardLive — visibilitychange', () => {
     expect(mockRefresh).toHaveBeenCalledTimes(1)
     expect(MockEventSource.openCount).toBe(2)
     expect(MockEventSource.last.closed).toBe(false)
+  })
+})
+
+describe('DashboardLive — backstop/debounce overlap', () => {
+  it('refreshes once for an event arriving just before the backstop deadline', () => {
+    render(<DashboardLive />)
+
+    // Land a data_changed inside the final debounce window. If the switch were
+    // only re-armed when a refresh fires, the backstop would go off at the
+    // deadline and the debounced refresh would follow 400ms later — two
+    // refreshes of the same route for one event. Re-arming on receipt closes
+    // that window.
+    advanceAlive(BACKSTOP - 200)
+    emit('data_changed')
+
+    advance(200) // the old deadline passes
+    advance(400) // the debounce settles
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -254,5 +310,98 @@ describe('DashboardLive — unmount cleanup', () => {
     advance(1_000)
 
     expect(mockRefresh).not.toHaveBeenCalled()
+  })
+})
+
+describe('DashboardLive — the backstop across a visibility round trip', () => {
+  it('re-arms from the resync on return to visible, not from mount', () => {
+    render(<DashboardLive />)
+
+    advanceAlive(300_000) // halfway to the mount deadline at 600s
+    expect(mockRefresh).not.toHaveBeenCalled()
+
+    fireVisibilityChange(true)
+    fireVisibilityChange(false) // reopen -> resync -> immediate refresh
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+
+    // That refresh is proof the LISTEN behind the fresh stream is alive, so the
+    // switch must now measure from it. The arm left over from mount would
+    // otherwise fire at 600s and refresh a page that just refreshed 300s ago.
+    advanceAlive(330_000) // t = 630s: past the mount deadline
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+
+    advanceAlive(270_000) // t = 900s: BACKSTOP_MS after the resync
+    expect(mockRefresh).toHaveBeenCalledTimes(2)
+  })
+
+  it('stays armed through a deadline that passes while hidden, and fires on the new schedule', () => {
+    // Mounting hidden is what makes this observable. On the usual path back
+    // from hidden, `lib/live-events` emits a resync that re-arms the switch on
+    // its own, so a backstop that quietly died while hidden would look healthy.
+    // A tab hidden at mount opens its first stream cold — nothing can have been
+    // missed, so no resync — leaving only the hidden re-arm to keep it alive.
+    defineVisibility(true)
+    render(<DashboardLive />)
+
+    // Deadline at 600s passes while hidden: no refresh (a hidden tab holds no
+    // stream and has nothing to have missed), but the switch re-arms to 1200s.
+    advance(660_000)
+    expect(mockRefresh).not.toHaveBeenCalled()
+
+    fireVisibilityChange(false)
+    expect(MockEventSource.openCount).toBe(1) // first stream, opened cold
+    expect(mockRefresh).not.toHaveBeenCalled() // cold open: nothing missed
+
+    advanceAlive(539_999) // t = 1_199_999
+    expect(mockRefresh).not.toHaveBeenCalled()
+
+    advance(1) // t = 1_200_000: one BACKSTOP_MS after the hidden re-arm
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('DashboardLive — member_joined drives the backstop like data_changed', () => {
+  it('debounces, then re-arms the switch from its refresh', () => {
+    render(<DashboardLive />)
+
+    advanceAlive(BACKSTOP - 60_000) // t = 540s, 60s short of the deadline
+    emit('member_joined')
+
+    // Debounced like a data_changed, not immediate like a resync: a new member
+    // is an ordinary row change, and a burst of them must collapse.
+    advance(399)
+    expect(mockRefresh).not.toHaveBeenCalled()
+
+    advance(1)
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+
+    // An arriving member_joined is the same proof of a live LISTEN that a
+    // data_changed is, so it must push the deadline out by a full BACKSTOP_MS.
+    advanceAlive(90_000) // t = 630.4s: past the deadline it replaced
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+
+    advanceAlive(BACKSTOP - 90_000) // t = 1140.4s: BACKSTOP_MS after the refresh
+    expect(mockRefresh).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('DashboardLive — unmount with the backstop armed', () => {
+  it('never fires after unmount, however long the page has been gone', () => {
+    const { unmount } = render(<DashboardLive />)
+
+    emit('data_changed')
+    advance(400) // refresh, which re-arms the switch
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+    mockRefresh.mockClear()
+
+    advanceAlive(300_000)
+    unmount()
+
+    // A leaked backstop would call router.refresh() on a router from an
+    // unmounted tree, and re-arm itself every BACKSTOP_MS forever after.
+    advance(BACKSTOP * 3)
+    expect(mockRefresh).not.toHaveBeenCalled()
+    expect(MockEventSource.openCount).toBe(1)
   })
 })
