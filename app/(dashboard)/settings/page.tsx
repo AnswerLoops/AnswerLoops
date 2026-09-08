@@ -10,6 +10,7 @@ import { getWidgetTokenAction, regenerateWidgetTokenAction, saveWidgetOriginsAct
 import { saveAIConfigAction, clearAIConfigAction } from '@/app/actions/ai-config'
 import { saveROIConfigAction } from '@/app/actions/roi'
 import { createApiKeyAction, revokeApiKeyAction } from '@/app/actions/api-keys'
+import { API_SCOPES, ALL_SCOPES } from '@/lib/agent/scopes'
 import { deleteAccountAction, getCurrentOrgName } from '@/app/actions/account'
 import { Button } from '@/components/ui/button'
 import { DeflectionStatusBadge } from '@/components/ui/badge'
@@ -3370,6 +3371,7 @@ interface ApiKeyRow {
   id: number
   name: string
   key_prefix: string
+  scopes: string[]
   created_at: string
   last_used_at: string | null
   expires_at: string | null
@@ -3468,31 +3470,55 @@ export function ApiKeysSection() {
         )}
 
         {canManage && (
-        <form action={createAction} className="flex flex-col gap-2 sm:flex-row">
-          <input
-            name="name"
-            value={newKeyName}
-            onChange={(e) => setNewKeyName(e.target.value)}
-            placeholder="e.g. Claude Code (laptop)"
-            className="w-full min-w-0 flex-1 rounded border border-gray-200 px-3 py-1.5 text-sm"
-            maxLength={100}
-          />
-          <select
-            name="expiresInDays"
-            defaultValue=""
-            className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm text-gray-700 sm:w-auto"
-            title="Expiry"
-          >
-            <option value="">Never expires</option>
-            <option value="30">30 days</option>
-            <option value="90">90 days</option>
-            <option value="365">1 year</option>
-          </select>
-          <div className="w-full sm:w-auto">
-            <Button type="submit" size="sm" disabled={creating || !newKeyName.trim()} className="w-full sm:w-auto">
-              {creating ? 'Creating…' : 'Create key'}
-            </Button>
+        <form action={createAction} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              name="name"
+              value={newKeyName}
+              onChange={(e) => setNewKeyName(e.target.value)}
+              placeholder="e.g. Claude Code (laptop)"
+              className="w-full min-w-0 flex-1 rounded border border-gray-200 px-3 py-1.5 text-sm"
+              maxLength={100}
+            />
+            <select
+              name="expiresInDays"
+              defaultValue=""
+              className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm text-gray-700 sm:w-auto"
+              title="Expiry"
+            >
+              <option value="">Never expires</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="365">1 year</option>
+            </select>
+            <div className="w-full sm:w-auto">
+              <Button type="submit" size="sm" disabled={creating || !newKeyName.trim()} className="w-full sm:w-auto">
+                {creating ? 'Creating…' : 'Create key'}
+              </Button>
+            </div>
           </div>
+          <fieldset className="rounded-md border border-gray-200 p-3">
+            <legend className="px-1 text-xs font-medium text-gray-600">
+              Permissions — the key can only do what you check here
+            </legend>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              {ALL_SCOPES.map((scope) => (
+                <label key={scope} className="flex items-start gap-2 text-xs text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="scopes"
+                    value={scope}
+                    defaultChecked
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span>
+                    <code className="text-[0.6875rem] text-gray-900">{scope}</code>
+                    <span className="block text-gray-500">{API_SCOPES[scope]}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
         </form>
         )}
         {createState?.error && <p className="text-xs text-red-600">{createState.error}</p>}
@@ -3534,6 +3560,11 @@ export function ApiKeysSection() {
                     {k.key_prefix}••••••••
                     {expired ? ' · expired' : k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString()}` : ' · never used'}
                     {!expired && k.expires_at ? ` · expires ${new Date(k.expires_at).toLocaleDateString()}` : ''}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {!k.scopes || k.scopes.length >= ALL_SCOPES.length
+                      ? 'Full access'
+                      : k.scopes.join(', ')}
                   </p>
                 </div>
                 {!canManage ? null : confirmRevoke === k.id ? (

@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ApiKeysSection } from '@/app/(dashboard)/settings/page'
-import { revokeApiKeyAction } from '@/app/actions/api-keys'
+import { createApiKeyAction, revokeApiKeyAction } from '@/app/actions/api-keys'
+import { ALL_SCOPES } from '@/lib/agent/scopes'
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -54,6 +55,7 @@ const activeKeys = [
     id: 11,
     name: 'Claude Code',
     key_prefix: 'al_live_first',
+    scopes: [...ALL_SCOPES],
     created_at: '2026-07-20T12:00:00.000Z',
     last_used_at: null,
     expires_at: null,
@@ -63,6 +65,7 @@ const activeKeys = [
     id: 12,
     name: 'Cursor',
     key_prefix: 'al_live_second',
+    scopes: ['kb:read', 'faq:read'],
     created_at: '2026-07-21T12:00:00.000Z',
     last_used_at: null,
     expires_at: null,
@@ -149,5 +152,53 @@ describe('API keys settings section', () => {
     // fetch is still pending on first paint.
     render(<ApiKeysSection />)
     expect(screen.queryByRole('button', { name: 'Create key' })).not.toBeInTheDocument()
+  })
+
+  it('offers one permission checkbox per scope, all checked by default', async () => {
+    render(<ApiKeysSection />)
+    await screen.findByRole('button', { name: 'Create key' })
+
+    for (const scope of ALL_SCOPES) {
+      const box = screen.getByRole('checkbox', { name: new RegExp(scope) })
+      expect(box).toBeChecked()
+    }
+  })
+
+  it('submits only the scopes left checked when the key is created', async () => {
+    vi.mocked(createApiKeyAction).mockResolvedValue({ plaintextKey: 'al_live_generated' })
+    const user = userEvent.setup()
+    render(<ApiKeysSection />)
+    await screen.findByRole('button', { name: 'Create key' })
+
+    await user.type(screen.getByPlaceholderText(/Claude Code \(laptop\)/), 'Read-only bot')
+    // Uncheck the two write scopes.
+    await user.click(screen.getByRole('checkbox', { name: /tickets:write/ }))
+    await user.click(screen.getByRole('checkbox', { name: /answers:write/ }))
+    await user.click(screen.getByRole('button', { name: 'Create key' }))
+
+    await waitFor(() => expect(createApiKeyAction).toHaveBeenCalledTimes(1))
+    const fd = vi.mocked(createApiKeyAction).mock.calls[0][1] as FormData
+    expect(fd.getAll('scopes')).toEqual(['kb:read', 'faq:read', 'tickets:read'])
+  })
+
+  it('surfaces the server error when every permission is unchecked', async () => {
+    vi.mocked(createApiKeyAction).mockResolvedValue({ error: 'Select at least one permission for this key.' })
+    const user = userEvent.setup()
+    render(<ApiKeysSection />)
+    await screen.findByRole('button', { name: 'Create key' })
+
+    await user.type(screen.getByPlaceholderText(/Claude Code \(laptop\)/), 'Broken key')
+    for (const scope of ALL_SCOPES) {
+      await user.click(screen.getByRole('checkbox', { name: new RegExp(scope) }))
+    }
+    await user.click(screen.getByRole('button', { name: 'Create key' }))
+
+    expect(await screen.findByText('Select at least one permission for this key.')).toBeInTheDocument()
+  })
+
+  it('labels a full-access key "Full access" and lists a partial key\'s scopes', async () => {
+    render(<ApiKeysSection />)
+    expect(await screen.findByText('Full access')).toBeInTheDocument()
+    expect(screen.getByText('kb:read, faq:read')).toBeInTheDocument()
   })
 })

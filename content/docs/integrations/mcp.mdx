@@ -43,16 +43,19 @@ Streamable HTTP, JSON-RPC 2.0, single endpoint: `POST /api/mcp`.
 - Throttled requests return `429` with a `Retry-After` header (seconds) and JSON-RPC error code `-32002`, which is distinct from the generic internal-error code so your client can back off instead of alerting
 - If you send an `MCP-Protocol-Version` header, it must be a revision this server implements (`2024-11-05`) — anything else is rejected up front rather than silently ignored
 - Request bodies are capped at 64KB — larger requests get a 413 before the body is read
+- Each key is limited to the [scopes](/docs/integrations/agent-api#scopes) it was granted. `tools/list` is unfiltered (so an agent can see what a broader key would unlock), but a `tools/call` for a tool the key lacks the scope for returns JSON-RPC error `-32003` before the tool runs. Every tool definition carries its required scope on `_meta.requiredScope`.
 
 ## Tools
 
-| Tool | Purpose |
-|---|---|
-| `search_kb` | Semantic search over published KB articles (promoted from resolved tickets) |
-| `get_faq` | Fetch the most recently generated FAQ digest |
-| `get_tickets` | List tickets, optionally filtered by `status`, `priority`, or `category` |
-| `create_ticket` | Open a new ticket — runs through the same AI triage pipeline as every other channel |
-| `generate_answer` | Generate a KB-grounded answer with a confidence score, without opening a ticket |
+Each tool requires one scope, shared with the matching REST endpoint — see the [scope table](/docs/integrations/agent-api#scopes).
+
+| Tool | Required scope | Purpose |
+|---|---|---|
+| `search_kb` | `kb:read` | Semantic search over published KB articles (promoted from resolved tickets) |
+| `get_faq` | `faq:read` | Fetch the most recently generated FAQ digest |
+| `get_tickets` | `tickets:read` | List tickets, optionally filtered by `status`, `priority`, or `category` |
+| `create_ticket` | `tickets:write` | Open a new ticket — runs through the same AI triage pipeline as every other channel |
+| `generate_answer` | `answers:write` | Generate a KB-grounded answer with a confidence score, without opening a ticket |
 
 ### search_kb
 
@@ -106,6 +109,7 @@ The second exists because only high-confidence answers are billed as deflections
 - Keys are shown once at creation; only a SHA-256 hash is stored server-side
 - Creating and revoking keys requires the owner or admin role — members can see which keys exist but not change them
 - Every tool call is scoped by the org resolved from the API key — there is no way for one org's key to read or write another org's data
+- Each key is further limited to the scopes it was granted, checked before the call does any work
 - Revoked and expired keys are rejected before any tool runs
 - Usage is recorded against the specific key that made the call, so a suspected leak can be traced to one credential instead of forcing a blanket rotation
 

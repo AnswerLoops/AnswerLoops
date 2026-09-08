@@ -8,7 +8,7 @@ import { authenticateAgentRequest, readAgentJsonBody, agentError } from '@/lib/a
  * monthly deflection limit before any LLM call runs.
  */
 export async function POST(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req)
+  const auth = await authenticateAgentRequest(req, 'answers:write')
   if ('response' in auth) return auth.response
 
   const bodyResult = await readAgentJsonBody(req)

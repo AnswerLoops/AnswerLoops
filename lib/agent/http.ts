@@ -6,6 +6,7 @@ import { readBodyCapped } from '@/lib/http/read-body-capped'
 import { clientIp } from '@/lib/http/client-ip'
 import { verifyOriginProxy } from '@/lib/http/origin-guard'
 import { orgRateLimitPerMinute } from '@/lib/billing/entitlements-server'
+import { hasScope, type ApiScope } from '@/lib/agent/scopes'
 
 /**
  * Auth + rate-limit gate shared by every /api/agent/* REST route. Mirrors
@@ -65,15 +66,38 @@ function rateLimitedResponse(retryAfterMs: number): NextResponse<AgentErrorBody>
 }
 
 export type AgentAuthResult =
-  | { orgId: number; keyId: number }
+  | { orgId: number; keyId: number; scopes: ApiScope[] }
   | { response: NextResponse<AgentErrorBody> }
 
 /**
- * Runs the per-IP rate limit, resolves the Bearer key, and runs the per-org
- * rate limit. Callers should check for `.response` first and return it
- * immediately if present; otherwise `.orgId` is ready to use.
+ * 403 for a valid key that wasn't granted the scope this operation needs.
+ * The `WWW-Authenticate` header follows RFC 6750 §3 so an agent can read
+ * which scope to request rather than guessing — the same scope names are
+ * published in the OpenAPI security requirements and the RFC 9728
+ * protected-resource metadata.
  */
-export async function authenticateAgentRequest(req: NextRequest): Promise<AgentAuthResult> {
+function insufficientScopeResponse(required: ApiScope): NextResponse<AgentErrorBody> {
+  return NextResponse.json(
+    { error: { message: `This API key is missing the required scope: ${required}` } },
+    {
+      status: 403,
+      headers: {
+        'WWW-Authenticate': `Bearer error="insufficient_scope", scope="${required}"`,
+      },
+    }
+  )
+}
+
+/**
+ * Runs the per-IP rate limit, resolves the Bearer key, runs the per-org
+ * rate limit, and — when `requiredScope` is given — checks the key carries
+ * it. Callers should check for `.response` first and return it immediately
+ * if present; otherwise `.orgId`/`.scopes` are ready to use.
+ */
+export async function authenticateAgentRequest(
+  req: NextRequest,
+  requiredScope?: ApiScope
+): Promise<AgentAuthResult> {
   // Rejects requests that bypassed our edge proxy before trusting clientIp()'s
   // proxy-supplied client-IP read below — see lib/http/origin-guard.ts. No-op
   // until ORIGIN_VERIFY_SECRET is set.
@@ -103,7 +127,13 @@ export async function authenticateAgentRequest(req: NextRequest): Promise<AgentA
   if (!resolved) {
     return { response: agentError(401, 'Invalid or revoked API key') }
   }
-  const { orgId, keyId } = resolved
+  const { orgId, keyId, scopes } = resolved
+
+  // Scope is checked before the per-org rate limit is spent — a request the
+  // key can never make shouldn't consume the org's quota.
+  if (requiredScope && !hasScope(scopes, requiredScope)) {
+    return { response: insufficientScopeResponse(requiredScope) }
+  }
 
   const orgRateLimitMax = await orgRateLimitPerMinute(orgId)
   const orgLimit = await rateLimitShared(`agent:${orgId}`, orgRateLimitMax, RATE_LIMIT_WINDOW_MS)
@@ -111,7 +141,7 @@ export async function authenticateAgentRequest(req: NextRequest): Promise<AgentA
     return { response: rateLimitedResponse(orgLimit.retryAfterMs) }
   }
 
-  return { orgId, keyId }
+  return { orgId, keyId, scopes }
 }
 
 export type AgentBodyResult =

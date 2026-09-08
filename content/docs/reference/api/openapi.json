@@ -3,7 +3,7 @@
   "info": {
     "title": "AnswerLoops Agent API",
     "description": "REST API for AI agents and non-MCP frameworks (LangChain, AutoGen, custom bots) to search a knowledge base, read the latest FAQ, list/create tickets, and generate grounded answers — the same pipeline every other AnswerLoops channel uses. MCP-native clients (Claude Code, Cursor) should use the MCP server at POST /api/mcp instead; this REST surface exists for tooling that speaks HTTP + OpenAPI, not JSON-RPC.",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "servers": [
     {
@@ -15,12 +15,29 @@
       "bearerAuth": []
     }
   ],
+  "x-api-scopes": {
+    "kb:read": {
+      "description": "Search the organization's knowledge base"
+    },
+    "faq:read": {
+      "description": "Read the latest generated FAQ digest"
+    },
+    "tickets:read": {
+      "description": "List support tickets"
+    },
+    "tickets:write": {
+      "description": "Open support tickets on behalf of a user"
+    },
+    "answers:write": {
+      "description": "Generate grounded answers (counts against the deflection limit)"
+    }
+  },
   "components": {
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Org-scoped API key generated in Settings → API Keys (al_live_ prefix). Shared with the MCP server — the same key authenticates both surfaces."
+        "description": "Org-scoped API key generated in Settings → API Keys (al_live_ prefix). Shared with the MCP server — the same key authenticates both surfaces. A key carries a set of least-privilege scopes; each operation lists the scope it requires. A key missing a required scope gets 403 with a `WWW-Authenticate: Bearer error=\"insufficient_scope\"` header. Scope catalogue: see the `x-api-scopes` object and /.well-known/oauth-protected-resource."
       }
     },
     "schemas": {
@@ -71,6 +88,18 @@
           }
         }
       }
+    },
+    "responses": {
+      "InsufficientScope": {
+        "description": "Valid key, but it lacks the scope this operation requires",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
     }
   },
   "paths": {
@@ -78,6 +107,13 @@
       "get": {
         "operationId": "searchKb",
         "summary": "Semantically search the organization's knowledge base",
+        "security": [
+          {
+            "bearerAuth": [
+              "kb:read"
+            ]
+          }
+        ],
         "parameters": [
           {
             "name": "query",
@@ -150,6 +186,9 @@
               }
             }
           },
+          "403": {
+            "$ref": "#/components/responses/InsufficientScope"
+          },
           "429": {
             "description": "Rate limit exceeded",
             "content": {
@@ -167,6 +206,13 @@
       "get": {
         "operationId": "getFaq",
         "summary": "Get the organization's most recently generated FAQ digest",
+        "security": [
+          {
+            "bearerAuth": [
+              "faq:read"
+            ]
+          }
+        ],
         "responses": {
           "200": {
             "description": "Latest FAQ digest, or a message if none has been generated yet",
@@ -187,6 +233,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/InsufficientScope"
           }
         }
       }
@@ -195,6 +244,13 @@
       "get": {
         "operationId": "getTickets",
         "summary": "List support tickets for the organization",
+        "security": [
+          {
+            "bearerAuth": [
+              "tickets:read"
+            ]
+          }
+        ],
         "parameters": [
           {
             "name": "status",
@@ -289,12 +345,22 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/InsufficientScope"
           }
         }
       },
       "post": {
         "operationId": "createTicket",
         "summary": "Open a new support ticket on behalf of a user",
+        "security": [
+          {
+            "bearerAuth": [
+              "tickets:write"
+            ]
+          }
+        ],
         "description": "Runs through the same AI triage/answer pipeline as every other channel (Discord, Slack, email) — the ticket may get auto-answered if confidence is high, otherwise it queues for human review.",
         "requestBody": {
           "required": true,
@@ -363,6 +429,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/InsufficientScope"
           }
         }
       }
@@ -371,6 +440,13 @@
       "post": {
         "operationId": "generateAnswer",
         "summary": "Generate a grounded answer using the organization's knowledge base, without opening a ticket",
+        "security": [
+          {
+            "bearerAuth": [
+              "answers:write"
+            ]
+          }
+        ],
         "description": "Counts against the org's monthly deflection limit — if the limit is reached, returns 429 instead of generating for free. Only high-confidence generations count toward that limit.",
         "requestBody": {
           "required": true,
@@ -435,6 +511,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/InsufficientScope"
           },
           "429": {
             "description": "Monthly deflection limit reached, or rate limit exceeded",

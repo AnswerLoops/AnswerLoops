@@ -7,7 +7,7 @@ import { authenticateAgentRequest, readAgentJsonBody, agentError } from '@/lib/a
  * REST counterpart to the MCP get_tickets tool.
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req)
+  const auth = await authenticateAgentRequest(req, 'tickets:read')
   if ('response' in auth) return auth.response
 
   const { searchParams } = req.nextUrl
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
  * same processCommunityMessage pipeline as every other channel.
  */
 export async function POST(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req)
+  const auth = await authenticateAgentRequest(req, 'tickets:write')
   if ('response' in auth) return auth.response
 
   const bodyResult = await readAgentJsonBody(req)

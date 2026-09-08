@@ -9,6 +9,7 @@ import {
   CATEGORIES,
 } from '@/lib/agent/core'
 import { logger } from '@/lib/logger'
+import { TOOL_SCOPES } from '@/lib/agent/scopes'
 import type { McpToolDefinition, McpToolResult } from './protocol'
 
 const MOD = 'mcp/tools'
@@ -34,6 +35,7 @@ const searchKbDef: McpToolDefinition = {
     },
     required: ['query'],
   },
+  _meta: { requiredScope: TOOL_SCOPES.search_kb },
 }
 
 async function searchKb(orgId: number, args: Record<string, unknown>): Promise<McpToolResult> {
@@ -47,6 +49,7 @@ const getFaqDef: McpToolDefinition = {
   name: 'get_faq',
   description: "Get the organization's most recently generated FAQ digest — a markdown summary of the top questions resolved this week, grouped by category.",
   inputSchema: { type: 'object', properties: {} },
+  _meta: { requiredScope: TOOL_SCOPES.get_faq },
 }
 
 async function getFaq(orgId: number): Promise<McpToolResult> {
@@ -68,6 +71,7 @@ const getTicketsDef: McpToolDefinition = {
       limit: { type: 'number', description: 'Max results to return (default 10, max 20)' },
     },
   },
+  _meta: { requiredScope: TOOL_SCOPES.get_tickets },
 }
 
 async function getTicketsTool(orgId: number, args: Record<string, unknown>): Promise<McpToolResult> {
@@ -92,6 +96,7 @@ const createTicketDef: McpToolDefinition = {
     },
     required: ['content'],
   },
+  _meta: { requiredScope: TOOL_SCOPES.create_ticket },
 }
 
 async function createTicketTool(orgId: number, args: Record<string, unknown>): Promise<McpToolResult> {
@@ -114,6 +119,7 @@ const generateAnswerDef: McpToolDefinition = {
     },
     required: ['question'],
   },
+  _meta: { requiredScope: TOOL_SCOPES.generate_answer },
 }
 
 async function generateAnswer(orgId: number, args: Record<string, unknown>, keyId?: number | null): Promise<McpToolResult> {

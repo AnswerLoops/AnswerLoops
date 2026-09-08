@@ -7,7 +7,7 @@ import { authenticateAgentRequest } from '@/lib/agent/http'
  * REST counterpart to the MCP get_faq tool.
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req)
+  const auth = await authenticateAgentRequest(req, 'faq:read')
   if ('response' in auth) return auth.response
 
   const result = await getFaqCore(auth.orgId)

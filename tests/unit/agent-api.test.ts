@@ -103,7 +103,7 @@ describe('app/api/agent/kb/search/route: GET', () => {
 
   it('authenticates before calling searchKbCore', () => {
     const s = src()
-    const authIdx = s.indexOf('authenticateAgentRequest(req)')
+    const authIdx = s.indexOf('authenticateAgentRequest(req')
     const coreIdx = s.indexOf('searchKbCore(')
     expect(authIdx).toBeGreaterThan(-1)
     expect(authIdx).toBeLessThan(coreIdx)
@@ -126,7 +126,7 @@ describe('app/api/agent/faq/route: GET', () => {
 
   it('authenticates before calling getFaqCore', () => {
     const s = src()
-    const authIdx = s.indexOf('authenticateAgentRequest(req)')
+    const authIdx = s.indexOf('authenticateAgentRequest(req')
     const coreIdx = s.indexOf('getFaqCore(')
     expect(authIdx).toBeGreaterThan(-1)
     expect(authIdx).toBeLessThan(coreIdx)
@@ -171,7 +171,7 @@ describe('app/api/agent/answers/route: POST', () => {
 
   it('authenticates and reads a capped JSON body before calling generateAnswerCore', () => {
     const s = src()
-    const authIdx = s.indexOf('authenticateAgentRequest(req)')
+    const authIdx = s.indexOf('authenticateAgentRequest(req')
     const bodyIdx = s.indexOf('readAgentJsonBody(req)')
     const coreIdx = s.indexOf('generateAnswerCore(')
     expect(authIdx).toBeGreaterThan(-1)
@@ -188,7 +188,7 @@ describe('app/api/agent/answers/route: POST', () => {
 })
 
 describe('app/api/agent/openapi.json/route: GET', () => {
-  const src = () => readSrc('app/api/agent/openapi.json/route.ts')
+  const src = () => readSrc('lib/agent/openapi-spec.ts')
 
   it('declares bearerAuth as the (only) security scheme, matching every route\'s actual auth requirement', () => {
     const s = src()
@@ -244,5 +244,69 @@ describe('public/.well-known/ai-plugin.json: points at the real Agent API spec n
     const raw = readSrc('public/.well-known/ai-plugin.json')
     const manifest = JSON.parse(raw)
     expect(manifest.api.url).toBe('https://answerloops.com/api/agent/openapi.json')
+  })
+})
+
+describe('OpenAPI spec is served at the root /openapi.json too, byte-identical to /api/agent/openapi.json', () => {
+  it('both route handlers render buildAgentOpenApiSpec() with no divergence', async () => {
+    const rootMod = await import('../../app/openapi.json/route')
+    const agentMod = await import('../../app/api/agent/openapi.json/route')
+    const rootBody = await (await rootMod.GET()).json()
+    const agentBody = await (await agentMod.GET()).json()
+    expect(rootBody).toEqual(agentBody)
+  })
+
+  it('/openapi.json is a public path — no session redirect before the handler runs', () => {
+    const s = readSrc('auth.ts')
+    const match = s.match(/const PUBLIC_PATHS = \[([^\]]+)\]/)
+    expect(match![1]).toContain("'/openapi.json'")
+    expect(match![1]).toContain("'/.well-known'")
+  })
+})
+
+describe('least-privilege scopes: every agent operation declares the one scope it needs', () => {
+  it('each REST route passes its required scope to authenticateAgentRequest', () => {
+    expect(readSrc('app/api/agent/kb/search/route.ts')).toContain("authenticateAgentRequest(req, 'kb:read')")
+    expect(readSrc('app/api/agent/faq/route.ts')).toContain("authenticateAgentRequest(req, 'faq:read')")
+    expect(readSrc('app/api/agent/answers/route.ts')).toContain("authenticateAgentRequest(req, 'answers:write')")
+    const tickets = readSrc('app/api/agent/tickets/route.ts')
+    expect(tickets).toContain("authenticateAgentRequest(req, 'tickets:read')")
+    expect(tickets).toContain("authenticateAgentRequest(req, 'tickets:write')")
+  })
+
+  it('the OpenAPI spec pins each operation to its scope and publishes the scope catalogue', async () => {
+    const mod = await import('../../app/api/agent/openapi.json/route')
+    const spec = await (await mod.GET()).json()
+    expect(spec.paths['/api/agent/kb/search'].get.security).toEqual([{ bearerAuth: ['kb:read'] }])
+    expect(spec.paths['/api/agent/tickets'].post.security).toEqual([{ bearerAuth: ['tickets:write'] }])
+    expect(Object.keys(spec['x-api-scopes']).sort()).toEqual(
+      ['answers:write', 'faq:read', 'kb:read', 'tickets:read', 'tickets:write'].sort()
+    )
+  })
+
+  it('RFC 9728 protected-resource metadata lists exactly the scope catalogue', async () => {
+    const mod = await import('../../app/.well-known/oauth-protected-resource/route')
+    const meta = await (await mod.GET()).json()
+    expect(meta.resource).toBe('https://answerloops.com')
+    expect(meta.scopes_supported.sort()).toEqual(
+      ['answers:write', 'faq:read', 'kb:read', 'tickets:read', 'tickets:write'].sort()
+    )
+    expect(meta.bearer_methods_supported).toEqual(['header'])
+  })
+
+  it('the MCP route enforces the per-tool scope before running the tool', () => {
+    const s = readSrc('app/api/mcp/route.ts')
+    const scopeIdx = s.indexOf('TOOL_SCOPES[toolName')
+    const callIdx = s.indexOf('callMcpTool(toolName')
+    expect(scopeIdx).toBeGreaterThan(-1)
+    expect(scopeIdx).toBeLessThan(callIdx)
+    expect(s).toContain('JsonRpcErrorCode.FORBIDDEN')
+  })
+
+  it('each MCP tool definition carries its required scope in _meta', () => {
+    const s = readSrc('lib/mcp/tools.ts')
+    for (const tool of ['search_kb', 'get_faq', 'get_tickets', 'create_ticket', 'generate_answer']) {
+      expect(s, tool).toContain(`_meta: { requiredScope: TOOL_SCOPES.${tool} }`)
+    }
   })
 })

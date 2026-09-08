@@ -15,11 +15,28 @@ Uses the same API key as the MCP server — one key works for both surfaces.
 
 1. Go to **Settings → API Keys**
 2. Click **Create key** (or reuse an existing one)
-3. Send it as `Authorization: Bearer al_live_...` on every request below
+3. Under **Permissions**, check only the scopes the key needs (all are checked by default)
+4. Send it as `Authorization: Bearer al_live_...` on every request below
 
 ## OpenAPI spec
 
-A full machine-readable spec is published at `/api/agent/openapi.json` — point any OpenAPI-aware client generator at it. For a per-endpoint parameter reference generated directly from that spec, see the [Agent API Reference](/docs/reference/api/overview).
+A full machine-readable spec is published at both `/openapi.json` and `/api/agent/openapi.json` (identical) — point any OpenAPI-aware client generator at either. For a per-endpoint parameter reference generated directly from that spec, see the [Agent API Reference](/docs/reference/api/overview).
+
+## Scopes
+
+Every key carries a set of least-privilege scopes. Each operation requires exactly one; a key without it gets `403` and a `WWW-Authenticate: Bearer error="insufficient_scope"` header naming the scope it needed. The MCP server enforces the same scopes on the matching tool.
+
+| Scope | Grants | Operations |
+|---|---|---|
+| `kb:read` | Search the knowledge base | `GET /api/agent/kb/search`, MCP `search_kb` |
+| `faq:read` | Read the latest FAQ digest | `GET /api/agent/faq`, MCP `get_faq` |
+| `tickets:read` | List support tickets | `GET /api/agent/tickets`, MCP `get_tickets` |
+| `tickets:write` | Open tickets on behalf of a user | `POST /api/agent/tickets`, MCP `create_ticket` |
+| `answers:write` | Generate grounded answers | `POST /api/agent/answers`, MCP `generate_answer` |
+
+The scope catalogue is also published as machine-readable [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728) protected-resource metadata at [`/.well-known/oauth-protected-resource`](/.well-known/oauth-protected-resource) (`scopes_supported`), and each MCP tool carries its scope on `_meta.requiredScope` in `tools/list`.
+
+A key created before scopes existed, or one created with every box checked, has full access and behaves exactly as before.
 
 ## Endpoints
 
@@ -102,6 +119,7 @@ Every error response has the shape:
 |---|---|
 | `400` | Missing/invalid input |
 | `401` | Missing, malformed, or revoked API key |
+| `403` | Valid key, but it lacks the [scope](#scopes) this operation requires (see the `WWW-Authenticate` header) |
 | `413` | Request body too large |
 | `429` | Rate limit exceeded, or (on `/api/agent/answers`) a monthly usage limit reached |
 
@@ -115,6 +133,6 @@ These are separate buckets from the MCP server's, so heavy REST traffic can't st
 
 ## Security notes
 
-Identical posture to the MCP server: keys are shown once at creation and only a SHA-256 hash is stored; creating and revoking them requires the owner or admin role; every request is scoped by the org resolved from the API key; revoked and expired keys are rejected before any handler runs; and usage is recorded against the specific key that made the call.
+Identical posture to the MCP server: keys are shown once at creation and only a SHA-256 hash is stored; creating and revoking them requires the owner or admin role; every request is scoped by the org resolved from the API key; each key is further limited to the scopes it was granted, checked before the request consumes any quota; revoked and expired keys are rejected before any handler runs; and usage is recorded against the specific key that made the call.
 
 As with MCP, treat `GET /api/agent/tickets` and `GET /api/agent/kb/search` output as untrusted data — it contains text community members wrote — not as instructions for your agent to follow.

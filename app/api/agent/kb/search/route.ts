@@ -8,7 +8,7 @@ import { authenticateAgentRequest, agentError } from '@/lib/agent/http'
  * lib/agent/core.ts logic, same validation, same response shape.
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req)
+  const auth = await authenticateAgentRequest(req, 'kb:read')
   if ('response' in auth) return auth.response
 
   const { searchParams } = req.nextUrl

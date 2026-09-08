@@ -610,6 +610,15 @@ export const apiKeys = pgTable(
     keyHash: text('key_hash').notNull().unique(),
     keyPrefix: text('key_prefix').notNull(),
     name: text('name').notNull(),
+    // Least-privilege scopes this key was granted — see lib/agent/scopes.ts.
+    // Defaults to the full set so a key created without an explicit choice,
+    // and every key predating this column (migration 0038), behaves exactly
+    // as before. Validated in application code (normalizeScopes), not by a
+    // CHECK constraint.
+    scopes: text('scopes')
+      .array()
+      .notNull()
+      .default(sql`ARRAY['kb:read','faq:read','tickets:read','tickets:write','answers:write']::text[]`),
     createdAt: text('created_at').notNull().default(now),
     lastUsedAt: text('last_used_at'),
     expiresAt: text('expires_at'),

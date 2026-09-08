@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { resolveApiKey } from '@/lib/db/queries/api-keys'
 import { isValidApiKeyFormat } from '@/lib/mcp/keys'
 import { MCP_TOOLS, callMcpTool } from '@/lib/mcp/tools'
+import { TOOL_SCOPES, hasScope } from '@/lib/agent/scopes'
 import { rpcError, rpcResult, normalizeRpcId, JsonRpcErrorCode, type JsonRpcRequest } from '@/lib/mcp/protocol'
 import { rateLimitShared } from '@/lib/ratelimit'
 import { readBodyCapped } from '@/lib/http/read-body-capped'
@@ -156,7 +157,7 @@ export async function POST(req: NextRequest) {
   if (!resolved) {
     return Response.json(rpcError(id, JsonRpcErrorCode.UNAUTHORIZED, 'Invalid or revoked API key'), { status: 401 })
   }
-  const { orgId, keyId } = resolved
+  const { orgId, keyId, scopes } = resolved
 
   const orgRateLimitMax = await orgRateLimitPerMinute(orgId)
   const limit = await rateLimitShared(`mcp:${orgId}`, orgRateLimitMax, RATE_LIMIT_WINDOW_MS)
@@ -175,6 +176,18 @@ export async function POST(req: NextRequest) {
 
     if (!MCP_TOOLS.some((t) => t.name === toolName)) {
       return Response.json(rpcError(id, JsonRpcErrorCode.METHOD_NOT_FOUND, `Unknown tool: ${toolName}`), { status: 400 })
+    }
+
+    // Least-privilege check — mirrors the REST surface's per-route scope gate
+    // (lib/agent/http.ts). Checked before the tool runs so a call the key
+    // can never make does no work. tools/list stays unfiltered so an agent
+    // can still discover what a broader key would unlock.
+    const requiredScope = TOOL_SCOPES[toolName as keyof typeof TOOL_SCOPES]
+    if (requiredScope && !hasScope(scopes, requiredScope)) {
+      return Response.json(
+        rpcError(id, JsonRpcErrorCode.FORBIDDEN, `This API key is missing the required scope: ${requiredScope}`),
+        { status: 403 }
+      )
     }
 
     // keyId is logged alongside orgId so traffic can be attributed to a
