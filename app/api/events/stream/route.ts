@@ -19,10 +19,23 @@ const KEEPALIVE_MS = 25_000
 // network paths (proxy idle-drop, database failover, a laptop sleeping)
 // without the clean close event that postgres.js's auto-resubscribe needs to
 // see. Recycling caps how long a silently-dead LISTEN can persist even if
-// the client-side staleness watchdog also misses it. There is deliberately
-// no server-side heartbeat query on this connection: that would generate
-// steady database load and defeat the reason this stream exists.
+// both the heartbeat below and the client-side watchdog miss it.
 const STREAM_MAX_AGE_MS = 15 * 60 * 1000
+
+// Heartbeat on the LISTEN connection itself, matching the bot's config
+// listener (bot/index.ts). The browser-ward `ping` above proves only that the
+// HTTP stream is alive; it never touches Postgres, so a LISTEN that has died
+// underneath a healthy stream is invisible without this. A failed heartbeat
+// ends the stream, the browser reconnects, and every subscriber gets a
+// `resync` — which is what makes the client's backstop affordable at ten
+// minutes instead of one.
+//
+// An earlier revision of this route omitted the heartbeat on the grounds that
+// it would generate steady database load. That reasoning does not survive the
+// arithmetic: one SELECT 1 every four minutes is 15 trivial queries an hour,
+// against the ~780 real ones a 60-second client backstop was already spending
+// per open tab. This is a net reduction, not an addition.
+const LISTEN_HEARTBEAT_MS = 4 * 60 * 1000
 
 export async function GET(_request: NextRequest) {
   const session = await auth()
@@ -60,6 +73,15 @@ export async function GET(_request: NextRequest) {
 
       const keepalive = setInterval(() => send('ping'), KEEPALIVE_MS)
 
+      // If the connection is gone, close the stream rather than sitting on a
+      // dead LISTEN: the browser reopens and the server registers a fresh one.
+      const heartbeat = setInterval(() => {
+        listener.unsafe('SELECT 1').catch((err) => {
+          logger.warn('SSE listener heartbeat failed', { module: MOD, orgId, error: err })
+          close()
+        })
+      }, LISTEN_HEARTBEAT_MS)
+
       const recycle = setTimeout(() => {
         send('cycle')
         close()
@@ -69,6 +91,7 @@ export async function GET(_request: NextRequest) {
         if (closed) return
         closed = true
         clearInterval(keepalive)
+        clearInterval(heartbeat)
         clearTimeout(recycle)
         listener.end({ timeout: 5 }).catch(() => {})
         try {

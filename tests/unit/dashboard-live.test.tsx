@@ -161,32 +161,70 @@ describe('DashboardLive — staleness watchdog', () => {
   })
 })
 
-describe('DashboardLive — backstop refresh', () => {
-  it('router.refresh() fires roughly every 60s while visible', () => {
+describe('DashboardLive — idle backstop', () => {
+  const BACKSTOP = 10 * 60 * 1000
+
+  // Advance time on a stream the server is keeping alive: it sends `ping`
+  // every 25s, so the staleness watchdog never trips in production and must
+  // not trip here either, or its reconnect resyncs would be counted as
+  // backstop refreshes. A ping is deliberately NOT proof the LISTEN works, so
+  // it must not re-arm the backstop — that distinction is what these tests pin.
+  const advanceAlive = (ms: number) => {
+    for (let left = ms; left > 0; left -= 25_000) {
+      advance(Math.min(25_000, left))
+      emit('ping')
+    }
+  }
+
+  it('fires only after BACKSTOP_MS of silence, not on a fixed interval', () => {
     render(<DashboardLive />)
 
-    // Keep the stream healthy so the staleness watchdog stays out of the way
-    // and the only refreshes counted here are the backstop's.
-    const keepAlive = () => emit('ping')
+    advanceAlive(BACKSTOP - 30_000)
+    // The old fixed 60s interval would have refreshed nine times by now.
+    expect(mockRefresh).not.toHaveBeenCalled()
 
-    advance(30_000)
-    keepAlive()
-    advance(30_000)
+    advanceAlive(60_000)
     expect(mockRefresh).toHaveBeenCalledTimes(1)
 
-    advance(30_000)
-    keepAlive()
-    advance(30_000)
+    // And it re-arms itself: a LISTEN that stays dead must keep being caught,
+    // not caught once and then abandoned.
+    advanceAlive(BACKSTOP)
     expect(mockRefresh).toHaveBeenCalledTimes(2)
   })
 
-  it('does not fire the backstop refresh while the tab is hidden', () => {
+  it('a data_changed re-arms it, so an active dashboard never runs it', () => {
+    render(<DashboardLive />)
+
+    // An arriving event is itself proof the LISTEN is alive, which is exactly
+    // what the backstop exists to check — so it should reset the clock.
+    for (let i = 0; i < 5; i++) {
+      advanceAlive(BACKSTOP - 60_000)
+      emit('data_changed')
+      advance(400) // debounce
+    }
+
+    // Five refreshes from the events themselves, none from the backstop.
+    expect(mockRefresh).toHaveBeenCalledTimes(5)
+  })
+
+  it('a keepalive ping alone does not re-arm it', () => {
+    render(<DashboardLive />)
+
+    // A ping travels over HTTP and never touches Postgres, so it says nothing
+    // about whether the LISTEN behind it is alive. Treating it as proof would
+    // make the backstop blind to the exact failure it guards against.
+    advanceAlive(BACKSTOP + 30_000)
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not fire while the tab is hidden, and stays armed for its return', () => {
     render(<DashboardLive />)
 
     fireVisibilityChange(true)
     mockRefresh.mockClear()
 
-    advance(180_000)
+    advance(BACKSTOP * 3)
     expect(mockRefresh).not.toHaveBeenCalled()
   })
 })

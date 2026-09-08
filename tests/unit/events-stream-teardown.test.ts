@@ -11,16 +11,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 // when the browser disconnects) must end the pg connection and stop the
 // keepalive, and a second close must be a no-op.
 
-const { listen, end, postgresFactory, auth } = vi.hoisted(() => {
+const { listen, end, unsafe, postgresFactory, auth } = vi.hoisted(() => {
   const listenFn = vi.fn(async () => ({ unlisten: vi.fn() }))
   const endFn = vi.fn(async () => {})
+  // The route heartbeats the LISTEN connection with sql.unsafe('SELECT 1');
+  // unsafeFn is swappable per test so a failing heartbeat can be simulated.
+  const unsafeFn = vi.fn(async () => [])
   const factory = vi.fn(() => {
     const sql = () => {}
-    Object.assign(sql, { listen: listenFn, end: endFn })
+    Object.assign(sql, { listen: listenFn, end: endFn, unsafe: unsafeFn })
     return sql
   })
   const authFn = vi.fn(async () => ({ user: { id: 1 }, orgId: 7 }))
-  return { listen: listenFn, end: endFn, postgresFactory: factory, auth: authFn }
+  return { listen: listenFn, end: endFn, unsafe: unsafeFn, postgresFactory: factory, auth: authFn }
 })
 
 vi.mock('postgres', () => ({ default: postgresFactory }))
@@ -91,6 +94,48 @@ describe('GET /api/events/stream — connection teardown', () => {
     // platform then cancels the already-closed stream -> close() is a no-op
     await res.body!.cancel()
     expect(end).toHaveBeenCalledTimes(1)
+  })
+
+  it('heartbeats the LISTEN connection every 4 minutes', async () => {
+    const res = await GET(new Request('https://app.example.com/api/events/stream') as never)
+    await firstFrame(res)
+    expect(unsafe).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(4 * 60 * 1000)
+    expect(unsafe).toHaveBeenCalledWith('SELECT 1')
+    expect(unsafe).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(4 * 60 * 1000)
+    expect(unsafe).toHaveBeenCalledTimes(2)
+
+    // A healthy heartbeat must not disturb the stream.
+    expect(end).not.toHaveBeenCalled()
+    await res.body!.cancel()
+  })
+
+  it('closes the stream when the heartbeat fails, so the browser reconnects', async () => {
+    unsafe.mockRejectedValueOnce(new Error('connection terminated') as never)
+    const res = await GET(new Request('https://app.example.com/api/events/stream') as never)
+    await firstFrame(res)
+
+    await vi.advanceTimersByTimeAsync(4 * 60 * 1000)
+
+    // The whole point: detecting a dead LISTEN and then sitting on it would be
+    // no better than not detecting it. Ending the stream makes EventSource
+    // rebuild it, which re-registers LISTEN and fires resync on the client.
+    expect(end).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops heartbeating after teardown', async () => {
+    const res = await GET(new Request('https://app.example.com/api/events/stream') as never)
+    await firstFrame(res)
+    await res.body!.cancel()
+    unsafe.mockClear()
+
+    // A leaked heartbeat interval would query a closed connection forever —
+    // and keep a serverless compute awake for a tab that is long gone.
+    await vi.advanceTimersByTimeAsync(30 * 60 * 1000)
+    expect(unsafe).not.toHaveBeenCalled()
   })
 
   it('returns 401 without a session and opens no connection', async () => {

@@ -23,13 +23,30 @@ import { subscribeLiveEvents } from '@/lib/live-events'
  * stream was just rebuilt and events may have been missed while it was down,
  * so we refresh immediately rather than debouncing.
  *
- * On top of that, a backstop `router.refresh()` every BACKSTOP_MS while the
- * tab is visible: the watchdog can only see a dead HTTP stream, so if the
- * stream is healthy but its upstream LISTEN is not, this bounds how long the
- * page can show stale data.
+ * On top of that, a backstop `router.refresh()` bounds how long the page can
+ * show stale data if the stream is healthy but its upstream LISTEN is not.
+ *
+ * The backstop is a dead-man's switch, not a poll: every refresh re-arms it,
+ * so it only ever fires after BACKSTOP_MS of complete silence. A dashboard
+ * that is receiving events never runs it at all, because an arriving event is
+ * itself proof the LISTEN is alive. This matters because the backstop is the
+ * entire remaining database cost of an idle open tab — the stream itself
+ * issues no queries, and the server's keepalive pings never reach Postgres.
+ * At the old fixed 60s it re-ran every Server Component query on the route
+ * sixty times an hour, per open tab, forever.
+ *
+ * Note that only real events may re-arm it. A keepalive `ping` proves the HTTP
+ * stream is alive but says nothing about the LISTEN behind it, which is the
+ * exact failure this guards against; `lib/live-events` keeps that distinction
+ * and only forwards the events that carry meaning.
+ *
+ * The interval can be this long because the server now heartbeats its own
+ * LISTEN connection every 4 minutes and tears the stream down when that fails,
+ * which surfaces as a `resync` here. Detection is the heartbeat's job; this is
+ * only the last line of defence.
  */
 
-const BACKSTOP_MS = 60_000
+const BACKSTOP_MS = 10 * 60 * 1000
 const DEBOUNCE_MS = 400
 
 export function DashboardLive() {
@@ -37,8 +54,22 @@ export function DashboardLive() {
 
   useEffect(() => {
     let debounce: ReturnType<typeof setTimeout> | undefined
+    let backstop: ReturnType<typeof setTimeout> | undefined
 
-    const refreshNow = () => router.refresh()
+    // Re-armed after every refresh, so a tab that is receiving events never
+    // reaches it. Fires only after BACKSTOP_MS of silence.
+    const armBackstop = () => {
+      clearTimeout(backstop)
+      backstop = setTimeout(() => {
+        if (!document.hidden) refreshNow()
+        else armBackstop() // hidden: skip the refresh, keep the switch armed
+      }, BACKSTOP_MS)
+    }
+
+    const refreshNow = () => {
+      router.refresh()
+      armBackstop()
+    }
 
     const unsubscribe = subscribeLiveEvents(
       ['data_changed', 'member_joined', 'resync'],
@@ -55,13 +86,11 @@ export function DashboardLive() {
       }
     )
 
-    const backstop = setInterval(() => {
-      if (!document.hidden) refreshNow()
-    }, BACKSTOP_MS)
+    armBackstop()
 
     return () => {
       clearTimeout(debounce)
-      clearInterval(backstop)
+      clearTimeout(backstop)
       unsubscribe()
     }
   }, [router])
