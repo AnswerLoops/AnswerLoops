@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { MockEventSource, defineVisibility } from './mock-event-source'
 import type { LiveEvent } from '@/lib/live-events'
 
 /**
@@ -22,53 +23,8 @@ import type { LiveEvent } from '@/lib/live-events'
  * via vi.resetModules().
  */
 
-type Listener = (ev: Event) => void
 
-class MockEventSource {
-  static instances: MockEventSource[] = []
 
-  url: string
-  listeners: Record<string, Set<Listener>> = {}
-  closed = false
-  onerror: ((ev: Event) => void) | null = null
-
-  constructor(url: string) {
-    this.url = url
-    MockEventSource.instances.push(this)
-  }
-
-  addEventListener(type: string, cb: Listener) {
-    ;(this.listeners[type] ??= new Set()).add(cb)
-  }
-
-  removeEventListener(type: string, cb: Listener) {
-    this.listeners[type]?.delete(cb)
-  }
-
-  close() {
-    this.closed = true
-  }
-
-  emit(type: string) {
-    this.listeners[type]?.forEach((cb) => cb(new Event(type)))
-  }
-
-  static reset() {
-    MockEventSource.instances = []
-  }
-
-  static get openCount() {
-    return MockEventSource.instances.length
-  }
-
-  static get last() {
-    return MockEventSource.instances[MockEventSource.instances.length - 1]
-  }
-}
-
-function defineVisibility(hidden: boolean) {
-  Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden })
-}
 
 function fireVisibilityChange(hidden: boolean) {
   defineVisibility(hidden)
@@ -199,6 +155,81 @@ describe('live-events — event fan-out', () => {
   })
 })
 
+describe('live-events — a throwing subscriber is contained', () => {
+  it('still delivers to later subscribers after an earlier handler throws', () => {
+    const later = vi.fn()
+    const a = subscribeLiveEvents(['data_changed'], () => {
+      throw new Error('boom')
+    })
+    const b = subscribeLiveEvents(['data_changed'], later)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    expect(() => MockEventSource.last.emit('data_changed')).not.toThrow()
+
+    // Without isolation the loop aborts on the throw and every later
+    // subscriber is skipped — on a resync that leaves exactly the stale client
+    // state this module exists to refresh.
+    expect(later).toHaveBeenCalledTimes(1)
+
+    a()
+    b()
+  })
+
+  it('contains a throw on resync so the other subscriber still refetches', () => {
+    const later = vi.fn()
+    const a = subscribeLiveEvents(['resync'], () => {
+      throw new Error('boom')
+    })
+    const b = subscribeLiveEvents(['resync'], later)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    vi.advanceTimersByTime(75_000) // watchdog rebuild
+
+    expect(later).toHaveBeenCalledTimes(1)
+
+    a()
+    b()
+  })
+})
+
+describe('live-events — the browser\'s own reconnect', () => {
+  it('emits resync on a second connected, without a new EventSource', () => {
+    const handler = vi.fn()
+    const a = subscribeLiveEvents(['resync'], handler)
+    const stream = MockEventSource.last
+
+    stream.emit('connected')
+    expect(handler).not.toHaveBeenCalled() // first registration
+
+    // The server recycles the stream every ~15 minutes and the browser
+    // reconnects transparently against a fresh LISTEN. Our code never sees a
+    // close, and keepalives resume, so the watchdog never trips — a repeat
+    // `connected` is the only evidence that events could have been missed.
+    stream.emit('connected')
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(handler).toHaveBeenCalledWith('resync')
+    expect(MockEventSource.openCount).toBe(1)
+
+    a()
+  })
+
+  it('does not emit resync for the first connected on a rebuilt stream', () => {
+    const handler = vi.fn()
+    const a = subscribeLiveEvents(['resync'], handler)
+
+    vi.advanceTimersByTime(75_000) // watchdog rebuild: one resync
+    expect(handler).toHaveBeenCalledTimes(1)
+
+    // The replacement is a brand new EventSource, so its own first `connected`
+    // is a first registration and must not double up on that resync.
+    MockEventSource.last.emit('connected')
+    expect(handler).toHaveBeenCalledTimes(1)
+
+    a()
+  })
+})
+
 describe('live-events — resync on reopen', () => {
   it('does not emit resync on the first open', () => {
     const handler = vi.fn()
@@ -220,6 +251,39 @@ describe('live-events — resync on reopen', () => {
     fireVisibilityChange(false)
     expect(handler).toHaveBeenCalledTimes(1)
     expect(handler).toHaveBeenCalledWith('resync')
+
+    a()
+  })
+
+  it('does not emit resync when a hidden-at-mount tab opens its first stream', () => {
+    defineVisibility(true)
+    const handler = vi.fn()
+    const a = subscribeLiveEvents(['resync'], handler)
+    expect(MockEventSource.openCount).toBe(0)
+
+    fireVisibilityChange(false)
+
+    // This is the session's first open, not a reopen — nothing has been missed,
+    // and a resync here would make every subscriber refetch what it just
+    // fetched on mount.
+    expect(MockEventSource.openCount).toBe(1)
+    expect(handler).not.toHaveBeenCalled()
+
+    a()
+  })
+
+  it('leaves a healthy stream alone when visibilitychange fires while visible', () => {
+    const handler = vi.fn()
+    const a = subscribeLiveEvents(['resync'], handler)
+    const first = MockEventSource.last
+
+    fireVisibilityChange(false) // already visible: a no-op transition
+
+    // Rebuilding here would tear down a live EventSource, re-register the
+    // Postgres LISTEN behind it, and force a pointless refetch on everyone.
+    expect(first.closed).toBe(false)
+    expect(MockEventSource.openCount).toBe(1)
+    expect(handler).not.toHaveBeenCalled()
 
     a()
   })

@@ -44,6 +44,9 @@ export function DashboardLive() {
       ['data_changed', 'member_joined', 'resync'],
       (event) => {
         if (event === 'resync') {
+          // Supersedes any debounced refresh already armed — otherwise a
+          // data_changed from 400ms ago fires a second, redundant refresh.
+          clearTimeout(debounce)
           refreshNow()
           return
         }

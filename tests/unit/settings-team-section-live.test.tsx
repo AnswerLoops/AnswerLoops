@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { MockEventSource, defineVisibility } from './mock-event-source'
 import { render, screen, act, waitFor } from '@testing-library/react'
 
 /**
@@ -99,57 +100,8 @@ vi.mock('@/app/actions/account', () => ({
 // and tests/unit/dashboard-live.test.tsx; instances are tracked so we can assert
 // how many streams a mount opened.
 
-type Listener = (ev: Event) => void
 
-class MockEventSource {
-  static instances: MockEventSource[] = []
 
-  url: string
-  listeners: Record<string, Set<Listener>> = {}
-  closed = false
-  onerror: ((ev: Event) => void) | null = null
-
-  constructor(url: string) {
-    this.url = url
-    MockEventSource.instances.push(this)
-  }
-
-  addEventListener(type: string, cb: Listener) {
-    ;(this.listeners[type] ??= new Set()).add(cb)
-  }
-
-  removeEventListener(type: string, cb: Listener) {
-    this.listeners[type]?.delete(cb)
-  }
-
-  close() {
-    this.closed = true
-  }
-
-  emit(type: string) {
-    this.listeners[type]?.forEach((cb) => cb(new Event(type)))
-  }
-
-  static reset() {
-    MockEventSource.instances = []
-  }
-
-  static get openCount() {
-    return MockEventSource.instances.length
-  }
-
-  static get last() {
-    return MockEventSource.instances[MockEventSource.instances.length - 1]
-  }
-}
-
-function defineVisibility(hidden: boolean) {
-  Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden })
-  Object.defineProperty(document, 'visibilityState', {
-    configurable: true,
-    get: () => (hidden ? 'hidden' : 'visible'),
-  })
-}
 
 async function fireVisibilityChange(hidden: boolean) {
   defineVisibility(hidden)
