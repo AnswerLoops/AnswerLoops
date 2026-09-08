@@ -1,62 +1,99 @@
 import { auth } from '@/auth'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { getDirectDatabaseUrl } from '@/lib/db/direct-url'
+import { logger } from '@/lib/logger'
 import postgres from 'postgres'
+import type { NextRequest } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-// Railway / Vercel kill connections after 60s — client reconnects automatically.
+const MOD = 'sse'
+
+// Proxies (Railway, Vercel, nginx) drop an idle connection around 60s. This
+// ping is sent browser-ward only — it never queries Postgres, so it does not
+// keep a serverless database compute from suspending on idle.
 const KEEPALIVE_MS = 25_000
 
-export async function GET() {
+// Deliberately end the stream on a fixed cycle and let the browser's
+// EventSource rebuild it. A LISTEN connection can die silently on some
+// network paths (proxy idle-drop, database failover, a laptop sleeping)
+// without the clean close event that postgres.js's auto-resubscribe needs to
+// see. Recycling caps how long a silently-dead LISTEN can persist even if
+// the client-side staleness watchdog also misses it. There is deliberately
+// no server-side heartbeat query on this connection: that would generate
+// steady database load and defeat the reason this stream exists.
+const STREAM_MAX_AGE_MS = 15 * 60 * 1000
+
+export async function GET(_request: NextRequest) {
   const session = await auth()
   if (!session?.user) return new Response('Unauthorized', { status: 401 })
 
   const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
 
   const url = getDirectDatabaseUrl()
-  if (!url) return new Response('DATABASE_URL not set', { status: 503 })
+  if (!url) return new Response('database not configured', { status: 503 })
 
   const encoder = new TextEncoder()
+  // Assigned inside start(); cancel() runs it when the client disconnects.
+  let teardown = () => {}
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: string, data: string) => {
+      let closed = false
+
+      // Every event this stream sends is a bare signal with no payload — the
+      // client re-fetches on its own — so the data line is always `{}`.
+      const send = (event: string) => {
+        if (closed) return
         try {
-          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${data}\n\n`))
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: {}\n\n`))
         } catch {
-          // client disconnected
+          // Client already gone — teardown runs via cancel().
         }
       }
 
-      // Dedicated single connection required for LISTEN (same pattern as bot)
+      // Dedicated connection: a NOTIFY arrives on whichever backend Postgres
+      // picks, so a pooled connection can miss it (same reason as the bot's
+      // config listener). postgres.js does not idle-close a connection by
+      // default, so the LISTEN stays registered between notifications.
       const listener = postgres(url, { max: 1 })
 
-      const keepalive = setInterval(() => send('ping', '{}'), KEEPALIVE_MS)
+      const keepalive = setInterval(() => send('ping'), KEEPALIVE_MS)
 
-      const cleanup = () => {
+      const recycle = setTimeout(() => {
+        send('cycle')
+        close()
+      }, STREAM_MAX_AGE_MS)
+
+      const close = () => {
+        if (closed) return
+        closed = true
         clearInterval(keepalive)
-        listener.end().catch(() => null)
+        clearTimeout(recycle)
+        listener.end({ timeout: 5 }).catch(() => {})
+        try {
+          controller.close()
+        } catch {
+          // already closed
+        }
+      }
+      teardown = close
+
+      const forOrg = (event: string) => (payload: string) => {
+        if (Number(payload) === orgId) send(event)
       }
 
       try {
-        await listener.listen('member_joined', (payload) => {
-          console.log(`[sse] member_joined payload=${payload} orgId=${orgId}`)
-          if (Number(payload) === orgId) {
-            send('member_joined', JSON.stringify({ orgId }))
-          }
-        })
-        console.log(`[sse] listening for org ${orgId}`)
-        send('connected', '{}')
+        await listener.listen('data_changed', forOrg('data_changed'))
+        await listener.listen('member_joined', forOrg('member_joined'))
+        send('connected')
       } catch (err) {
-        console.error('[sse] listen failed', err)
-        cleanup()
-        controller.close()
-        return
+        logger.warn('SSE listen setup failed', { module: MOD, orgId, error: err })
+        close()
       }
-
-      // Hold open until client disconnects
-      return () => cleanup()
+    },
+    cancel() {
+      teardown()
     },
   })
 
@@ -65,7 +102,8 @@ export async function GET() {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
-      // Disable nginx/Railway proxy buffering so events reach the client immediately
+      // Disable nginx / Railway proxy buffering so events reach the client
+      // immediately instead of being held in a buffer.
       'X-Accel-Buffering': 'no',
     },
   })

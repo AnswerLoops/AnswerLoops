@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { LogoMark } from '@/components/logo'
 import { getUnreadCount } from '@/lib/db/queries/notifications'
 import { NotificationBell } from '@/components/notifications/notification-bell'
-import { AutoRefresh } from '@/components/auto-refresh'
+import { DashboardLive } from '@/components/dashboard-live'
 import { SidebarNav } from '@/components/sidebar-nav'
 import { MobileDrawer } from '@/components/ui/mobile-drawer'
 import { AITrialBanner } from '@/components/ai-trial-banner'
@@ -69,7 +69,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="dashboard-shell brand-system flex h-screen bg-[#f3f4f2]">
-      <AutoRefresh intervalMs={5000} />
+      <DashboardLive />
       {/* Sidebar — desktop only */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white shadow-[12px_0_40px_rgba(15,23,42,0.05)] md:flex">
         {sidebarContent}
