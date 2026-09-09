@@ -32,6 +32,10 @@ export const JsonRpcErrorCode = {
   // Distinct from INTERNAL_ERROR so a client can tell "back off and retry"
   // apart from "something broke" — the two want opposite handling.
   RATE_LIMITED: -32002,
+  // Valid key, but it wasn't granted the scope this tool needs. Distinct
+  // from UNAUTHORIZED so a client can tell "get a new key" apart from "get a
+  // key with more scopes" — see lib/agent/scopes.ts.
+  FORBIDDEN: -32003,
 } as const
 
 /**
@@ -60,6 +64,11 @@ export interface McpToolDefinition {
     properties: Record<string, unknown>
     required?: string[]
   }
+  // Carries the least-privilege scope this tool needs (lib/agent/scopes.ts)
+  // so an MCP client can read it off tools/list, the same scope the REST
+  // OpenAPI spec and the RFC 9728 metadata advertise. `_meta` is the MCP
+  // spec's designated place for implementation-specific tool metadata.
+  _meta?: Record<string, unknown>
 }
 
 export interface McpToolResult {

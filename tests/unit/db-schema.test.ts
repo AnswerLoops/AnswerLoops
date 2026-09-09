@@ -112,6 +112,12 @@ describe('DB schema: exported tables', () => {
     expect(kbArticles).toBeTruthy()
   })
 
+  it('apiKeys table exposes the scopes column (migration 0038)', async () => {
+    const { apiKeys } = await import('../../lib/db/schema')
+    expect(apiKeys).toBeTruthy()
+    expect('scopes' in apiKeys).toBe(true)
+  })
+
   it('DEFAULT_ORG_ID is exported and is a number', async () => {
     const { DEFAULT_ORG_ID } = await import('../../lib/db/schema')
     expect(typeof DEFAULT_ORG_ID).toBe('number')

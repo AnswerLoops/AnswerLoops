@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { refresh } from 'next/cache'
 import { requireOrgAccess } from '@/lib/auth/org'
 import { createApiKey, revokeApiKey } from '@/lib/db/queries/api-keys'
+import { isApiScope } from '@/lib/agent/scopes'
 
 // An API key is an org-wide, long-lived credential: it grants read access to
 // the org's entire ticket history and KB plus metered LLM spend, through both
@@ -18,6 +19,17 @@ const CreateKeySchema = z.object({
   expiresInDays: z.enum(['', '30', '90', '365']).optional(),
 })
 
+// Scopes arrive as repeated `scopes` form fields, so they're read with
+// getAll() rather than through the object schema above. An empty selection
+// means "full access" (createApiKey / normalizeScopes enforce that) — the
+// UI defaults every box checked, so this is only hit if someone unchecks
+// them all.
+function readScopes(formData: FormData): string[] {
+  return formData
+    .getAll('scopes')
+    .filter((v): v is string => typeof v === 'string' && isApiScope(v))
+}
+
 export async function createApiKeyAction(
   _prevState: unknown,
   formData: FormData
@@ -29,9 +41,20 @@ export async function createApiKeyAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const expiresInDays = parsed.data.expiresInDays ? Number(parsed.data.expiresInDays) : null
+
+  // The form always renders the scope checkboxes (all checked by default), so
+  // a submission with none is a user who unchecked everything — treat that as
+  // a mistake and fail closed rather than silently minting a full-access key
+  // (which is what createApiKey(null) / normalizeScopes([]) would do). The
+  // `scopes` field is absent entirely only for a non-form / legacy caller.
+  const scopes = formData.has('scopes') ? readScopes(formData) : null
+  if (scopes !== null && scopes.length === 0) {
+    return { error: 'Select at least one permission for this key.' }
+  }
+
   let plaintextKey: string
   try {
-    ;({ plaintextKey } = await createApiKey(access.orgId, parsed.data.name, expiresInDays))
+    ;({ plaintextKey } = await createApiKey(access.orgId, parsed.data.name, expiresInDays, scopes))
   } catch (err) {
     // createApiKey throws when the org is at its active-key cap — surface
     // that as a form error instead of a 500.

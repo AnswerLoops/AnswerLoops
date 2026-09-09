@@ -2,12 +2,14 @@ import { eq, and, isNull, sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
 import { apiKeys } from '../schema'
 import { generateApiKey, hashApiKey } from '@/lib/mcp/keys'
+import { normalizeScopes, ALL_SCOPES, type ApiScope } from '@/lib/agent/scopes'
 
 export interface ApiKey {
   id: number
   org_id: number
   key_prefix: string
   name: string
+  scopes: ApiScope[]
   created_at: string
   last_used_at: string | null
   expires_at: string | null
@@ -20,6 +22,7 @@ function toApiKey(row: typeof apiKeys.$inferSelect): ApiKey {
     org_id: row.orgId,
     key_prefix: row.keyPrefix,
     name: row.name,
+    scopes: normalizeScopes(row.scopes),
     created_at: row.createdAt,
     last_used_at: row.lastUsedAt,
     expires_at: row.expiresAt,
@@ -41,7 +44,8 @@ export const MAX_ACTIVE_KEYS_PER_ORG = 25
 export async function createApiKey(
   orgId: number,
   name: string,
-  expiresInDays?: number | null
+  expiresInDays?: number | null,
+  scopes?: readonly string[] | null
 ): Promise<{ plaintextKey: string; record: ApiKey }> {
   const [{ n: activeCount }] = await getDb()
     .select({ n: sql<number>`count(*)::int` })
@@ -55,9 +59,12 @@ export async function createApiKey(
   const expiresAt = expiresInDays
     ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
     : null
+  // An explicit empty/all-invalid selection falls back to full access rather
+  // than minting a key that can do nothing — normalizeScopes enforces that.
+  const grantedScopes = scopes == null ? [...ALL_SCOPES] : normalizeScopes(scopes)
   const [row] = await getDb()
     .insert(apiKeys)
-    .values({ orgId, keyHash: hash, keyPrefix: prefix, name, expiresAt })
+    .values({ orgId, keyHash: hash, keyPrefix: prefix, name, expiresAt, scopes: grantedScopes })
     .returning()
   return { plaintextKey: key, record: toApiKey(row) }
 }
@@ -89,7 +96,9 @@ export async function revokeApiKey(orgId: number, keyId: number): Promise<void> 
  * must not distinguish "wrong key" from "revoked key" in the response (avoids
  * leaking key-validity as an oracle).
  */
-export async function resolveApiKey(plaintextKey: string): Promise<{ orgId: number; keyId: number } | null> {
+export async function resolveApiKey(
+  plaintextKey: string
+): Promise<{ orgId: number; keyId: number; scopes: ApiScope[] } | null> {
   const hash = hashApiKey(plaintextKey)
   const [row] = await getDb()
     .select()
@@ -100,5 +109,5 @@ export async function resolveApiKey(plaintextKey: string): Promise<{ orgId: numb
   if (row.expiresAt && row.expiresAt < new Date().toISOString()) return null
 
   await getDb().update(apiKeys).set({ lastUsedAt: new Date().toISOString() }).where(eq(apiKeys.id, row.id))
-  return { orgId: row.orgId, keyId: row.id }
+  return { orgId: row.orgId, keyId: row.id, scopes: normalizeScopes(row.scopes) }
 }
