@@ -16,6 +16,7 @@ import { DeflectionStatusBadge } from '@/components/ui/badge'
 import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import type { SLAConfig, GitHubRepo, NotionConnection } from '@/types'
 import { saveNotionConnectionAction, deleteNotionConnectionAction } from '@/app/actions/notion'
+import { subscribeLiveEvents } from '@/lib/live-events'
 
 interface Member {
   membership_id: number
@@ -2641,7 +2642,7 @@ function TransferOwnershipModal({
   )
 }
 
-function TeamSection() {
+export function TeamSection() {
   const [members, setMembers] = useState<Member[]>([])
   const [invites, setInvites] = useState<PendingInvite[]>([])
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
@@ -2683,16 +2684,14 @@ function TeamSection() {
   useEffect(() => { reload() }, [])
 
   // Live-update when a team member accepts an invite — no polling needed.
-  useEffect(() => {
-    const es = new EventSource('/api/events/stream')
-    es.addEventListener('connected', () => console.log('[sse] connected'))
-    es.addEventListener('member_joined', () => {
-      console.log('[sse] member_joined received — reloading team')
-      reload()
-    })
-    es.onerror = (e) => console.error('[sse] error', e)
-    return () => es.close()
-  }, [])
+  // This rides the tab's shared SSE stream rather than opening a second one:
+  // the dashboard layout already mounts DashboardLive, and each stream costs
+  // a dedicated Postgres LISTEN connection. `resync` means the stream was
+  // rebuilt (tab refocused, or the connection went stale) and a
+  // member_joined may have been missed while it was down — the member and
+  // invite lists are client state that a router.refresh() would not
+  // repopulate, so refetch them here.
+  useEffect(() => subscribeLiveEvents(['member_joined', 'resync'], () => { reload() }), [])
 
   const copyLink = (token: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/invite/${token}`)
