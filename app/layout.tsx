@@ -18,13 +18,13 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://answerloops.com'),
   title: "AnswerLoops",
   description:
-    "AI support that lives in your community: AnswerLoops answers repeat questions right in the channel — Discord, Slack, Discourse and Circle forums, GitHub, Telegram, email, and website chat — and only when it's confident enough to be right. Open source, self-hosted, and MCP/API-ready.",
+    "A question your community already answered gets asked again. AnswerLoops drafts the answer from your docs and resolved tickets, a second agent checks it against those sources, and it posts in the thread — Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a website widget. Weak answers go to a teammate with the draft ready. Open source, self-hostable, and an MCP server your own agents can call.",
   openGraph: {
     type: 'website',
     siteName: 'AnswerLoops',
     title: 'AnswerLoops — Support that lives in your community',
     description:
-      'Answer repeat questions in the channel where your community already asks — with confidence-gated automation. Open source, self-hosted, and MCP/API-ready.',
+      "A repeat question in your Discord, forum, or GitHub gets a drafted answer from your docs, a second agent checks it against its sources, and it posts in the thread. Weak answers go to a teammate with the draft ready. Open source, self-hostable, and an MCP server your own agents can call.",
     // Social card image comes from app/opengraph-image.tsx (1200×630) via the
     // Next file convention — it fills both openGraph and twitter automatically.
   },
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AnswerLoops — Support that lives in your community',
     description:
-      'Answer repeat questions in the channel where your community already asks — with confidence-gated automation. Open source, self-hosted, and MCP/API-ready.',
+      "A repeat question in your Discord, forum, or GitHub gets a drafted answer from your docs, a second agent checks it against its sources, and it posts in the thread. Weak answers go to a teammate with the draft ready. Open source, self-hostable, and an MCP server your own agents can call.",
   },
   icons: {
     icon: [
