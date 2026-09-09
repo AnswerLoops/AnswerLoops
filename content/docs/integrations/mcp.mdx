@@ -13,10 +13,11 @@ Not using an MCP-native client? The [Agent API](/docs/integrations/agent-api) ex
 
 ## Setup
 
-1. Go to **Settings → API Keys** (workspace owners and admins only — a key grants read access to the whole org's tickets and knowledge base plus metered AI spend, so minting and revoking them is an admin action)
+1. Go to **Settings → API Keys** (workspace owners and admins only — a key grants access to the org's tickets and knowledge base plus metered AI spend, so minting and revoking them is an admin action)
 2. Click **Create key**, give it a name (e.g. "Cursor" or "Support bot") and optionally pick an expiry (30/90/365 days, or never)
-3. Copy the plaintext key shown — it's only displayed once and cannot be recovered later
-4. Paste the generated config into your MCP client's config file
+3. Under **Permissions**, check only the [scopes](/docs/integrations/agent-api#scopes) this client needs — all are checked by default; a tool call the key isn't scoped for is rejected with JSON-RPC error `-32003`
+4. Copy the plaintext key shown — it's only displayed once and cannot be recovered later
+5. Paste the generated config into your MCP client's config file
 
 ```json
 {

@@ -207,7 +207,7 @@ describe('app/api/agent/openapi.json/route: GET', () => {
     const mod = await import('../../app/api/agent/openapi.json/route')
     const res = await mod.GET()
     const body = await res.json()
-    expect(body.openapi).toBe('3.0.0')
+    expect(body.openapi).toBe('3.1.0')
     expect(Object.keys(body.paths).sort()).toEqual(
       ['/api/agent/answers', '/api/agent/faq', '/api/agent/kb/search', '/api/agent/tickets'].sort()
     )
@@ -264,6 +264,29 @@ describe('OpenAPI spec is served at the root /openapi.json too, byte-identical t
   })
 })
 
+describe('content/docs/reference/api/openapi.json stays in sync with the live spec', () => {
+  it('the checked-in reference copy is exactly what the route renders (run `pnpm docs:generate-api` after editing the spec)', async () => {
+    const mod = await import('../../app/api/agent/openapi.json/route')
+    const live = await (await mod.GET()).json()
+    const committed = JSON.parse(readSrc('content/docs/reference/api/openapi.json'))
+    expect(committed).toEqual(live)
+  })
+})
+
+describe('OpenAPI version allows scoped security requirements', () => {
+  it('declares 3.1.0 — 3.0.x forbids a non-empty scope array on a plain bearer scheme', async () => {
+    const mod = await import('../../app/api/agent/openapi.json/route')
+    const spec = await (await mod.GET()).json()
+    expect(spec.openapi).toBe('3.1.0')
+  })
+
+  it('advertises the request origin in servers so a self-hosted instance describes itself', async () => {
+    const mod = await import('../../app/openapi.json/route')
+    const spec = await (await mod.GET(new Request('https://self-hosted.example/openapi.json'))).json()
+    expect(spec.servers).toEqual([{ url: 'https://self-hosted.example' }])
+  })
+})
+
 describe('least-privilege scopes: every agent operation declares the one scope it needs', () => {
   it('each REST route passes its required scope to authenticateAgentRequest', () => {
     expect(readSrc('app/api/agent/kb/search/route.ts')).toContain("authenticateAgentRequest(req, 'kb:read')")
@@ -286,8 +309,9 @@ describe('least-privilege scopes: every agent operation declares the one scope i
 
   it('RFC 9728 protected-resource metadata lists exactly the scope catalogue', async () => {
     const mod = await import('../../app/.well-known/oauth-protected-resource/route')
-    const meta = await (await mod.GET()).json()
+    const meta = await (await mod.GET(new Request('https://answerloops.com/.well-known/oauth-protected-resource'))).json()
     expect(meta.resource).toBe('https://answerloops.com')
+    expect(meta.resource_documentation).toBe('https://answerloops.com/docs/integrations/agent-api')
     expect(meta.scopes_supported.sort()).toEqual(
       ['answers:write', 'faq:read', 'kb:read', 'tickets:read', 'tickets:write'].sort()
     )

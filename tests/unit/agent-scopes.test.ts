@@ -4,13 +4,24 @@ import { resolve } from 'node:path'
 import {
   API_SCOPES,
   ALL_SCOPES,
-  FULL_SCOPES,
   READONLY_SCOPES,
   TOOL_SCOPES,
   isApiScope,
   normalizeScopes,
   hasScope,
 } from '../../lib/agent/scopes'
+
+// The exact scope strings migration 0038 wrote into the DEFAULT and the
+// backfill, frozen. 0038 is applied history — its literals cannot change — so
+// this list must not track the live catalogue. A future scope addition
+// updates ALL_SCOPES and a *later* migration, not this list.
+const MIGRATION_0038_SCOPES = [
+  'kb:read',
+  'faq:read',
+  'tickets:read',
+  'tickets:write',
+  'answers:write',
+] as const
 
 describe('lib/agent/scopes', () => {
   it('every MCP tool maps to a real, known scope', () => {
@@ -27,8 +38,7 @@ describe('lib/agent/scopes', () => {
     expect(READONLY_SCOPES).not.toContain('answers:write')
   })
 
-  it('FULL_SCOPES is the complete catalogue', () => {
-    expect([...FULL_SCOPES].sort()).toEqual([...ALL_SCOPES].sort())
+  it('ALL_SCOPES is exactly the catalogue keys', () => {
     expect([...ALL_SCOPES].sort()).toEqual(Object.keys(API_SCOPES).sort())
   })
 
@@ -45,7 +55,7 @@ describe('lib/agent/scopes', () => {
     })
 
     it('falls back to full access for a NULL / non-array / empty / all-invalid value', () => {
-      const full = [...FULL_SCOPES].sort()
+      const full = [...ALL_SCOPES].sort()
       expect(normalizeScopes(null).sort()).toEqual(full)
       expect(normalizeScopes(undefined).sort()).toEqual(full)
       expect(normalizeScopes([]).sort()).toEqual(full)
@@ -68,7 +78,7 @@ describe('migration 0038 backfills existing keys to full access', () => {
 
   it('adds the column idempotently with the full-scope default', () => {
     expect(sql).toContain('ADD COLUMN IF NOT EXISTS scopes TEXT[]')
-    for (const scope of ALL_SCOPES) {
+    for (const scope of MIGRATION_0038_SCOPES) {
       expect(sql, scope).toContain(`'${scope}'`)
     }
   })

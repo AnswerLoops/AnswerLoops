@@ -2,7 +2,7 @@ import { eq, and, isNull, sql } from 'drizzle-orm'
 import { getDb } from '../drizzle'
 import { apiKeys } from '../schema'
 import { generateApiKey, hashApiKey } from '@/lib/mcp/keys'
-import { normalizeScopes, FULL_SCOPES, type ApiScope } from '@/lib/agent/scopes'
+import { normalizeScopes, ALL_SCOPES, type ApiScope } from '@/lib/agent/scopes'
 
 export interface ApiKey {
   id: number
@@ -61,7 +61,7 @@ export async function createApiKey(
     : null
   // An explicit empty/all-invalid selection falls back to full access rather
   // than minting a key that can do nothing — normalizeScopes enforces that.
-  const grantedScopes = scopes == null ? [...FULL_SCOPES] : normalizeScopes(scopes)
+  const grantedScopes = scopes == null ? [...ALL_SCOPES] : normalizeScopes(scopes)
   const [row] = await getDb()
     .insert(apiKeys)
     .values({ orgId, keyHash: hash, keyPrefix: prefix, name, expiresAt, scopes: grantedScopes })

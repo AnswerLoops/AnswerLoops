@@ -1,9 +1,9 @@
 import { API_SCOPES } from '@/lib/agent/scopes'
 
 /**
- * The single source of truth for the Agent API's OpenAPI 3.0 description.
+ * The single source of truth for the Agent API's OpenAPI description.
  *
- * Every path below actually exists and works. It is served verbatim at three
+ * Every path below actually exists and works. It is served verbatim at two
  * URLs so an agent finds it wherever it looks:
  *   - /openapi.json              (the conventional root location scanners probe)
  *   - /api/agent/openapi.json    (kept — linked from .well-known/ai-plugin.json
@@ -14,23 +14,30 @@ import { API_SCOPES } from '@/lib/agent/scopes'
  * HTTP + OpenAPI, not JSON-RPC.
  *
  * Least-privilege: each operation declares the one scope it needs in its
- * `security` block, drawn from lib/agent/scopes.ts. The same scope names are
- * published as machine-readable RFC 9728 protected-resource metadata at
- * /.well-known/oauth-protected-resource, and carried on each MCP tool's
- * `_meta.requiredScope`.
+ * `security` block, drawn from lib/agent/scopes.ts. This requires OpenAPI
+ * 3.1.0 — 3.0.x only allows a non-empty scope array against an oauth2 /
+ * openIdConnect scheme, and strict validators reject it against a plain
+ * bearer scheme. The same scope names are also published as machine-readable
+ * RFC 9728 protected-resource metadata at /.well-known/oauth-protected-resource
+ * and carried on each MCP tool's `_meta.requiredScope`.
+ *
+ * `origin` is the absolute base URL the spec advertises in `servers` — passed
+ * as the request origin by the route handlers so a self-hosted instance
+ * describes itself correctly; the checked-in reference copy
+ * (content/docs/reference/api/openapi.json) uses the default.
  */
-export function buildAgentOpenApiSpec() {
+export function buildAgentOpenApiSpec(origin = 'https://answerloops.com') {
   const scoped = (scope: keyof typeof API_SCOPES) => [{ bearerAuth: [scope] }]
 
   return {
-    openapi: '3.0.0',
+    openapi: '3.1.0',
     info: {
       title: 'AnswerLoops Agent API',
       description:
         'REST API for AI agents and non-MCP frameworks (LangChain, AutoGen, custom bots) to search a knowledge base, read the latest FAQ, list/create tickets, and generate grounded answers — the same pipeline every other AnswerLoops channel uses. MCP-native clients (Claude Code, Cursor) should use the MCP server at POST /api/mcp instead; this REST surface exists for tooling that speaks HTTP + OpenAPI, not JSON-RPC.',
       version: '1.1.0',
     },
-    servers: [{ url: 'https://answerloops.com' }],
+    servers: [{ url: origin }],
     security: [{ bearerAuth: [] }],
     // Machine-readable scope catalogue. Mirrored in the RFC 9728 metadata at
     // /.well-known/oauth-protected-resource (scopes_supported).

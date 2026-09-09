@@ -11,20 +11,20 @@ import { ALL_SCOPES, API_SCOPES } from '@/lib/agent/scopes'
  * `authorization_servers` is deliberately omitted: keys are long-lived,
  * org-scoped credentials minted in Settings → API Keys, not tokens issued by
  * a separate OAuth authorization server. RFC 9728 makes that field optional.
- * Served from `app/.well-known/...` rather than `public/` so `scopes_supported`
- * can never drift from lib/agent/scopes.ts.
+ *
+ * `resource` and the doc link are built from the origin this request came in
+ * on, not a hardcoded host, so a self-hosted instance publishes metadata that
+ * points at itself. Served from `app/.well-known/...` rather than `public/`
+ * so `scopes_supported` can never drift from lib/agent/scopes.ts.
  */
-const BASE_URL = 'https://answerloops.com'
-
-export async function GET() {
-  return Response.json(
-    {
-      resource: BASE_URL,
-      resource_name: 'AnswerLoops Agent API',
-      scopes_supported: [...ALL_SCOPES],
-      scope_descriptions: API_SCOPES,
-      bearer_methods_supported: ['header'],
-      resource_documentation: `${BASE_URL}/docs/integrations/agent-api`,
-    }
-  )
+export function GET(req: Request) {
+  const origin = new URL(req.url).origin
+  return Response.json({
+    resource: origin,
+    resource_name: 'AnswerLoops Agent API',
+    scopes_supported: [...ALL_SCOPES],
+    scope_descriptions: API_SCOPES,
+    bearer_methods_supported: ['header'],
+    resource_documentation: `${origin}/docs/integrations/agent-api`,
+  })
 }

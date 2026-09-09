@@ -24,7 +24,35 @@ describe('auth.ts PUBLIC_PATHS covers every self-authenticating API route', () =
     '/api/billing/webhook', // Stripe signature
     '/api/slack/events', // Slack signing secret
     '/api/google-chat/events', // Google-signed OIDC bearer token
+    '/api/mcp', // Bearer API key
+    '/api/agent', // Bearer API key (REST twin of the MCP surface)
   ]
+
+  // Static, crawler-/agent-fetchable documents. Same failure mode as the
+  // public page routes below (a split-subdomain deployment 307s them off the
+  // domain they're published on), plus the session cookie the proxy attaches
+  // makes them uncacheable. They must be both in PUBLIC_PATHS and excluded
+  // from the proxy matcher in proxy.ts.
+  const publicDocumentRoutes = [
+    '/openapi.json',
+    '/.well-known/oauth-protected-resource',
+    '/.well-known/ai-plugin.json',
+  ]
+
+  it.each(publicDocumentRoutes)('%s is listed in (or covered by a prefix in) PUBLIC_PATHS', (route) => {
+    const covered = publicPaths.some((p) => route === p || route.startsWith(`${p}/`))
+    expect(covered, `${route} is not covered by any PUBLIC_PATHS entry`).toBe(true)
+  })
+
+  it('proxy.ts matcher excludes openapi.json and .well-known so the session middleware never runs on them', () => {
+    const proxySrc = fs.readFileSync(path.join(process.cwd(), 'proxy.ts'), 'utf-8')
+    const matcher = proxySrc.match(/matcher:\s*\[\s*'([^']+)'/)?.[1]
+    if (!matcher) throw new Error('Could not find the matcher pattern in proxy.ts')
+    // The matcher is one big negative-lookahead alternation; an entry there is
+    // a path prefix the middleware skips. These sit alongside llms\.txt etc.
+    expect(matcher, 'openapi.json must be in the matcher exclusion list').toMatch(/openapi\\+\.json/)
+    expect(matcher, '.well-known must be in the matcher exclusion list').toMatch(/\\+\.well-known/)
+  })
 
   it.each(selfAuthenticatingRoutes)('%s is listed in (or covered by a prefix in) PUBLIC_PATHS', (route) => {
     const covered = publicPaths.some((p) => route === p || route.startsWith(`${p}/`))
