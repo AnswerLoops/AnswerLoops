@@ -10,9 +10,9 @@ import { MARKETED_CHANNELS } from '@/lib/marketing/channels'
 import { WorkflowDiagram } from '@/components/marketing/workflow-diagram'
 
 export const metadata: Metadata = {
-  title: 'AnswerLoops — Support that lives in your community',
+  title: 'AnswerLoops — Agent-native support that lives in your community',
   description:
-    "Agent-native and answered from your docs, checked line by line against a second agent, then posted — or routed to a teammate. — Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a website widget.",
+    "Every answer is drafted from your docs, checked line by line by a second agent, then posted — or routed to a teammate. — Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a website widget. Weak answers go to a teammate with the draft ready. Open source, self-hostable, and an MCP server your own agents can call.",
   alternates: { canonical: '/' },
 }
 
@@ -65,14 +65,14 @@ function Hero() {
           </div>
 
           <h1 className="landing-hero-rise [animation-delay:80ms] mt-7 text-balance text-[2.8rem] font-semibold leading-[0.98] tracking-[-0.055em] text-slate-950 sm:text-6xl md:text-[5rem]">
-            Support that lives
+            Agent-native support that lives
             <span className="mt-2 block bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-400 bg-clip-text text-transparent">
               in your community.
             </span>
           </h1>
 
           <p className="landing-hero-rise [animation-delay:160ms] mx-auto mt-7 max-w-2xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-            A question your community already asked gets a fresh answer from your docs and resolved tickets — then a second agent checks it line by line against those sources before it posts in the thread. Drafts that don&apos;t hold up go to a teammate, not a blank ticket.
+            Every answer is drafted from your docs, checked line by line by a second agent, then posted — or routed to a teammate.
           </p>
 
           <div className="landing-hero-rise [animation-delay:240ms] mx-auto mt-9 max-w-xl">
