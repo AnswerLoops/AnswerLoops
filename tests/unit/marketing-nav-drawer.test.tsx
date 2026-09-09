@@ -48,7 +48,7 @@ describe('the drawer is the only navigation a phone gets', () => {
     render(<Nav state="anonymous" />)
     const { drawer } = await openDrawer(user)
 
-    const signIn = drawer.getByRole('link', { name: /^sign in$/i })
+    const signIn = drawer.getByRole('link', { name: /^login$/i })
     expect(
       signIn.getAttribute('href'),
       'the drawer must use the sign-in framing, not "Create your account"',
@@ -74,7 +74,7 @@ describe('the drawer is the only navigation a phone gets', () => {
     const trial = drawer.getByRole('link', { name: /start free trial/i })
     expect(trial.className, 'the drawer trial button must stay filled').toMatch(/bg-gradient-to-r/)
 
-    const signIn = drawer.getByRole('link', { name: /^sign in$/i })
+    const signIn = drawer.getByRole('link', { name: /^login$/i })
     expect(signIn.className, 'the quiet half must stay quiet').not.toMatch(/bg-gradient-to-r/)
   })
 
@@ -88,7 +88,7 @@ describe('the drawer is the only navigation a phone gets', () => {
       const { unmount } = render(<Nav state={state} />)
       const { drawer } = await openDrawer(user)
 
-      expect(drawer.queryByRole('link', { name: /^sign in$/i }), `${state} drawer`).toBeNull()
+      expect(drawer.queryByRole('link', { name: /^login$/i }), `${state} drawer`).toBeNull()
       expect(drawer.queryByRole('link', { name: /start free trial/i }), `${state} drawer`).toBeNull()
       unmount()
     }
@@ -150,7 +150,7 @@ describe('each state renders its own CTA and nobody else’s', () => {
     dashboard: /go to dashboard/i,
     choosePlan: /choose a plan/i,
     trial: /start free trial/i,
-    signIn: /^sign in$/i,
+    signIn: /^login$/i,
   } as const
 
   const EXPECTED: Record<NavState, (keyof typeof CTAS)[]> = {

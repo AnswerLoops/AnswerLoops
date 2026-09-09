@@ -31,10 +31,15 @@ describe('the marketing header speaks to someone with no account', () => {
     // guessed wrong about. The header offers both instead. The CTA markup moved
     // into the NavCta client island (so the marketing pages can stay static);
     // marketing-nav-cta.test.tsx renders it and asserts the behaviour — this
-    // is the source-level backstop that both labels still exist.
+    // is the source-level backstop that both labels still exist. The literal
+    // strings live in nav-shared.ts (START_LABEL / SIGNIN_LABEL) so the header
+    // and drawer can't drift; nav-cta.tsx references them by name.
+    const shared = read('components/marketing/nav-shared.ts')
+    expect(shared, 'the new visitor needs the trial').toContain('Start free trial')
+    expect(shared, 'the returning visitor needs the way back in').toMatch(/SIGNIN_LABEL = 'Login'/)
     const src = read('components/marketing/nav-cta.tsx')
-    expect(src, 'the new visitor needs the trial').toContain('Start free trial')
-    expect(src, 'the returning visitor needs the way back in').toContain('Sign in')
+    expect(src, 'the trial label is wired into the CTA').toContain('START_LABEL')
+    expect(src, 'the sign-in label is wired into the CTA').toContain('SIGNIN_LABEL')
   })
 })
 

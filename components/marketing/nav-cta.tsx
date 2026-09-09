@@ -7,7 +7,9 @@ import {
   CTA_CLASS,
   SECONDARY_CTA_CLASS,
   SIGNIN_HREF,
+  SIGNIN_LABEL,
   START_HREF,
+  START_LABEL,
   CHECKOUT_HREF,
   DASHBOARD_HREF,
 } from '@/components/marketing/nav-shared'
@@ -61,8 +63,8 @@ export function NavCta({
     if (state !== 'anonymous') return null
     return (
       <>
-        <Link href={SIGNIN_HREF} className="rounded-lg px-3 py-3 text-[0.91875rem] font-medium text-ink-600 hover:bg-gray-100">Sign in</Link>
-        <Link href={START_HREF} className="mt-1 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-3 py-3 text-center text-[0.91875rem] font-semibold !text-white shadow-sm"><span style={{ color: '#fff', WebkitTextFillColor: '#fff' }}>Start free trial</span></Link>
+        <Link href={SIGNIN_HREF} className="rounded-lg px-3 py-3 text-[0.91875rem] font-medium text-ink-600 hover:bg-gray-100">{SIGNIN_LABEL}</Link>
+        <Link href={START_HREF} className="mt-1 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-3 py-3 text-center text-[0.91875rem] font-semibold !text-white shadow-sm"><span style={{ color: '#fff', WebkitTextFillColor: '#fff' }}>{START_LABEL}</span></Link>
       </>
     )
   }
@@ -86,10 +88,10 @@ export function NavCta({
   return (
     <>
       <Link href={SIGNIN_HREF} className={SECONDARY_CTA_CLASS}>
-        Sign in
+        {SIGNIN_LABEL}
       </Link>
       <Link href={START_HREF} className={CTA_CLASS}>
-        <span className="!text-white" style={{ color: '#fff', WebkitTextFillColor: '#fff' }}>Start free trial</span>
+        <span className="!text-white" style={{ color: '#fff', WebkitTextFillColor: '#fff' }}>{START_LABEL}</span>
       </Link>
     </>
   )

@@ -85,7 +85,7 @@ describe('NavCta — header, no initialState, upgrades from the fetch', () => {
 
     // First paint: the anonymous CTA, before the fetch has resolved.
     expect(screen.getByRole('link', { name: /start free trial/i })).toBeTruthy()
-    expect(screen.getByRole('link', { name: /^sign in$/i })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /^login$/i })).toBeTruthy()
     expect(screen.queryByRole('link', { name: /go to dashboard/i })).toBeNull()
 
     // After the fetch resolves: upgraded to the active CTA.
@@ -107,7 +107,7 @@ describe('NavCta — header, no initialState, upgrades from the fetch', () => {
     await Promise.resolve()
 
     expect(screen.getByRole('link', { name: /start free trial/i })).toBeTruthy()
-    expect(screen.getByRole('link', { name: /^sign in$/i })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /^login$/i })).toBeTruthy()
     expect(screen.queryByRole('link', { name: /go to dashboard/i })).toBeNull()
   })
 
@@ -126,6 +126,22 @@ describe('NavCta — header, no initialState, upgrades from the fetch', () => {
   })
 })
 
+describe('NavCta — anonymous CTA labels and contrast', () => {
+  it('labels the trial button "Start free trial for $0"', () => {
+    render(<NavCta variant="header" initialState="anonymous" />)
+    expect(screen.getByRole('link', { name: /start free trial for \$0/i })).toBeTruthy()
+  })
+
+  it('the Login link is not styled with white text — it sits on the light header, not a dark one', () => {
+    // Regression guard: the secondary CTA was `text-white/80` left over from a
+    // dark header and was invisible against `bg-white/90`. See issue #136.
+    render(<NavCta variant="header" initialState="anonymous" />)
+    const login = screen.getByRole('link', { name: /^login$/i })
+    expect(login.className).not.toMatch(/text-white/)
+    expect(login.className).toMatch(/text-slate-700/)
+  })
+})
+
 describe('NavCta — drawer variant only renders for the anonymous state', () => {
   it('renders nothing for initialState="active"', () => {
     const { container } = render(<NavCta variant="drawer" initialState="active" />)
@@ -135,7 +151,7 @@ describe('NavCta — drawer variant only renders for the anonymous state', () =>
   it('renders the sign-in + trial pair for initialState="anonymous"', () => {
     render(<NavCta variant="drawer" initialState="anonymous" />)
 
-    const signIn = screen.getByRole('link', { name: /^sign in$/i })
+    const signIn = screen.getByRole('link', { name: /^login$/i })
     expect(signIn.getAttribute('href')).toBe('/login?mode=signin')
 
     const trial = screen.getByRole('link', { name: /start free trial/i })
