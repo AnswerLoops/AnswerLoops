@@ -17,20 +17,21 @@ allowBuilds:
   unrs-resolver: true
 minimumReleaseAgeExclude:
   - '@mendable/firecrawl-js@4.28.1'
-  # 4 high-severity Next.js advisories (middleware/proxy bypass, Server Actions
-  # DoS, Server Actions SSRF, rewrites SSRF) fixed only in 16.2.11+ — first-party
-  # Vercel release, can't wait out the normal 7-day aging window. @next/* are
+  # Two critical-severity Next.js advisories (GHSA-2xp9-vwfh-vxw4 image  disclosure-ok
+  # optimization; the Windows-host one) fixed in 16.3.3 — first-party Vercel
+  # release. Kept as an explicit exclude for consistency with the entries
+  # below; 16.3.3 is in fact already past the 7-day aging window. @next/* are
   # next's own per-platform binary/env subpackages, published in lockstep.
-  - 'next@16.2.11'
-  - '@next/env@16.2.11'
-  - '@next/swc-darwin-arm64@16.2.11'
-  - '@next/swc-darwin-x64@16.2.11'
-  - '@next/swc-linux-arm64-gnu@16.2.11'
-  - '@next/swc-linux-arm64-musl@16.2.11'
-  - '@next/swc-linux-x64-gnu@16.2.11'
-  - '@next/swc-linux-x64-musl@16.2.11'
-  - '@next/swc-win32-arm64-msvc@16.2.11'
-  - '@next/swc-win32-x64-msvc@16.2.11'
+  - 'next@16.3.3'
+  - '@next/env@16.3.3'
+  - '@next/swc-darwin-arm64@16.3.3'
+  - '@next/swc-darwin-x64@16.3.3'
+  - '@next/swc-linux-arm64-gnu@16.3.3'
+  - '@next/swc-linux-arm64-musl@16.3.3'
+  - '@next/swc-linux-x64-gnu@16.3.3'
+  - '@next/swc-linux-x64-musl@16.3.3'
+  - '@next/swc-win32-arm64-msvc@16.3.3'
+  - '@next/swc-win32-x64-msvc@16.3.3'
   # 1 critical (email-normalizer homoglyph bypass) + 2 high Auth.js advisories
   # fixed only in next-auth 5.0.0-beta.32 / @auth/core 0.41.3 — first-party
   # Auth.js release, can't wait out the normal 7-day aging window.
@@ -47,8 +48,9 @@ overrides:
   shell-quote: '>=1.8.5'   # GHSA-395f-4hp3-45gv — >=1.8.4 wasn't actually patched, 1.8.4 itself is vulnerable
   undici: '>=6.28.0 <7.0.0'   # GHSA-8xcm-r25x-g524 (response desync via retry interceptor) — raised from ^6.27.0, reached via discord.js. Capped below 7.x after an open range let a newer transitive demand (added by @mastra/pg/@mastra/memory) drag discord.js's pinned undici@6.24.1 up to 8.9.0 — 3 majors past what discord.js@14.26.4/@discordjs/rest@2.6.1 actually declare and are built against, breaking their Headers construction at runtime (bot crash-looped on every Discord REST call). Same failure mode already caught once below for js-yaml's <4.0.0 cap — apply the same defensive bound to every open-ended override, not just the one that already broke.
   postcss: '>=8.5.23'   # GHSA-fxqj-rqcc-2cmp (incomplete fix of GHSA-6g55-p6wh-862q, arbitrary .map disclosure) — raised from >=8.5.18, which the newer advisory outgrew
-  sharp: '>=0.35.0'   # GHSA-f88m-g3jw-g9cj — inherited libvips CVEs (2026-33327/33328/35590/35591), pulled in by next and next-auth>next; single resolved version in this tree so an open range is safe here
-  js-yaml: '>=3.15.1 <4.0.0'   # GHSA-5p4m-2wfm-xmqj (quadratic CPU consumption in !!omap resolution) — reached via @mastra/core>gray-matter, which requires the legacy 3.x safeLoad/safeDump API removed in 4.x; an open range resolved to 5.x and broke gray-matter entirely
+  sharp: '>=0.35.4 <0.36.0'   # disclosure-ok  GHSA-f88m-g3jw-g9cj (inherited libvips CVEs 2026-33327/33328/35590/35591) + GHSA-rgj7-g3m4-5g8c (inherited libheif GHSA-g89c-p67h-r497 / GHSA-2jg2-4ch7-h545), both fixed in 0.35.4; pulled in by next and next-auth>next. Capped below 0.36 (a major) per the open-range lesson below
+  js-yaml: '>=3.15.2 <4.0.0'   # disclosure-ok  GHSA-5p4m-2wfm-xmqj (quadratic CPU consumption in !!omap resolution) + CVE-2026-84375, both fixed in 3.15.2 — reached via @mastra/core>gray-matter, which requires the legacy 3.x safeLoad/safeDump API removed in 4.x; an open range resolved to 5.x and broke gray-matter entirely
+  '@xmldom/xmldom': '>=0.8.15 <0.9.0'   # disclosure-ok  CVE-2026-83605 / -83607 / -83608 / -83613 / -83614 / -83615 / -83616 / -83619, all fixed in 0.8.15 — reached via mammoth (.docx KB import). Capped below 0.9 (a major with API changes mammoth doesn't declare support for) per the open-range lesson below
   nanoid: '>=3.3.17'   # GHSA-2v37-7h3g-55p8 (custom generators loop indefinitely on size 0) — reached via fumadocs-core/fumadocs-mdx>next>postcss
   esbuild: '>=0.24.3'   # GHSA-67mh-4wv8-2f99 (dev server accepts requests from any origin) — reached via drizzle-kit>@esbuild-kit
   hono: '>=4.12.34'   # GHSA-8j4g-w8fx-2239, GHSA-f23p-vx2j-j53r, GHSA-54fx-42gc-7vw4, GHSA-79qm-7rj5-m7r9 — reached via @mastra/core>@modelcontextprotocol/sdk
