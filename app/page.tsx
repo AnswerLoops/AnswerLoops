@@ -12,7 +12,7 @@ import { WorkflowDiagram } from '@/components/marketing/workflow-diagram'
 export const metadata: Metadata = {
   title: 'AnswerLoops — Support that lives in your community',
   description:
-    'AI support that lives in your community: answer repeat questions right in the channel — Discord, Slack, forums, GitHub, Telegram, email, and website chat — and only when the answer is confident enough to be right. Open source, self-hosted, and MCP/API-ready.',
+    "A question your Discord or forum already answered gets asked again. AnswerLoops drafts the answer from your docs and resolved tickets, a second agent checks it against those sources, and it posts in the thread — Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a website widget. Weak answers go to a teammate with the draft ready. Open source, self-hostable, and an MCP server your own agents can call.",
   alternates: { canonical: '/' },
 }
 
@@ -61,7 +61,7 @@ function Hero() {
         <div className="mx-auto max-w-4xl text-center">
           <div className="landing-hero-rise mt-10 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-[0.6875rem] font-medium text-slate-600">
             <span className="text-brand-600"><SparkIcon /></span>
-            Built for teams whose support lives in a community
+            An agent for teams whose support lives in a community
           </div>
 
           <h1 className="landing-hero-rise [animation-delay:80ms] mt-7 text-balance text-[2.8rem] font-semibold leading-[0.98] tracking-[-0.055em] text-slate-950 sm:text-6xl md:text-[5rem]">
@@ -72,7 +72,7 @@ function Hero() {
           </h1>
 
           <p className="landing-hero-rise [animation-delay:160ms] mx-auto mt-7 max-w-2xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-            Your community asks the same questions every day. AnswerLoops answers them right in the channel — Discord, Slack, your forum, email — grounded in your knowledge, checked by a second model, and only when it&apos;s confident enough to be right.
+            Someone in your Discord asks a question you answered last month. Nobody remembers, so they retype it. AnswerLoops catches it, drafts an answer from your docs and resolved tickets, and a second agent checks that draft line by line against its sources before it posts — in the thread, in seconds. If the draft doesn&apos;t hold up, a teammate gets it to finish, not a blank ticket.
           </p>
 
           <div className="landing-hero-rise [animation-delay:240ms] mx-auto mt-9 max-w-xl">
@@ -166,7 +166,7 @@ function Outcomes() {
     {
       eyebrow: 'Quality gate',
       value: '2-pass',
-      label: 'Every answer is drafted, then independently reviewed.',
+      label: 'One agent drafts the answer; a second checks it against its sources before it posts.',
       accent: 'from-indigo-400 to-blue-400',
     },
     {
@@ -197,12 +197,12 @@ function Outcomes() {
           <div className="landing-reveal">
             <SectionLabel>Built for the questions that repeat</SectionLabel>
             <h2 className="max-w-xl text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.045em] text-slate-950 sm:text-5xl">
-              Turn support noise into a compounding knowledge loop.
+              Fewer questions reach a person &mdash; and the ones that do arrive with a draft.
             </h2>
           </div>
           <div className="landing-reveal [animation-delay:100ms] lg:pb-1">
             <p className="max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
-              Most support tools make the inbox faster. AnswerLoops makes fewer questions reach the inbox at all. Every resolved conversation improves the next answer, while confidence gates keep your team in charge of the edge cases.
+              Most support tools just move the queue faster. AnswerLoops answers the repeat questions in the channel they were asked, cites the doc each answer came from, and only pulls in a teammate when its own review of the draft comes back short. Answers your team approves become knowledge the next draft can cite.
             </p>
             <Link href="/#how-it-works" className="group mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
               See the loop in action
@@ -216,8 +216,8 @@ function Outcomes() {
           <div className="pointer-events-none absolute -right-24 -top-40 h-96 w-96 rounded-full bg-blue-500/25 blur-[110px]" />
           <div className="relative flex flex-col gap-3 border-b border-white/8 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
             <div>
-              <p className="text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-cyan-300/70">The AnswerLoops operating system</p>
-              <p className="mt-1 text-sm font-medium text-white">Coverage, quality, and control—working as one loop.</p>
+              <p className="text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-cyan-300/70">What every answer runs through</p>
+              <p className="mt-1 text-sm font-medium text-white">Same knowledge and same review, whether the question came from a person or an agent.</p>
             </div>
             <div className="flex items-center gap-2 text-[0.625rem] text-white/45">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.8)]" />
@@ -626,7 +626,7 @@ function StructuredData() {
 export default function LandingPage() {
   return (
     <div className="landing-monochrome min-h-screen bg-white">
-      <PageSchema name="AnswerLoops — support that lives in your community" description="AI support that lives in your community across Discord, Slack, Discourse and Circle forums, GitHub, Telegram, email, and website chat — answered in the channel, and only when confident enough to be right." path="/" />
+      <PageSchema name="AnswerLoops — support that lives in your community" description="AI support that lives in your community across Discord, Slack, Discourse and Circle forums, GitHub, Telegram, email, and website chat — answered in your community channel, and only when confident enough to be right." path="/" />
       <StructuredData />
       <Nav />
       <main>

@@ -7,18 +7,18 @@ import { MARKETED_CHANNEL_NAMES } from '@/lib/marketing/channels'
 export const metadata: Metadata = {
   title: 'What Is an Agentic Support Platform? — AnswerLoops',
   description:
-    'AnswerLoops is an open-source, self-hostable agentic support platform for teams whose users ask for help in a community. Resolve repeat questions across Discord, Slack, Discourse and Circle forums, GitHub, email, Telegram, and web chat.',
+    'AnswerLoops is an agentic support platform for teams whose users ask for help in a community. One agent drafts an answer from your docs and resolved tickets; a second checks it against those sources before it posts in the thread — Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a website widget. Open source and self-hostable.',
   alternates: { canonical: '/agentic-support' },
   openGraph: {
     title: 'What Is an Agentic Support Platform? — AnswerLoops',
     description:
-      'An open-source, self-hostable support agent that resolves repeat questions across every community channel while keeping your team in control.',
+      'A drafting agent and a checking agent answer repeat questions in the channel they were asked, cited to your docs — and hand a teammate the finished draft when the check comes back short. Open source, self-hostable.',
     url: '/agentic-support',
   },
   twitter: {
     title: 'Agentic Support for Your Community — AnswerLoops',
     description:
-      'Open-source, self-hostable agentic support across Discord, Slack, Discourse and Circle forums, GitHub, email, Telegram, and web chat.',
+      'One agent drafts, a second checks it against your docs, and the answer posts in the Discord, Slack, forum, or GitHub thread it was asked in. Open source, self-hostable.',
   },
 }
 
@@ -27,24 +27,24 @@ const CHANNELS = MARKETED_CHANNEL_NAMES
 
 const CAPABILITIES = [
   {
-    title: 'Answers grounded in your knowledge',
-    body: 'AnswerLoops searches your documentation, knowledge base, and resolved tickets before drafting a response, so the agent works from what your team already knows.',
+    title: 'Every answer cites its source',
+    body: 'The drafting agent searches your docs, knowledge base, and resolved tickets first. If it can’t find support for a claim, that claim doesn’t make the draft.',
   },
   {
-    title: 'Confidence-gated automation',
-    body: 'High-confidence answers can post automatically. Uncertain questions go to a human with an editable draft, keeping your team in control of edge cases.',
+    title: 'A second agent has to sign off',
+    body: 'Before anything posts, a reviewer agent checks the draft against the sources it cited and scores its confidence. Below the bar, it goes to a teammate with the draft attached — not a blank ticket.',
   },
   {
-    title: 'One support brain across every channel',
-    body: 'Bring community questions into one consistent workflow instead of maintaining a separate bot, inbox, and knowledge source for each platform.',
+    title: 'One knowledge base, every channel',
+    body: 'Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and the website widget all read the same knowledge and run the same review. No per-channel bot to train.',
   },
   {
-    title: 'Agent-first access',
-    body: 'MCP and REST API access lets compatible agents search your knowledge base, read FAQs, create tickets, and generate grounded answers through the same pipeline.',
+    title: 'Your agents call it too',
+    body: 'AnswerLoops is an MCP server and a REST API. Claude Code, Cursor, or your own agent can search the knowledge base, read FAQs, open tickets, and get a grounded answer — through the same pipeline, with scoped permissions.',
   },
   {
-    title: 'Open source and self-hostable',
-    body: 'Run the platform on your own infrastructure with the source available for inspection and control, or use the hosted service when you want a managed deployment.',
+    title: 'Open source, self-hostable',
+    body: 'Run it on your own infrastructure with the source open to inspection, or use the managed service. Bring your own model provider either way.',
   },
 ]
 
@@ -64,7 +64,7 @@ export default function AgenticSupportPage() {
               What is an agentic support platform?
             </h1>
             <p className="mx-auto mt-7 max-w-3xl text-pretty text-base leading-relaxed text-slate-200/75 sm:text-xl">
-              AnswerLoops is an agentic support platform for teams whose users ask for help in a community. It resolves repeat questions across the channels where your users already ask for help, while your team stays in control of the answers that matter most.
+              It&apos;s support run by agents instead of a rules engine. When someone re-asks a question your community already answered, AnswerLoops&apos; drafting agent pulls the answer from your docs and resolved tickets, a reviewer agent checks it against those sources, and it posts in the thread where the question started — Discord, Slack, your forum, GitHub. If the reviewer isn&apos;t satisfied, a teammate gets the draft to finish.
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link href="/login" className="w-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:brightness-110 sm:w-auto">
@@ -89,9 +89,9 @@ export default function AgenticSupportPage() {
         <section className="bg-white py-24 sm:py-32">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <div className="max-w-2xl">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-blue-600">Built for the agent era</p>
-              <h2 className="mt-5 text-balance text-4xl font-semibold tracking-[-0.045em] text-slate-950 sm:text-5xl">The support loop gets smarter every time it runs.</h2>
-              <p className="mt-5 text-base leading-relaxed text-slate-600">A question becomes a ticket, a grounded answer, and eventually reusable knowledge. AnswerLoops turns the conversations your team keeps repeating into an improving support system.</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-blue-600">How it works</p>
+              <h2 className="mt-5 text-balance text-4xl font-semibold tracking-[-0.045em] text-slate-950 sm:text-5xl">Draft, check, post — or hand it to a person.</h2>
+              <p className="mt-5 text-base leading-relaxed text-slate-600">A question becomes a ticket. The drafting agent answers it from your sources. The reviewer agent checks that answer and decides: post it in the thread, or route it to a teammate with the draft ready. Answers your team keeps become knowledge the next draft can cite.</p>
             </div>
             <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {CAPABILITIES.map((capability) => (
@@ -109,7 +109,7 @@ export default function AgenticSupportPage() {
             <div>
               <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-blue-600">Open by design</p>
               <h2 className="mt-5 text-balance text-4xl font-semibold tracking-[-0.045em] text-slate-950 sm:text-5xl">Use the hosted service or run it yourself.</h2>
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600">AnswerLoops is available as a managed cloud service and as an open-source, self-hostable platform. Bring your own model provider, keep operational control, and connect agents through MCP or the REST API.</p>
+              <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600">AnswerLoops runs as a managed cloud service or as an open-source deployment on your own infrastructure. Either way you pick the model provider, and your own agents reach it over MCP or the REST API.</p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href="/pricing" className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">Compare plans</Link>
                 <Link href="/docs/quickstart-self-host" className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400">Read the self-hosting guide</Link>
@@ -118,11 +118,11 @@ export default function AgenticSupportPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-[0_20px_70px_rgba(30,64,175,0.08)]">
               <p className="text-sm font-semibold text-slate-950">The short version</p>
               <ul className="mt-5 space-y-4 text-sm leading-relaxed text-slate-600">
-                <li>✓ AI answers repeat questions automatically</li>
-                <li>✓ Humans review the questions that need judgment</li>
-                <li>✓ Resolved answers strengthen the knowledge base</li>
-                <li>✓ Your agents can use the same support pipeline</li>
-                <li>✓ Open source and self-hostable when you need it</li>
+                <li>✓ Repeat questions get a cited answer in the thread</li>
+                <li>✓ A reviewer agent checks every draft before it posts</li>
+                <li>✓ Below the confidence bar, a teammate gets the draft</li>
+                <li>✓ Your own agents call the same pipeline over MCP</li>
+                <li>✓ Open source and self-hostable</li>
               </ul>
             </div>
           </div>
@@ -130,8 +130,8 @@ export default function AgenticSupportPage() {
 
         <section className="bg-[#030611] py-24 text-center sm:py-32">
           <div className="mx-auto max-w-3xl px-5 sm:px-8">
-            <h2 className="text-balance text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">Make the next repeat question the last one.</h2>
-            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-300/70">Start with the channels your community already uses and let AnswerLoops build the support system from the questions you actually receive.</p>
+            <h2 className="text-balance text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">Stop retyping last month&apos;s answer.</h2>
+            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-300/70">Connect the channels your community already uses. AnswerLoops answers from the docs and tickets you already have.</p>
             <Link href="/login" className="mt-9 inline-flex rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:brightness-110">Start your 14-day trial</Link>
           </div>
         </section>
