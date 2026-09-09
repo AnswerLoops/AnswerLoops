@@ -12,7 +12,7 @@ import { WorkflowDiagram } from '@/components/marketing/workflow-diagram'
 export const metadata: Metadata = {
   title: 'AnswerLoops — Support that lives in your community',
   description:
-    "A question your Discord or forum already answered gets asked again. AnswerLoops drafts the answer from your docs and resolved tickets, a second agent checks it against those sources, and it posts in the thread — Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a website widget. Weak answers go to a teammate with the draft ready. Open source, self-hostable, and an MCP server your own agents can call.",
+    "Agent-native and answered from your docs, checked line by line against a second agent, then posted — or routed to a teammate. — Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a website widget.",
   alternates: { canonical: '/' },
 }
 
