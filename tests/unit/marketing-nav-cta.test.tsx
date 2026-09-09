@@ -89,7 +89,7 @@ describe('the header CTA matches what the visitor can actually do', () => {
       'the trial is free, so the plan is a small decision and belongs after auth, not before it',
     ).toBe('/login')
 
-    const signIn = screen.getByRole('link', { name: /^sign in$/i })
+    const signIn = screen.getByRole('link', { name: /^login$/i })
     expect(
       signIn.getAttribute('href'),
       'returning users must land on the sign-in framing, not "Create your account"',
@@ -104,7 +104,7 @@ describe('the header CTA matches what the visitor can actually do', () => {
     // up as the half of visitors who quietly leave.
     render(<Nav state="anonymous" />)
     expect(screen.queryByRole('link', { name: /start free trial/i })).not.toBeNull()
-    expect(screen.queryByRole('link', { name: /^sign in$/i })).not.toBeNull()
+    expect(screen.queryByRole('link', { name: /^login$/i })).not.toBeNull()
   })
 
   it('does not send a signed-out visitor to a source repository from the header', () => {
