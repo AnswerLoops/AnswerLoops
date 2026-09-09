@@ -12,7 +12,7 @@ import { WorkflowDiagram } from '@/components/marketing/workflow-diagram'
 export const metadata: Metadata = {
   title: 'AnswerLoops — Support that lives in your community',
   description:
-    "Agent-native and answered from your docs, checked line by line against a second agent, then posted — or routed to a teammate. — Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a website widget.",
+    "A question your Discord or forum already answered gets asked again. AnswerLoops drafts the answer from your docs and resolved tickets, a second agent checks it against those sources, and it posts in the thread — Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a website widget. Weak answers go to a teammate with the draft ready. Open source, self-hostable, and an MCP server your own agents can call.",
   alternates: { canonical: '/' },
 }
 
@@ -72,7 +72,7 @@ function Hero() {
           </h1>
 
           <p className="landing-hero-rise [animation-delay:160ms] mx-auto mt-7 max-w-2xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-            A question your community already asked gets a fresh answer from your docs and resolved tickets — then a second agent checks it line by line against those sources before it posts in the thread. Drafts that don&apos;t hold up go to a teammate, not a blank ticket.
+            Someone in your Discord asks a question you answered last month. Nobody remembers, so they retype it. AnswerLoops catches it, drafts an answer from your docs and resolved tickets, and a second agent checks that draft line by line against its sources before it posts — in the thread, in seconds. If the draft doesn&apos;t hold up, a teammate gets it to finish, not a blank ticket.
           </p>
 
           <div className="landing-hero-rise [animation-delay:240ms] mx-auto mt-9 max-w-xl">
