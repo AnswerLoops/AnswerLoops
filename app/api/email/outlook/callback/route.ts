@@ -1,12 +1,13 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@/auth'
+import { requireOrgAccess } from '@/lib/auth/org'
+import { verifyOAuthState } from '@/lib/oauth/state'
 import { exchangeOutlookCode } from '@/lib/email/outlook'
 import { upsertEmailOauthConnection } from '@/lib/db/queries/email-oauth'
 import { upsertIntegration } from '@/lib/db/queries/integrations'
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return Response.redirect(new URL('/login', req.url))
+  const access = await requireOrgAccess()
+  if (!access.ok) return Response.redirect(new URL('/login', req.url))
 
   const { searchParams } = req.nextUrl
   const code = searchParams.get('code')
@@ -19,8 +20,8 @@ export async function GET(req: NextRequest) {
 
   let orgId: number
   try {
-    const decoded = JSON.parse(Buffer.from(state ?? '', 'base64url').toString()) as { orgId: number; ts: number }
-    if (Date.now() - decoded.ts > 10 * 60 * 1000) throw new Error('expired')
+    const decoded = verifyOAuthState(state)
+    if (decoded.orgId !== access.orgId) throw new Error('org mismatch')
     orgId = decoded.orgId
   } catch {
     settingsUrl.searchParams.set('outlook_error', 'invalid_state')

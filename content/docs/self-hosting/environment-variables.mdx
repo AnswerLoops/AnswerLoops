@@ -16,7 +16,7 @@ Copy `.env.example` to `.env` and fill in the values below.
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://community:community@postgres:5432/community` |
 | `DIRECT_DATABASE_URL` | Non-pooled connection string, used only for `LISTEN`/`NOTIFY` (config hot-reload, live team updates, live dashboard updates). **Required if `DATABASE_URL` goes through a connection pooler** (Neon's `-pooler` endpoint, PgBouncer, Supabase's pooled port) — pooled connections don't reliably deliver `NOTIFY` to a `LISTEN`er, since the pooler can swap the physical backend between statements. Falls back to `DATABASE_URL` if unset, which is correct for a plain unpooled Postgres instance (e.g. the local `docker compose` Postgres) but silently breaks hot-reload on a pooled provider. | Neon: the same connection string with `-pooler` removed from the hostname (Neon dashboard → Connection Details → toggle "Pooled connection" off) |
 | `AUTH_URL` | Full public URL of your deployment | `http://localhost:3000` or `https://app.example.com` |
-| `AUTH_SECRET` | Random 32-byte hex — signs JWT sessions | `openssl rand -hex 32` |
+| `AUTH_SECRET` | Random 32-byte hex — signs JWT sessions and the OAuth `state` for channel connect flows | `openssl rand -hex 32` |
 | `ENCRYPTION_KEY` | Random 32-byte hex — encrypts stored API keys and bot tokens at rest | `openssl rand -hex 32` |
 
 ## Networking (optional)
@@ -131,7 +131,7 @@ See [Google Chat App Setup](/docs/self-hosting/google-chat-app) for the one-time
 |---|---|
 | `GITHUB_APP_ID` | App ID from GitHub App settings page |
 | `GITHUB_APP_PRIVATE_KEY` | Base64-encoded PEM: `base64 -i your-app.pem \| tr -d '\n'` |
-| `GITHUB_WEBHOOK_SECRET` | Webhook secret. **Generate with `openssl rand -hex 32` and paste without the trailing newline.** |
+| `GITHUB_WEBHOOK_SECRET` | Webhook secret. **Generate with `openssl rand -hex 32` and paste without the trailing newline.** Required: `/api/github/webhook` returns `503` and processes no deliveries until it is set, and the value must match the secret configured on the GitHub App. |
 | `GITHUB_APP_SLUG` | URL-safe app name (slug) — shown in your GitHub App's URL |
 
 Register these URLs in your GitHub App:

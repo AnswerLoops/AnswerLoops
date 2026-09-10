@@ -39,7 +39,15 @@ export async function POST(req: NextRequest) {
   const event = req.headers.get('x-github-event') ?? ''
   const body = await req.text()
 
-  if (secret && !verifySignature(body, sig, secret)) {
+  // Every delivery must carry a signature this server can verify against a
+  // configured secret. A missing secret is a deployment error, not a reason
+  // to accept unverified payloads — fail closed.
+  if (!secret) {
+    logger.error('github webhook rejected — GITHUB_WEBHOOK_SECRET is not set', { module: MOD })
+    return NextResponse.json({ error: 'webhook not configured' }, { status: 503 })
+  }
+
+  if (!verifySignature(body, sig, secret)) {
     logger.warn('github webhook signature mismatch', { module: MOD })
     return NextResponse.json({ error: 'bad signature' }, { status: 401 })
   }
