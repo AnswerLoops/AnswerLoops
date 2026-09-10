@@ -30,17 +30,21 @@ function notionSource(overrides: Record<string, unknown> = {}) {
 function routeFetch({
   conn = null,
   sources = [],
-  sync = { synced: 0 },
+  syncJob = null,
   patchOk = true,
 }: {
   conn?: unknown
   sources?: unknown[]
-  sync?: { synced?: number; truncated?: boolean; error?: string }
+  syncJob?: { status: string; detail?: string; syncedCount?: number } | null
   patchOk?: boolean
 } = {}) {
   return vi.fn((url: string, opts?: { method?: string; body?: string }) => {
+    if (url.startsWith('/api/kb/sync-jobs')) {
+      return Promise.resolve({ ok: true, json: async () => syncJob })
+    }
     if (url.startsWith('/api/notion/sync-kb')) {
-      return Promise.resolve({ ok: true, json: async () => sync })
+      expect(opts?.method).toBe('POST')
+      return Promise.resolve({ ok: true, json: async () => ({ jobId: 1, status: 'queued' }) })
     }
     if (url.startsWith('/api/notion')) {
       return Promise.resolve({ ok: true, json: async () => ({ connection: conn }) })
@@ -131,10 +135,14 @@ describe('NotionKBSection', () => {
     expect(screen.getByRole('button', { name: /publish to widget/i })).toBeDisabled()
   })
 
-  it('"Sync now" hits /api/notion/sync-kb and calls the onSynced prop', async () => {
+  it('"Sync now" enqueues via POST /api/notion/sync-kb, polls the job, and calls onSynced on success', async () => {
     const onSynced = vi.fn()
     mockFetch.mockImplementation(
-      routeFetch({ conn: connectedConn, sources: [notionSource()], sync: { synced: 3 } }),
+      routeFetch({
+        conn: connectedConn,
+        sources: [notionSource()],
+        syncJob: { status: 'succeeded', detail: 'Synced 3 chunks from Notion', syncedCount: 3 },
+      }),
     )
     const user = userEvent.setup()
     render(<NotionKBSection onSynced={onSynced} />)
@@ -142,7 +150,14 @@ describe('NotionKBSection', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /sync now/i })).toBeTruthy())
     await user.click(screen.getByRole('button', { name: /sync now/i }))
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/notion/sync-kb'))
+    await waitFor(() =>
+      expect(
+        mockFetch.mock.calls.some(([u, o]) => u === '/api/notion/sync-kb' && o?.method === 'POST'),
+      ).toBe(true),
+    )
+    await waitFor(() =>
+      expect(mockFetch.mock.calls.some(([u]) => typeof u === 'string' && u.startsWith('/api/kb/sync-jobs'))).toBe(true),
+    )
     await waitFor(() => expect(onSynced).toHaveBeenCalled())
   })
 })

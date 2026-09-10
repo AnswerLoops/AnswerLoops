@@ -14,6 +14,7 @@ import {
   csatMessages,
   csatRatings,
   githubRepos,
+  kbSyncJobs,
   discordGuilds,
   faqSnapshots,
   notifications,
@@ -181,6 +182,7 @@ export async function hardPurgeOrg(orgId: number): Promise<void> {
     await tx.delete(tickets).where(eq(tickets.orgId, orgId))
 
     // Org-scoped rows with no ticket dependency.
+    await tx.delete(kbSyncJobs).where(eq(kbSyncJobs.orgId, orgId))
     await tx.delete(githubRepos).where(eq(githubRepos.orgId, orgId))
     await tx.delete(discordGuilds).where(eq(discordGuilds.orgId, orgId))
     await tx.delete(faqSnapshots).where(eq(faqSnapshots.orgId, orgId))

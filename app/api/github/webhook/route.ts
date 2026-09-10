@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { getRepoByOwnerAndName } from '@/lib/db/queries/github'
+import { enqueueKbSyncJob } from '@/lib/db/queries/kb-sync-jobs'
 import { processCommunityMessage } from '@/lib/ingest/pipeline'
-import { syncRepoToKB, syncSingleDiscussionToKB } from '@/lib/github/kb-sync'
+import { syncSingleDiscussionToKB } from '@/lib/github/kb-sync'
 import { getInstallationOctokitById } from '@/lib/github/app'
 import { logger } from '@/lib/logger'
 
@@ -59,7 +60,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 })
   }
 
-  const repoData = payload.repository as { name: string; owner: { login: string } } | undefined
+  const repoData = payload.repository as
+    | { name: string; owner: { login: string }; default_branch?: string }
+    | undefined
   if (!repoData) return NextResponse.json({ ok: true })
 
   const owner = repoData.owner.login
@@ -74,12 +77,22 @@ export async function POST(req: NextRequest) {
   const actualOrgId = dbRepo.org_id
 
   // ── Push event → KB sync ──────────────────────────────────────────────────
-  if (event === 'push' && dbRepo.kb_enabled === 1) {
-    try {
-      const synced = await syncRepoToKB(dbRepo.id, owner, repoName, dbRepo.installation_id, actualOrgId)
-      logger.info('github push kb sync', { module: MOD, owner, repo: repoName, synced })
-    } catch (err) {
-      logger.error('github kb sync failed', { module: MOD, error: err })
+  if (event === 'push') {
+    const ref = typeof payload.ref === 'string' ? payload.ref : ''
+    const defaultBranch = repoData.default_branch ?? 'main'
+    // Default branch only — a push to any feature branch, tag, or PR ref used
+    // to trigger a full repo re-embed. Ack anything else without work.
+    if (dbRepo.kb_enabled === 1 && ref === `refs/heads/${defaultBranch}`) {
+      try {
+        // Enqueue and return fast. The old inline syncRepoToKB blew GitHub's
+        // ~10s delivery deadline, so GitHub retried and two full
+        // delete-and-recreate syncs raced; the queue's one-active debounce
+        // collapses a retry (or a burst of pushes) to a single job.
+        const job = await enqueueKbSyncJob({ orgId: actualOrgId, kind: 'github_repo', repoId: dbRepo.id })
+        logger.info('github push kb sync queued', { module: MOD, owner, repo: repoName, jobId: job.id, queued: job.created })
+      } catch (err) {
+        logger.error('failed to queue github push kb sync', { module: MOD, error: err })
+      }
     }
     return NextResponse.json({ ok: true })
   }

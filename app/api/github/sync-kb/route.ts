@@ -1,23 +1,29 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { requireOrgAccess } from '@/lib/auth/org'
 import { getRepoById } from '@/lib/db/queries/github'
-import { syncRepoToKB, syncDiscussionsToKB } from '@/lib/github/kb-sync'
+import { enqueueKbSyncJob } from '@/lib/db/queries/kb-sync-jobs'
+import { logger } from '@/lib/logger'
 
-export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
+const MOD = 'api/github/sync-kb'
+
+// Queues a background sync for one repo and returns immediately — the markdown
+// and discussion sync work runs in the bot-driven job, off the request path
+// (see app/api/kb/sync-jobs/run/route.ts).
+export async function POST(req: NextRequest) {
+  const access = await requireOrgAccess()
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: 401 })
 
   const repoId = Number(req.nextUrl.searchParams.get('repo_id'))
   if (!repoId) return NextResponse.json({ error: 'Missing repo_id' }, { status: 400 })
 
-  const repo = await getRepoById(repoId, orgId)
+  const repo = await getRepoById(repoId, access.orgId)
   if (!repo) return NextResponse.json({ error: 'Repo not found' }, { status: 404 })
 
-  // Sequential: both paths read-modify-write the repo's kbChunkCount, so
-  // running them concurrently would race and drop one side's count.
-  const docsSynced = await syncRepoToKB(repo.id, repo.owner, repo.repo, repo.installation_id, orgId)
-  const discussionsSynced = await syncDiscussionsToKB(repo.id, repo.owner, repo.repo, repo.installation_id, orgId)
-  return NextResponse.json({ synced: docsSynced + discussionsSynced, docsSynced, discussionsSynced })
+  try {
+    const job = await enqueueKbSyncJob({ orgId: access.orgId, kind: 'github_repo', repoId: repo.id })
+    return NextResponse.json({ jobId: job.id, status: job.status, alreadyQueued: !job.created })
+  } catch (err) {
+    logger.error('failed to enqueue github kb sync', { module: MOD, orgId: access.orgId, repoId, error: err })
+    return NextResponse.json({ error: 'Could not queue the sync' }, { status: 500 })
+  }
 }

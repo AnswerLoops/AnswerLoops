@@ -309,6 +309,29 @@ export const kbSources = pgTable(
   ]
 )
 
+// Background queue for KB syncs (Notion workspace, GitHub repo). The enqueue
+// points ("Sync now", GitHub push webhook) insert a row and return; the bot
+// process sweeps `queued` rows and drives each via POST /api/kb/sync-jobs/run.
+// The partial unique index in drizzle/0039_kb_sync_jobs.sql debounces repeat
+// enqueues for the same source while one is still active.
+export const kbSyncJobs = pgTable(
+  'kb_sync_jobs',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull().references(() => orgs.id),
+    kind: text('kind').notNull(), // 'notion' | 'github_repo'
+    repoId: integer('repo_id'), // github_repos.id when kind = 'github_repo'
+    status: text('status').notNull().default('queued'), // queued | running | succeeded | failed
+    detail: text('detail'),
+    syncedCount: integer('synced_count').notNull().default(0),
+    attempts: integer('attempts').notNull().default(0),
+    createdAt: text('created_at').notNull().default(now),
+    startedAt: text('started_at'),
+    finishedAt: text('finished_at'),
+  },
+  (t) => [index('idx_kb_sync_jobs_status').on(t.status, t.createdAt)]
+)
+
 // A connected Notion workspace, one row per org. The pasted internal
 // integration token is encrypted at rest (lib/crypto/tokens.ts). Notion has no
 // app-private-key path like GitHub, so the token must be persisted. Not read by

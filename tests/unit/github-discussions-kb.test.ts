@@ -110,15 +110,18 @@ describe('app/api/github/webhook/route.ts — discussion answered/unanswered han
   })
 })
 
-describe('app/api/github/sync-kb/route.ts — manual sync backfills discussions too', () => {
-  const src = read('app/api/github/sync-kb/route.ts')
-
-  it('calls both the markdown-docs sync and the discussions sync', () => {
-    expect(src).toContain('syncRepoToKB(')
-    expect(src).toContain('syncDiscussionsToKB(')
+describe('KB sync worker backfills discussions too', () => {
+  // The sync work moved off the request path: /api/github/sync-kb now only
+  // enqueues a job, and the bot-driven run route does both syncs.
+  it('the enqueue route no longer runs the sync inline', () => {
+    const src = read('app/api/github/sync-kb/route.ts')
+    expect(src).toContain("enqueueKbSyncJob({ orgId: access.orgId, kind: 'github_repo', repoId: repo.id })")
+    expect(src).not.toContain('syncRepoToKB')
+    expect(src).not.toContain('syncDiscussionsToKB')
   })
 
-  it('runs them sequentially, not in Promise.all — both mutate the same repo kbChunkCount via read-modify-write', () => {
+  it('the run route calls both syncs sequentially — both mutate the repo kbChunkCount via read-modify-write', () => {
+    const src = read('app/api/kb/sync-jobs/run/route.ts')
     expect(src).not.toMatch(/Promise\.all\(\s*\[\s*syncRepoToKB/)
     const docsIdx = src.indexOf('await syncRepoToKB(')
     const discussionsIdx = src.indexOf('await syncDiscussionsToKB(')

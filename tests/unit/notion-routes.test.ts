@@ -44,15 +44,16 @@ describe('app/api/notion/route.ts — connection state', () => {
 describe('app/api/notion/sync-kb/route.ts — manual sync trigger', () => {
   const src = readRoute('app/api/notion/sync-kb/route.ts')
 
-  it('exports GET, is auth-gated, and calls the sync pipeline', () => {
-    expect(src).toContain('export async function GET')
-    expect(src).toContain('auth()')
-    expect(src).toContain('syncNotionToKB(orgId)')
+  it('exports POST, is auth-gated, and enqueues a background job instead of syncing inline', () => {
+    expect(src).toContain('export async function POST')
+    expect(src).toContain('requireOrgAccess()')
+    expect(src).toContain("enqueueKbSyncJob({ orgId: access.orgId, kind: 'notion' })")
+    // the heavy sync must not run in the request anymore
+    expect(src).not.toContain('syncNotionToKB')
   })
 
-  it('surfaces the failure message on a 500 rather than swallowing it', () => {
+  it('surfaces a queue failure as a 500 rather than swallowing it', () => {
     expect(src).toContain('status: 500')
-    expect(src).toMatch(/err instanceof Error \? err\.message/)
   })
 })
 

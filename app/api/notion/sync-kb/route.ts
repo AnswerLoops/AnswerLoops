@@ -1,24 +1,23 @@
-import { type NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
-import { syncNotionToKB } from '@/lib/notion/kb-sync'
+import { NextResponse } from 'next/server'
+import { requireOrgAccess } from '@/lib/auth/org'
+import { enqueueKbSyncJob } from '@/lib/db/queries/kb-sync-jobs'
 import { logger } from '@/lib/logger'
 
 const MOD = 'api/notion/sync-kb'
 
-export async function GET(_req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const orgId = (session as { orgId?: number }).orgId ?? DEFAULT_ORG_ID
+// Queues a background sync and returns immediately. The bot process picks the
+// job up and drives it via POST /api/kb/sync-jobs/run — the sync itself no
+// longer runs inside this request, which used to time out on any non-trivial
+// workspace.
+export async function POST() {
+  const access = await requireOrgAccess()
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: 401 })
 
   try {
-    const { synced, truncated } = await syncNotionToKB(orgId)
-    return NextResponse.json({ synced, truncated })
+    const job = await enqueueKbSyncJob({ orgId: access.orgId, kind: 'notion' })
+    return NextResponse.json({ jobId: job.id, status: job.status, alreadyQueued: !job.created })
   } catch (err) {
-    logger.error('notion kb sync failed', { module: MOD, orgId, error: err })
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Sync failed' },
-      { status: 500 }
-    )
+    logger.error('failed to enqueue notion kb sync', { module: MOD, orgId: access.orgId, error: err })
+    return NextResponse.json({ error: 'Could not queue the sync' }, { status: 500 })
   }
 }
