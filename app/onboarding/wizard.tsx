@@ -437,6 +437,8 @@ function TelegramFlow({ onDone, onBack }: { onDone: () => void; onBack: () => vo
   const [state, formAction, pending] = useActionState(
     async (prev: unknown, fd: FormData) => {
       const result = await saveTelegramIntegrationAction(prev, fd)
+      // A warning means the bot saved but webhook registration needs a retry
+      // in Settings — still a completed step, so advance.
       if (!result?.error) onDone()
       return result
     },
@@ -459,9 +461,12 @@ function TelegramFlow({ onDone, onBack }: { onDone: () => void; onBack: () => vo
           <input name="botToken" type="password" autoComplete="new-password"
             placeholder="123456789:AAHdqTcv…" className={inputCls} required />
         </Field>
-        <p className="text-xs text-gray-400">After connecting, add your bot to your group and register the webhook in Settings → Telegram.</p>
+        <p className="text-xs text-gray-400">After connecting, add your bot to your group so it can see messages. Its privacy mode must be off (BotFather → <span className="font-mono">/setprivacy</span> → Disable).</p>
         {(state as { error?: string } | null)?.error && (
           <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{(state as { error?: string }).error}</p>
+        )}
+        {(state as { warning?: string } | null)?.warning && (
+          <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">{(state as { warning?: string }).warning}</p>
         )}
         <PrimaryButton pending={pending} label="Connect Telegram →" pendingLabel="Connecting…" color="telegram" />
       </form>

@@ -51,7 +51,7 @@ Post `/connect <code>` as a message in the space. That message hits the shared i
 
 ### 4. Confirm on the Settings page
 
-Back in AnswerLoops, click **Check connection status** (or just reload the page). Once pairing has completed server-side, the card shows **Connected · space paired** and reveals the connected space id, escalation user, confidence threshold, and Automatic Deflections state.
+Back in AnswerLoops, leave the Google Chat card open. While a connect code is outstanding it polls for the pairing every few seconds and switches to **Connected · space paired** on its own once pairing completes server-side — there's also a **Check now** button to force it. The card then reveals the connected space id, escalation user, confidence threshold, and Automatic Deflections state. The connect code is stored the moment you generate it, so it survives a page reload; you won't be asked to generate a new one (and won't accidentally invalidate the one you already posted).
 
 <Tip>
   The connect code and the "add the app to a space" step can happen in either order — generating the code doesn't require the app to already be in the space, and adding the app doesn't require a code yet. Pairing only completes once `/connect <code>` is posted in the space *after* the app has joined it.

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import fs from 'fs'
+import path from 'path'
 
 // Google Chat's unlisted-app install has no OAuth callback to learn the
 // org↔space mapping the way Slack/Discord's OAuth flows do — pairing
@@ -103,5 +105,22 @@ describe('upsertIntegration — google_chat pairing-code creation stays disabled
     await upsertIntegration({ orgId: 7, platform: 'google_chat', botSecret: 'gc_abc123', enabled: false })
 
     expect(values).toHaveBeenCalledWith(expect.objectContaining({ enabled: 0 }))
+  })
+})
+
+describe('generateGoogleChatConnectCodeAction — idempotent while unpaired', () => {
+  const src = fs.readFileSync(path.join(process.cwd(), 'app/actions/integrations.ts'), 'utf-8')
+  const fn = src.slice(
+    src.indexOf('export async function generateGoogleChatConnectCodeAction'),
+    src.indexOf('export async function saveGoogleChatSettingsAction'),
+  )
+
+  it('returns the existing unpaired code instead of minting a new one', () => {
+    expect(fn).toContain("existing.bot_secret?.startsWith('gc_')")
+    expect(fn).toMatch(/return \{ connectCode: existing\.bot_secret \}/)
+    // and the new mint happens after that guard
+    const guardIdx = fn.indexOf('return { connectCode: existing.bot_secret }')
+    const mintIdx = fn.indexOf('crypto.randomBytes(12)')
+    expect(guardIdx).toBeLessThan(mintIdx)
   })
 })
