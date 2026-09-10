@@ -12,6 +12,8 @@ export interface KbSyncJob {
   status: KbSyncJobStatus
   detail: string | null
   synced_count: number
+  progress: number
+  total: number
   attempts: number
   created_at: string
   started_at: string | null
@@ -97,6 +99,19 @@ export async function getKbSyncJob(id: number): Promise<KbSyncJob | null> {
     SELECT * FROM kb_sync_jobs WHERE id = ${id} LIMIT 1
   `)) as unknown as KbSyncJob[]
   return rows[0] ?? null
+}
+
+/**
+ * Update a running job's progress counters. Cheap and best-effort — the run
+ * route throttles calls, and a lost update just means the KB page's number
+ * lags by a beat. Scoped to `status = 'running'` so a late write can't
+ * resurrect a reclaimed or finished job.
+ */
+export async function updateKbSyncJobProgress(id: number, progress: number, total: number): Promise<void> {
+  await getDb().execute(sql`
+    UPDATE kb_sync_jobs SET progress = ${progress}, total = ${total}
+    WHERE id = ${id} AND status = 'running'
+  `)
 }
 
 export async function finishKbSyncJob(

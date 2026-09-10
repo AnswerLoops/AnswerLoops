@@ -1,4 +1,5 @@
 import { getInstallationOctokit } from './app'
+import type { KbSyncProgressOpts } from '@/lib/kb-sync/progress'
 import { chunkMarkdown } from '@/lib/ingest/url'
 import { embedText, EMBEDDING_MODEL } from '@/lib/ai/embed'
 import {
@@ -42,7 +43,8 @@ export async function syncRepoToKB(
   owner: string,
   repo: string,
   installationId: number,
-  orgId: number
+  orgId: number,
+  opts: KbSyncProgressOpts = {}
 ): Promise<number> {
   const octokit = await getInstallationOctokit(owner, repo, orgId)
 
@@ -83,7 +85,9 @@ export async function syncRepoToKB(
 
   let created = 0
 
-  for (const file of mdFiles) {
+  for (let fi = 0; fi < mdFiles.length; fi++) {
+    const file = mdFiles[fi]
+    opts.onProgress?.(fi, mdFiles.length)
     if (created >= budget) break
     try {
       const { data } = await octokit.rest.repos.getContent({ owner, repo, path: file.path! })
@@ -106,6 +110,8 @@ export async function syncRepoToKB(
       logger.warn('file fetch failed', { module: MOD, path: file.path, error: err })
     }
   }
+
+  opts.onProgress?.(mdFiles.length, mdFiles.length)
 
   await updateKBSourceChunkCount(source.id, created)
   await updateRepoSettings(repoId, orgId, {
@@ -230,7 +236,8 @@ export async function syncDiscussionsToKB(
   owner: string,
   repo: string,
   installationId: number,
-  orgId: number
+  orgId: number,
+  opts: KbSyncProgressOpts = {}
 ): Promise<number> {
   const octokit = await getInstallationOctokit(owner, repo, orgId)
 
@@ -261,8 +268,11 @@ export async function syncDiscussionsToKB(
 
   const source = await createKBSource({ orgId, filename: sourceFilename, fileType: 'github-discussion', sizeBytes: 0 })
 
+  const toSync = discussions.slice(0, MAX_DISCUSSIONS)
   let created = 0
-  for (const d of discussions.slice(0, MAX_DISCUSSIONS)) {
+  for (let di = 0; di < toSync.length; di++) {
+    const d = toSync[di]
+    opts.onProgress?.(di, toSync.length)
     if (created >= budget) break
     const article = buildDiscussionArticle(d)
     if (!article) continue
@@ -277,6 +287,8 @@ export async function syncDiscussionsToKB(
       logger.warn('discussion embed failed', { module: MOD, number: d.number, error: err })
     }
   }
+
+  opts.onProgress?.(toSync.length, toSync.length)
 
   await updateKBSourceChunkCount(source.id, created)
 

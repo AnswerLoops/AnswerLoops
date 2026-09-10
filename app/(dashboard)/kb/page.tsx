@@ -23,6 +23,8 @@ interface KbSyncJobStatus {
   status: 'queued' | 'running' | 'succeeded' | 'failed'
   detail: string | null
   syncedCount: number
+  progress: number
+  total: number
 }
 
 interface KbSyncResult {
@@ -52,7 +54,7 @@ export function pollKbSyncJob(statusQuery: string, onLabel: (label: string) => v
         onLabel('Queued…')
         setTimeout(tick, 2500)
       } else if (job.status === 'running') {
-        onLabel('Syncing…')
+        onLabel(job.total > 0 ? `Syncing ${Math.min(job.progress, job.total)}/${job.total}` : 'Syncing…')
         setTimeout(tick, 2500)
       } else if (job.status === 'succeeded') {
         resolve({ ok: true, detail: job.detail ?? 'Sync complete', syncedCount: job.syncedCount ?? 0 })

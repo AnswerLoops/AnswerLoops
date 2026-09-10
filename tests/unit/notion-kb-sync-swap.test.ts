@@ -61,9 +61,9 @@ vi.mock('@/lib/notion/blocks-to-markdown', () => ({ blocksToMarkdown: h.blocksTo
 const NOTION_SOURCE_FILENAME = 'notion:workspace'
 const STAGING = 'notion:workspace:rebuilding'
 
-async function run(orgId = 7) {
+async function run(orgId = 7, opts?: { onProgress?: (d: number, t: number) => void }) {
   const { syncNotionToKB } = await import('@/lib/notion/kb-sync')
-  return syncNotionToKB(orgId)
+  return syncNotionToKB(orgId, opts)
 }
 
 beforeEach(() => {
@@ -75,7 +75,7 @@ beforeEach(() => {
   h.decryptToken.mockReturnValue('ntn_realtoken')
   h.createKBSource.mockResolvedValue({ id: 200 })
   h.embedText.mockResolvedValue([0.1, 0.2])
-  h.notionSearchAll.mockResolvedValue({ pages: [{ id: 'pg1', title: 'Page One' }], databases: [] })
+  h.notionSearchAll.mockResolvedValue({ pages: [{ id: 'pg1', title: 'Page One' }], databases: [], pagesCapped: false, databasesCapped: false })
   h.notionBlockChildren.mockResolvedValue([{ type: 'paragraph' }])
   h.blocksToMarkdown.mockResolvedValue('# Page One\n\nBody text here.')
   h.deleteKBSourcesByFilename.mockResolvedValue(undefined)
@@ -170,5 +170,21 @@ describe('syncNotionToKB — happy path swaps atomically', () => {
     const res = await run()
     expect(res.synced).toBe(1)
     expect(h.createKBSource).toHaveBeenCalled()
+  })
+
+  it('reports per-document progress and returns the search cap flags', async () => {
+    h.blocksToMarkdown.mockResolvedValue('# P\n\nbody')
+    h.notionSearchAll.mockResolvedValue({
+      pages: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B' }],
+      databases: [],
+      pagesCapped: true,
+      databasesCapped: false,
+    })
+    const onProgress = vi.fn()
+    const res = await run(7, { onProgress })
+    expect(onProgress).toHaveBeenCalledWith(0, 2)
+    expect(onProgress).toHaveBeenLastCalledWith(2, 2)
+    expect(res.pagesCapped).toBe(true)
+    expect(res.databasesCapped).toBe(false)
   })
 })

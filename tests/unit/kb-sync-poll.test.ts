@@ -49,7 +49,7 @@ describe('pollKbSyncJob', () => {
   it('walks queued → running → succeeded, updating the label', async () => {
     mockFetch
       .mockImplementationOnce(() => res({ status: 'queued' }))
-      .mockImplementationOnce(() => res({ status: 'running' }))
+      .mockImplementationOnce(() => res({ status: 'running', progress: 0, total: 0 }))
       .mockImplementationOnce(() => res({ status: 'succeeded', detail: 'done', syncedCount: 2 }))
     const label = vi.fn()
     const p = pollKbSyncJob('/api/kb/sync-jobs?kind=notion', label)
@@ -57,6 +57,17 @@ describe('pollKbSyncJob', () => {
     const result = await p
     expect(label.mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(['Queued…', 'Syncing…']))
     expect(result).toEqual({ ok: true, detail: 'done', syncedCount: 2 })
+  })
+
+  it('shows a count once the job reports a total', async () => {
+    mockFetch
+      .mockImplementationOnce(() => res({ status: 'running', progress: 12, total: 40 }))
+      .mockImplementationOnce(() => res({ status: 'succeeded', detail: 'done', syncedCount: 40 }))
+    const label = vi.fn()
+    const p = pollKbSyncJob('/api/kb/sync-jobs?kind=github_repo&repo_id=1', label)
+    await vi.runAllTimersAsync()
+    await p
+    expect(label).toHaveBeenCalledWith('Syncing 12/40')
   })
 
   it('resolves ok:false with the job detail on failure', async () => {

@@ -26,12 +26,24 @@ describe('app/api/kb/sync-jobs/run/route.ts', () => {
 
   it('dispatches by kind — notion vs github_repo', () => {
     expect(src).toContain("job.kind === 'notion'")
-    expect(src).toContain('syncNotionToKB(job.org_id)')
+    expect(src).toContain('syncNotionToKB(job.org_id, { onProgress: progress })')
     expect(src).toContain("job.kind === 'github_repo'")
     const docsIdx = src.indexOf('await syncRepoToKB(')
     const discIdx = src.indexOf('await syncDiscussionsToKB(')
     expect(docsIdx).toBeGreaterThan(-1)
     expect(discIdx).toBeGreaterThan(docsIdx) // sequential, count-race safe
+  })
+
+  it('reports throttled progress into the job row', () => {
+    expect(src).toContain('updateKbSyncJobProgress')
+    expect(src).toContain('throttleProgress(')
+    // discussion progress is offset past the repo-files total
+    expect(src).toContain('progress(filesTotal + d, filesTotal + t)')
+  })
+
+  it('surfaces the Notion page/database caps in the job detail', () => {
+    expect(src).toContain('res.pagesCapped')
+    expect(src).toContain('res.databasesCapped')
   })
 
   it('records success/failure on the job and never 500s a terminal job', () => {

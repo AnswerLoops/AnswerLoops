@@ -10,8 +10,12 @@ const NOTION_VERSION = '2022-06-28'
 /** Notion internal integration secrets: legacy `secret_…`, current `ntn_…`. */
 export const NOTION_TOKEN_RE = /^(ntn_|secret_)[A-Za-z0-9]{20,}$/
 
-/** Hard ceiling on objects pulled from /search, so a huge workspace can't hang a sync. */
-export const MAX_NOTION_OBJECTS = 500
+// Independent ceilings on how much /search pulls, so a huge workspace can't
+// hang a sync. Pages and databases have separate budgets — a workspace with
+// thousands of shared pages used to leave nothing for databases, which then
+// silently never synced.
+export const MAX_NOTION_PAGES = 2000
+export const MAX_NOTION_DATABASES = 500
 
 export interface NotionRichText {
   plain_text?: string
@@ -96,19 +100,38 @@ export interface NotionObject {
   title?: NotionRichText[]
 }
 
-/** Every page + database the integration can see, capped at MAX_NOTION_OBJECTS total. */
-export async function notionSearchAll(token: string): Promise<{ pages: NotionObject[]; databases: NotionObject[] }> {
+export interface NotionSearchResult {
+  pages: NotionObject[]
+  databases: NotionObject[]
+  /** True when the respective budget was hit and some objects were left out. */
+  pagesCapped: boolean
+  databasesCapped: boolean
+}
+
+/**
+ * Every page + database the integration can see. Pages and databases are
+ * paginated against separate budgets (`MAX_NOTION_PAGES` / `MAX_NOTION_DATABASES`)
+ * so a large set of one never starves the other.
+ */
+export async function notionSearchAll(token: string): Promise<NotionSearchResult> {
   const pages = await paginate<NotionObject>(
     token,
     '/search',
     { filter: { property: 'object', value: 'page' } },
-    MAX_NOTION_OBJECTS
+    MAX_NOTION_PAGES
   )
-  const remaining = Math.max(0, MAX_NOTION_OBJECTS - pages.length)
-  const databases = remaining
-    ? await paginate<NotionObject>(token, '/search', { filter: { property: 'object', value: 'database' } }, remaining)
-    : []
-  return { pages, databases }
+  const databases = await paginate<NotionObject>(
+    token,
+    '/search',
+    { filter: { property: 'object', value: 'database' } },
+    MAX_NOTION_DATABASES
+  )
+  return {
+    pages,
+    databases,
+    pagesCapped: pages.length >= MAX_NOTION_PAGES,
+    databasesCapped: databases.length >= MAX_NOTION_DATABASES,
+  }
 }
 
 export async function notionBlockChildren(token: string, blockId: string): Promise<NotionBlock[]> {
