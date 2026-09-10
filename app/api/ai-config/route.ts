@@ -1,15 +1,13 @@
-import { auth } from '@/auth'
+import { requireOrgAccess } from '@/lib/auth/org'
 import { getOrgAIConfig } from '@/lib/db/queries/ai-config'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user) return new Response('Unauthorized', { status: 401 })
-  const orgId = session.orgId ?? DEFAULT_ORG_ID
+  const access = await requireOrgAccess()
+  if (!access.ok) return new Response('Unauthorized', { status: 401 })
 
-  const config = await getOrgAIConfig(orgId)
+  const config = await getOrgAIConfig(access.orgId)
   if (!config) return Response.json(null)
 
   // Never expose raw API keys to the client — return masked presence only

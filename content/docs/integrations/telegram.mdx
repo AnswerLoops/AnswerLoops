@@ -37,12 +37,12 @@ Telegram bots are created by talking to Telegram's own bot, [@BotFather](https:/
 
 AnswerLoops validates the token's format and calls Telegram's `getMe` API to confirm it's real before saving it. If it's rejected, double-check you copied the whole string including the part after the colon.
 
-### 3. Register the webhook
+### 3. The webhook registers itself
 
-Telegram doesn't push messages to you automatically — you have to tell it where to send them. After saving your token, a **Register webhook** button appears on the Telegram card. Click it once; AnswerLoops calls Telegram's `setWebhook` API with your app's public URL and a per-org secret, and Telegram starts POSTing new messages to `/api/telegram/webhook`.
+Telegram doesn't push messages to you automatically — it has to be told where to send them. **Connect** does this for you: once the token validates, AnswerLoops calls Telegram's `setWebhook` API with your app's public URL (`AUTH_URL`) and a per-org secret, and Telegram starts POSTing new messages to `/api/telegram/webhook`. If that call fails (for example `AUTH_URL` isn't a publicly reachable HTTPS URL), the token is still saved and the card shows a **Register webhook** button to retry once the URL is fixed.
 
 <Note>
-  You need to re-register the webhook any time your public URL (`AUTH_URL`) changes, or if you rotate the bot token.
+  Re-register the webhook (the **Register webhook** button on the Telegram card) any time your public URL (`AUTH_URL`) changes. Rotating the bot token and re-saving registers it again automatically.
 </Note>
 
 ### 4. Add the bot to a chat and find its chat ID
@@ -82,8 +82,8 @@ Telegram is configured per-organization through the Settings UI — there's no b
   <Accordion title="Bot Token rejected when saving">
     AnswerLoops checks the token against Telegram's expected format (digits, a colon, then a 35-character alphanumeric string) and also calls Telegram's `getMe` API to confirm the token is live. A rejection usually means the token was truncated when copied from BotFather, or the bot was deleted/regenerated — go back to @BotFather, send `/token` for your bot, and copy the fresh value.
   </Accordion>
-  <Accordion title="Webhook registration fails">
-    Registration calls Telegram's `setWebhook` API with your app's public URL. If `AUTH_URL` isn't set to a real, publicly reachable HTTPS URL, Telegram will refuse it — `localhost` and private/internal hostnames don't work here. Set `AUTH_URL` to your public app URL and click **Register webhook** again.
+  <Accordion title="Connected, but the webhook didn't register">
+    Connecting calls Telegram's `setWebhook` API with your app's public URL. If `AUTH_URL` isn't set to a real, publicly reachable HTTPS URL, Telegram refuses it — `localhost` and private/internal hostnames don't work here. The token is still saved; set `AUTH_URL` to your public app URL and click **Register webhook** on the Telegram card to finish. Until then the bot receives nothing.
   </Accordion>
   <Accordion title="Bot is in the group but never responds">
     Telegram bots run in **privacy mode** by default in group chats: they only receive messages that start with `/`, mention the bot by `@username`, or are replies to the bot's own messages — everything else is invisible to the bot even though it's in the group. If you want AnswerLoops to see all group messages, message @BotFather, send `/setprivacy`, select your bot, and choose **Disable**. This has no effect on 1:1 chats, which the bot always sees in full.

@@ -39,6 +39,8 @@ Go to the **Knowledge Base** page. The Notion panel there has a **Sync now** but
 
 Sync is manual. Notion has no content-change webhooks, so there is no automatic re-sync yet.
 
+A re-sync fetches the whole workspace and builds the replacement before it swaps it in, so an interrupted sync — a Notion outage, a revoked token, a network drop — leaves the previously synced content in place and searchable. The swap only happens once the new import has been built successfully.
+
 ## 5. Publish to the widget
 
 Right after a sync, the Notion source shows as **Unpublished** in the Sources list — it's searchable on the dashboard but held back from customer-facing answers and the website widget. When you're happy with what imported, click **Publish to widget** on the Notion panel. **Unpublish** reverses it. Re-syncing preserves whichever state you last chose.

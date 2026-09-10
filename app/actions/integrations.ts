@@ -20,6 +20,7 @@ import { registerDomain, checkDomainStatus, removeDomain } from '@/lib/email/dom
 import { getEmailOauthConnection, deleteEmailOauthConnection } from '@/lib/db/queries/email-oauth'
 import { revokeGmailToken } from '@/lib/email/gmail'
 import { revokeOutlookToken } from '@/lib/email/outlook'
+import { registerTelegramWebhook } from '@/lib/telegram/webhook'
 import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { MOCK_EXTERNALS } from '@/lib/mock-mode'
 import { planRequiredFor } from '@/lib/billing/entitlements'
@@ -400,7 +401,7 @@ const TelegramIntegrationSchema = z.object({
 export async function saveTelegramIntegrationAction(
   _prevState: unknown,
   formData: FormData
-): Promise<{ error?: string } | null> {
+): Promise<{ error?: string; warning?: string } | null> {
   const session = await auth()
   if (!session?.user) return { error: 'Unauthorized' }
   const orgId = session.orgId ?? DEFAULT_ORG_ID
@@ -447,6 +448,21 @@ export async function saveTelegramIntegrationAction(
   })
 
   refresh()
+
+  // Register the webhook automatically so a freshly connected bot actually
+  // receives messages — until this runs the integration shows as connected
+  // but ingests nothing. A failure here doesn't fail the save (the token is
+  // valid and stored); it comes back as a warning the caller can surface,
+  // and the manual "Register webhook" button stays as the retry path.
+  const effectiveToken = newToken ?? existing?.bot_token ?? null
+  const baseUrl = process.env.AUTH_URL
+  if (effectiveToken && baseUrl && !MOCK_EXTERNALS) {
+    const result = await registerTelegramWebhook(effectiveToken, botSecret, baseUrl)
+    if (!result.ok) {
+      return { warning: `Bot saved, but registering the webhook failed: ${result.error}. Use "Register webhook" in Settings to retry.` }
+    }
+  }
+
   return null
 }
 
@@ -826,6 +842,13 @@ export async function generateGoogleChatConnectCodeAction(
   // already-connected org has no legitimate use case in v1).
   if (existing?.enabled && existing.team_id) {
     return { error: 'Google Chat is already connected. Disconnect first to generate a new code.' }
+  }
+
+  // Idempotent: an unpaired code already on the row is returned as-is rather
+  // than minted afresh, so a double-submit or a stale client can't invalidate
+  // a code the user may have already posted into a space.
+  if (existing && !existing.enabled && existing.bot_secret?.startsWith('gc_')) {
+    return { connectCode: existing.bot_secret }
   }
 
   const connectCode = `gc_${crypto.randomBytes(12).toString('hex')}`
