@@ -20,14 +20,16 @@ function readSrc(relPath: string): string {
 describe('app/api/discord/invite-url/route.ts — auth + entitlement', () => {
   const src = () => readSrc('app/api/discord/invite-url/route.ts')
 
-  it('now requires a session before doing anything else', () => {
+  it('resolves the org from a real membership row and rejects a session without one', () => {
     const s = src()
-    const authIdx = s.indexOf('const session = await auth()')
-    const requireIdx = s.indexOf('if (!session?.user)')
-    const orgIdIdx = s.indexOf('const orgId =')
-    expect(authIdx).toBeGreaterThan(-1)
-    expect(requireIdx).toBeGreaterThan(authIdx)
-    expect(requireIdx).toBeLessThan(orgIdIdx)
+    const accessIdx = s.indexOf('const access = await requireOrgAccess()')
+    const guardIdx = s.indexOf('if (!access.ok)')
+    const orgIdIdx = s.indexOf('const { orgId } = access')
+    expect(accessIdx).toBeGreaterThan(-1)
+    expect(guardIdx).toBeGreaterThan(accessIdx)
+    expect(orgIdIdx).toBeGreaterThan(guardIdx)
+    // no default-org fallback anywhere in the file
+    expect(s).not.toContain('DEFAULT_ORG_ID')
   })
 
   it('checks discord_integration before building the OAuth URL', () => {
@@ -69,7 +71,7 @@ describe('app/api/slack/install/route.ts — entitlement before building OAuth U
 
   it('checks slack_integration after auth but before the OAuth URL is built', () => {
     const s = src()
-    const authIdx = s.indexOf('if (!session?.user)')
+    const authIdx = s.indexOf('if (!access.ok)')
     const checkIdx = s.indexOf("orgHasFeature(orgId, 'slack_integration')")
     const urlBuildIdx = s.indexOf("new URL('https://slack.com")
     expect(checkIdx).toBeGreaterThan(authIdx)

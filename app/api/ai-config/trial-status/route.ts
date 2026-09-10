@@ -1,5 +1,4 @@
-import { auth } from '@/auth'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { requireOrgAccess } from '@/lib/auth/org'
 import { getDeploymentMode } from '@/lib/billing/plans'
 import { orgHasAIKey } from '@/lib/db/queries/ai-config'
 import { getPlatformKeyTrialStatus } from '@/lib/billing/platform-key-trial'
@@ -11,9 +10,9 @@ export const dynamic = 'force-dynamic'
 // has its own key configured. Only a cloud org with no key gets a real
 // trial-status object back.
 export async function GET() {
-  const session = await auth()
-  if (!session?.user) return new Response('Unauthorized', { status: 401 })
-  const orgId = session.orgId ?? DEFAULT_ORG_ID
+  const access = await requireOrgAccess()
+  if (!access.ok) return new Response('Unauthorized', { status: 401 })
+  const { orgId } = access
 
   if (getDeploymentMode() === 'self-hosted' || (await orgHasAIKey(orgId))) {
     return Response.json(null)

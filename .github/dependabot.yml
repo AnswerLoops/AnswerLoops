@@ -1,0 +1,41 @@
+version: 2
+
+updates:
+  # CI security scanners pinned in .github/security-tools/requirements.txt
+  # (semgrep, zizmor). This is the main reason this file exists — those tools
+  # were unpinned and updated silently.
+  - package-ecosystem: pip
+    directory: /.github/security-tools
+    schedule:
+      interval: weekly
+    # Wait 7 days before proposing a bump to a newly published version — a
+    # fresh release can be yanked, broken, or compromised.
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - dependencies
+      - security-tooling
+    groups:
+      security-tools:
+        patterns:
+          - "*"
+
+  # Pinned GitHub Actions (all SHA-pinned with a version comment). Keeps the
+  # trivy-action digest and every other action moving instead of frozen —
+  # Dependabot updates the SHA and the trailing "# vX.Y.Z" comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - dependencies
+    groups:
+      github-actions:
+        patterns:
+          - "*"

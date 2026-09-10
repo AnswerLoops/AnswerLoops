@@ -1,15 +1,16 @@
 import { type NextRequest } from 'next/server'
 import crypto from 'node:crypto'
-import { auth } from '@/auth'
+import { requireOrgAccess } from '@/lib/auth/org'
+import { verifyOAuthState } from '@/lib/oauth/state'
 import { getIntegration, upsertIntegration } from '@/lib/db/queries/integrations'
 import { addDiscordGuild, DiscordGuildTakenError } from '@/lib/db/queries/discord-guilds'
 import { orgHasFeature } from '@/lib/billing/entitlements-server'
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
   const baseUrl = process.env.AUTH_URL ?? req.nextUrl.origin
 
-  if (!session?.user) {
+  const access = await requireOrgAccess()
+  if (!access.ok) {
     return Response.redirect(new URL('/login', baseUrl))
   }
 
@@ -18,23 +19,25 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get('state')
   const error = searchParams.get('error')
 
-  // Decode state to determine where to redirect after
+  // The org id is taken only from a state this server signed, and only when
+  // the current caller still belongs to that org. Anything else is rejected;
+  // there is no default-org fallback.
   let orgId: number
-  let from: string = 'settings'
+  let from = 'settings'
   try {
-    const decoded = JSON.parse(Buffer.from(state ?? '', 'base64url').toString()) as {
-      orgId: number
-      ts: number
-      from?: string
-    }
-    if (Date.now() - decoded.ts > 10 * 60 * 1000) throw new Error('expired')
+    const decoded = verifyOAuthState(state)
+    if (decoded.orgId !== access.orgId) throw new Error('org mismatch')
     orgId = decoded.orgId
-    from = decoded.from ?? 'settings'
+    from = decoded.from === 'onboarding' ? 'onboarding' : 'settings'
   } catch {
-    orgId = (session as { orgId?: number }).orgId ?? 1
+    const bad = new URL('/settings', baseUrl)
+    bad.searchParams.set('tab', 'discord')
+    bad.searchParams.set('discord_error', 'invalid_state')
+    return Response.redirect(bad)
   }
 
   const failUrl = new URL(from === 'onboarding' ? '/onboarding' : '/settings', baseUrl)
+  if (from !== 'onboarding') failUrl.searchParams.set('tab', 'discord')
 
   if (error || !guildId) {
     failUrl.searchParams.set('discord_error', error ?? 'cancelled')

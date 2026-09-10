@@ -1,32 +1,40 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { requireOrgAccess } from '@/lib/auth/org'
+import { verifyOAuthState } from '@/lib/oauth/state'
 import { addRepo } from '@/lib/db/queries/github'
 import { listInstallationRepos } from '@/lib/github/app'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 
 const MOD = 'api/github/callback'
-const STATE_MAX_AGE_MS = 10 * 60 * 1000
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = req.nextUrl
-  const installationId = Number(searchParams.get('installation_id'))
-  const stateRaw = searchParams.get('state') ?? ''
+  const baseUrl = process.env.AUTH_URL ?? req.nextUrl.origin
+  const errUrl = (code: string) =>
+    NextResponse.redirect(new URL(`/settings?tab=github&github_error=${code}`, baseUrl))
 
-  let orgId = DEFAULT_ORG_ID
-  try {
-    const decoded = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf8'))
-    if (Date.now() - decoded.ts > STATE_MAX_AGE_MS) {
-      return NextResponse.redirect(new URL('/settings?tab=github&github_error=expired', req.nextUrl))
-    }
-    orgId = Number(decoded.orgId) || DEFAULT_ORG_ID
-  } catch {
-    logger.warn('invalid github callback state', { module: MOD })
+  const access = await requireOrgAccess()
+  if (!access.ok) {
+    return NextResponse.redirect(new URL('/login', baseUrl))
   }
 
-  const baseUrl = process.env.AUTH_URL ?? req.nextUrl.origin
+  const { searchParams } = req.nextUrl
+  const installationId = Number(searchParams.get('installation_id'))
+
+  // The installation is bound to the org named in a state this server signed,
+  // and only when the current caller still belongs to that org. Anything else
+  // is rejected; there is no default-org fallback.
+  let orgId: number
+  try {
+    const decoded = verifyOAuthState(searchParams.get('state'))
+    if (decoded.orgId !== access.orgId) throw new Error('org mismatch')
+    orgId = decoded.orgId
+  } catch (err) {
+    logger.warn('invalid github callback state', { module: MOD, error: err instanceof Error ? err.message : err })
+    return errUrl('invalid_state')
+  }
 
   if (!installationId) {
-    return NextResponse.redirect(new URL('/settings?tab=github&github_error=missing_installation', baseUrl))
+    return errUrl('missing_installation')
   }
 
   try {
@@ -38,7 +46,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     const cause = err instanceof Error ? { message: err.message, cause: (err as NodeJS.ErrnoException).cause } : err
     logger.error('github installation failed', { module: MOD, error: cause })
-    return NextResponse.redirect(new URL('/settings?tab=github&github_error=installation_failed', baseUrl))
+    return errUrl('installation_failed')
   }
 
   return NextResponse.redirect(new URL('/settings?tab=github&github_connected=1', baseUrl))
