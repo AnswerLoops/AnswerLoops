@@ -130,3 +130,38 @@ export async function deleteKBSource(id: number, orgId: number): Promise<void> {
     .delete(kbSources)
     .where(and(eq(kbSources.id, id), eq(kbSources.orgId, orgId)))
 }
+
+export async function deleteKBSourcesByFilename(orgId: number, filename: string): Promise<void> {
+  await getDb()
+    .delete(kbSources)
+    .where(and(eq(kbSources.orgId, orgId), eq(kbSources.filename, filename)))
+}
+
+/**
+ * Atomically retire an old source and promote a freshly-built one into its
+ * place. Used by delete-and-recreate importers (Notion) that build the
+ * replacement under a temporary filename first, so a mid-build failure leaves
+ * the live source untouched instead of wiping it. Both writes share one
+ * transaction: retrieval never sees a window with zero rows for `targetFilename`.
+ */
+export async function swapKBSource(input: {
+  orgId: number
+  newSourceId: number
+  targetFilename: string
+  published: 0 | 1
+}): Promise<void> {
+  const ts = new Date().toISOString()
+  await getDb().transaction(async (tx) => {
+    await tx
+      .delete(kbSources)
+      .where(and(eq(kbSources.orgId, input.orgId), eq(kbSources.filename, input.targetFilename)))
+    await tx
+      .update(kbSources)
+      .set({ filename: input.targetFilename, published: input.published, updatedAt: ts })
+      .where(and(eq(kbSources.id, input.newSourceId), eq(kbSources.orgId, input.orgId)))
+    await tx
+      .update(kbArticles)
+      .set({ published: input.published, updatedAt: ts })
+      .where(and(eq(kbArticles.sourceId, input.newSourceId), eq(kbArticles.orgId, input.orgId)))
+  })
+}
