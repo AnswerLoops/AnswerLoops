@@ -71,6 +71,9 @@ interface GoogleChatIntegration {
   id: number
   platform: string
   team_id: string | null
+  // The unpaired connect code lives here (bot_secret) until a space pairs;
+  // after that the same column is the webhook verification secret.
+  bot_secret: string | null
   escalation_role_id: string | null
   confidence_threshold: number | null
   auto_deflect_enabled: number
@@ -973,7 +976,7 @@ function TelegramIntegrationCard() {
         const updated = await fetch('/api/integrations').then((r) => r.json())
         setIntegration(updated.find((i: TelegramIntegration) => i.platform === 'telegram') ?? null)
         setEditing(false)
-        showToast('Telegram settings updated')
+        showToast(result?.warning ?? 'Telegram connected — webhook registered')
         router.refresh()
       }
       return result
@@ -2398,6 +2401,7 @@ export function EmailIntegrationCard() {
 export function GoogleChatIntegrationCard() {
   const [integration, setIntegration] = useState<GoogleChatIntegration | null | undefined>(undefined)
   const [pendingCode, setPendingCode] = useState<string | null>(null)
+  const [codeCopied, setCodeCopied] = useState(false)
   const [editing, setEditing] = useState(false)
   const { toastMessage, showToast } = useToast()
   const [, startDeleteTransition] = useTransition()
@@ -2410,7 +2414,18 @@ export function GoogleChatIntegrationCard() {
   // Discord/Slack/Email's save handlers which already await their reload).
   async function reload() {
     const data: GoogleChatIntegration[] = await fetch('/api/integrations').then((r) => r.json())
-    setIntegration(data.find((i) => i.platform === 'google_chat') ?? null)
+    const row = data.find((i) => i.platform === 'google_chat') ?? null
+    setIntegration(row)
+    // Rehydrate an outstanding connect code so it survives a reload — it's
+    // stored on the row (bot_secret) from the moment it's generated, but
+    // was previously only kept in component state and lost on refresh,
+    // which pushed users to regenerate and silently invalidate the code
+    // they'd already posted in a space.
+    if (row && row.enabled !== 1 && typeof row.bot_secret === 'string' && row.bot_secret.startsWith('gc_')) {
+      setPendingCode(row.bot_secret)
+    } else if (!row || row.enabled === 1) {
+      setPendingCode(null)
+    }
   }
 
   const [connectState, connectAction, connectPending] = useActionState(
@@ -2453,6 +2468,15 @@ export function GoogleChatIntegrationCard() {
   )
 
   useEffect(() => { reload() }, [])
+
+  // While a code is outstanding, poll for the pairing so the user doesn't have
+  // to sit on "Check connection status". Stops as soon as the space pairs.
+  useEffect(() => {
+    const isConnected = integration != null && integration.enabled === 1 && !!integration.team_id
+    if (isConnected || !pendingCode) return
+    const id = setInterval(() => { reload() }, 5000)
+    return () => clearInterval(id)
+  }, [integration, pendingCode])
 
   if (integration === undefined) return <p className="text-sm text-gray-400">Loading…</p>
 
@@ -2507,15 +2531,29 @@ export function GoogleChatIntegrationCard() {
         {!connected && pendingCode && (
           <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-2">
             <p className="text-xs font-medium text-gray-600">Your connect code</p>
-            <code className="block text-sm font-mono text-gray-900 bg-white border border-gray-200 rounded px-3 py-2 break-all">
-              {pendingCode}
-            </code>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="block min-w-0 flex-1 text-sm font-mono text-gray-900 bg-white border border-gray-200 rounded px-3 py-2 break-all select-all">
+                {pendingCode}
+              </code>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  navigator.clipboard.writeText(pendingCode).then(() => {
+                    setCodeCopied(true)
+                    setTimeout(() => setCodeCopied(false), 2000)
+                  }).catch(() => {})
+                }}
+              >
+                {codeCopied ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
             <ol className="text-xs text-gray-500 list-decimal list-inside space-y-1">
               <li>Add the AnswerLoops app to a Google Chat space (see the self-hosting guide for the app link)</li>
               <li>Post <code className="font-mono">/connect {pendingCode}</code> in that space</li>
-              <li>Come back here — this page will show &quot;Connected&quot; once pairing succeeds</li>
+              <li>Keep this page open — it checks for the pairing automatically and switches to &quot;Connected&quot; on its own</li>
             </ol>
-            <Button size="sm" variant="secondary" onClick={reload}>Check connection status</Button>
+            <Button size="sm" variant="secondary" onClick={reload}>Check now</Button>
           </div>
         )}
 

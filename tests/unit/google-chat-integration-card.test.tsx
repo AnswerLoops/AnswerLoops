@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GoogleChatIntegrationCard } from '@/app/(dashboard)/settings/page'
 import {
@@ -65,6 +65,22 @@ function notConnectedResponse() {
   return { ok: true, json: async () => [] }
 }
 
+function pendingCodeResponse(code = 'gc_persisted123') {
+  return {
+    ok: true,
+    json: async () => [{
+      id: 1,
+      platform: 'google_chat',
+      team_id: null,
+      bot_secret: code,
+      escalation_role_id: null,
+      confidence_threshold: 0.8,
+      auto_deflect_enabled: 0,
+      enabled: 0,
+    }],
+  }
+}
+
 function connectedResponse(autoDeflectEnabled = 0) {
   return {
     ok: true,
@@ -108,6 +124,35 @@ describe('GoogleChatIntegrationCard', () => {
     // The generate button/prompt is gone once a code is pending — a user
     // could otherwise generate a second code before pairing the first.
     expect(screen.queryByRole('button', { name: /generate connect code/i })).toBeNull()
+  })
+
+  it('rehydrates an outstanding connect code from the integration row on load (survives a reload)', async () => {
+    // The code lives on the row (bot_secret) from the moment it is generated.
+    // Previously it was only kept in component state, so a refresh lost it and
+    // pushed the user to regenerate — invalidating the code already posted in
+    // a space. On load the card must show the pending code with no click.
+    mockFetch.mockResolvedValue(pendingCodeResponse('gc_survived'))
+    render(<GoogleChatIntegrationCard />)
+
+    await waitFor(() => expect(screen.getByText('gc_survived')).toBeTruthy())
+    expect(screen.getByText(/\/connect gc_survived/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /generate connect code/i })).toBeNull()
+    expect(generateGoogleChatConnectCodeAction).not.toHaveBeenCalled()
+  })
+
+  it('copies the pending connect code to the clipboard', async () => {
+    if (!navigator.clipboard) {
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => Promise.resolve() }, configurable: true })
+    }
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
+    mockFetch.mockResolvedValue(pendingCodeResponse('gc_copyme'))
+
+    render(<GoogleChatIntegrationCard />)
+
+    await waitFor(() => expect(screen.getByText('gc_copyme')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: /^copy$/i }))
+    expect(writeText).toHaveBeenCalledWith('gc_copyme')
+    writeText.mockRestore()
   })
 
   it('surfaces an entitlement error from the server action instead of silently doing nothing', async () => {
