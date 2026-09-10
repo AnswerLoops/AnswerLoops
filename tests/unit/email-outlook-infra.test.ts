@@ -98,15 +98,19 @@ describe('server actions + routes: Outlook connect/disconnect flow', () => {
     expect(fnBody).toContain('revokeGmailToken(existing.refresh_token)')
   })
 
-  it('install route redirects to the Outlook consent screen with signed state', () => {
+  it('install route mints a signed state for the caller org and requires membership', () => {
     const src = readSrc('app/api/email/outlook/install/route.ts')
     expect(src).toContain('buildOutlookAuthUrl')
-    expect(src).toContain('base64url')
+    expect(src).toContain('requireOrgAccess()')
+    expect(src).toContain('signOAuthState({ orgId: access.orgId })')
+    expect(src).not.toContain('DEFAULT_ORG_ID')
   })
 
-  it('callback route validates state expiry and upserts the connection with provider outlook', () => {
+  it('callback route authenticates the state, binds it to the caller org, then upserts provider outlook', () => {
     const src = readSrc('app/api/email/outlook/callback/route.ts')
-    expect(src).toContain('10 * 60 * 1000')
+    expect(src).toContain('verifyOAuthState(state)')
+    expect(src).toContain('decoded.orgId !== access.orgId')
+    expect(src).not.toContain("Buffer.from(state ?? '', 'base64url')")
     expect(src).toContain('upsertEmailOauthConnection')
     expect(src).toContain("provider: 'outlook'")
     expect(src).toContain("emailSendMethod: 'oauth'")

@@ -1,9 +1,8 @@
 'use server'
 
 import { z } from 'zod'
-import { auth } from '@/auth'
+import { requireOrgAccess } from '@/lib/auth/org'
 import { saveOrgAIConfig, deleteOrgAIConfig } from '@/lib/db/queries/ai-config'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
 import { planRequiredFor } from '@/lib/billing/entitlements'
 import { orgHasFeature } from '@/lib/billing/entitlements-server'
 import { PLANS } from '@/lib/billing/plans'
@@ -26,9 +25,12 @@ export async function saveAIConfigAction(
   _prevState: unknown,
   formData: FormData
 ): Promise<{ error?: string } | null> {
-  const session = await auth()
-  if (!session?.user) return { error: 'Unauthorized' }
-  const orgId = session.orgId ?? DEFAULT_ORG_ID
+  // The org's model provider + API keys are org-wide credentials — the same
+  // sensitivity class as API keys and ownership transfer, so owner/admin only,
+  // and resolved from a real membership row (never a default-org fallback).
+  const access = await requireOrgAccess(['owner', 'admin'])
+  if (!access.ok) return { error: access.error }
+  const { orgId } = access
 
   const raw = Object.fromEntries(formData)
   const parsed = SaveSchema.safeParse(raw)
@@ -66,10 +68,9 @@ export async function clearAIConfigAction(
   _prevState: unknown,
   _formData: FormData
 ): Promise<{ error?: string } | null> {
-  const session = await auth()
-  if (!session?.user) return { error: 'Unauthorized' }
-  const orgId = session.orgId ?? DEFAULT_ORG_ID
+  const access = await requireOrgAccess(['owner', 'admin'])
+  if (!access.ok) return { error: access.error }
 
-  await deleteOrgAIConfig(orgId)
+  await deleteOrgAIConfig(access.orgId)
   return null
 }

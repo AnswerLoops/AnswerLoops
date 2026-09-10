@@ -32,23 +32,6 @@ describe('Discord OAuth routes: file structure', () => {
 })
 
 describe('Discord OAuth state encoding', () => {
-  it('state roundtrip: encode and decode orgId + from', () => {
-    const payload = { orgId: 42, ts: Date.now(), from: 'onboarding' }
-    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
-    const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString()) as typeof payload
-    expect(decoded.orgId).toBe(42)
-    expect(decoded.from).toBe('onboarding')
-  })
-
-  it('state with ts older than 10 min should be detected as expired', () => {
-    const ELEVEN_MINS_AGO = Date.now() - 11 * 60 * 1000
-    const payload = { orgId: 1, ts: ELEVEN_MINS_AGO, from: 'onboarding' }
-    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
-    const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString()) as typeof payload
-    const isExpired = Date.now() - decoded.ts > 10 * 60 * 1000
-    expect(isExpired).toBe(true)
-  })
-
   it('invite-url route references DISCORD_CLIENT_ID env var', () => {
     const src = readRoute('app/api/discord/invite-url/route.ts')
     expect(src).toContain('DISCORD_CLIENT_ID')
@@ -71,10 +54,13 @@ describe('Discord OAuth state encoding', () => {
     expect(src).toContain('guild_id')
   })
 
-  it('callback route validates state expiry (10 min window)', () => {
+  it('callback route authenticates the state signature and binds it to the caller org', () => {
     const src = readRoute('app/api/discord/callback/route.ts')
-    // Expiry check uses 10 * 60 * 1000 ms
-    expect(src).toContain('10 * 60 * 1000')
+    expect(src).toContain('verifyOAuthState(state)')
+    expect(src).toContain('decoded.orgId !== access.orgId')
+    // no unsigned base64 decode, no default-org fallback
+    expect(src).not.toContain("Buffer.from(state ?? '', 'base64url')")
+    expect(src).not.toContain('?? 1')
   })
 
   it('callback route saves guild via upsertIntegration', () => {
