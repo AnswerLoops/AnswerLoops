@@ -36,14 +36,20 @@ describe('.github/dependabot.yml', () => {
   })
 
   it('watches the pinned security-tools pip file weekly', () => {
-    const pip = cfg.slice(cfg.indexOf('package-ecosystem: pip'))
+    const pip = cfg.slice(cfg.indexOf('package-ecosystem: pip'), cfg.indexOf('package-ecosystem: github-actions'))
     expect(pip).toContain('directory: /.github/security-tools')
-    expect(pip.slice(0, pip.indexOf('package-ecosystem: github-actions'))).toMatch(/interval:\s*weekly/)
+    expect(pip).toMatch(/interval:\s*weekly/)
   })
 
   it('watches the SHA-pinned GitHub Actions (keeps the trivy-action digest moving)', () => {
     expect(cfg).toContain('package-ecosystem: github-actions')
     const gha = cfg.slice(cfg.indexOf('package-ecosystem: github-actions'))
     expect(gha).toMatch(/directory:\s*\/\s*$/m)
+  })
+
+  it('sets a cooldown on every ecosystem so a freshly published version waits before it is proposed', () => {
+    const entries = cfg.split('- package-ecosystem:').slice(1)
+    expect(entries.length).toBe(2)
+    for (const e of entries) expect(e).toMatch(/cooldown:\s*\n\s*default-days:\s*7/)
   })
 })
