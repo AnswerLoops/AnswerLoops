@@ -125,7 +125,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Semgrep
-        run: pip install semgrep --quiet
+        run: pip install -r .github/security-tools/requirements.txt --quiet
 
       - name: Run Semgrep SAST
         run: |
@@ -148,7 +148,7 @@ jobs:
           persist-credentials: false
 
       - name: Install zizmor
-        run: pip install zizmor --quiet
+        run: pip install -r .github/security-tools/requirements.txt --quiet
 
       - name: Audit workflows
         # Catches script-injection via untrusted ${{ github.event.* }} interpolation,
