@@ -9,12 +9,16 @@ import { NOTION_TOKEN_RE, getNotionPageTitle } from '@/lib/notion/client'
 // convention as github-discussions-kb.test.ts.
 //
 // The load-bearing behaviours these lock in:
-//  - delete-and-recreate against ONE stable per-workspace kb_sources row
-//  - the customer's publish choice is captured before the delete and restored
-//    after (Notion imports hidden, but a re-sync must not silently re-hide a
-//    workspace the customer had already published)
-//  - every chunk lands published: 0
-//  - the article budget is MAX_ARTICLES_PER_ORG minus what the org already has
+//  - fetch-first, swap-last: every Notion API call happens BEFORE the live
+//    kb_sources row is touched, so a Notion outage / revoked token / decrypt
+//    failure aborts with the existing KB intact instead of wiping it
+//  - the replacement is built under a staging filename and swapped into place
+//    atomically (swapKBSource), never a delete-then-recreate window
+//  - the customer's publish choice is captured before the rebuild and applied
+//    in the swap (Notion imports hidden, but a re-sync must not silently
+//    re-hide a workspace the customer had already published)
+//  - every chunk lands published: 0 until the swap
+//  - the article budget is MAX_ARTICLES_PER_ORG minus every non-Notion article
 //  - every DB query is org-scoped, and the stored token is decrypted, never
 //    used raw
 
@@ -34,22 +38,47 @@ describe('lib/notion/kb-sync.ts — syncNotionToKB', () => {
     expect(src).toContain("export const NOTION_SOURCE_FILENAME = 'notion:workspace'")
   })
 
-  it('is delete-and-recreate against the single per-workspace source row', () => {
+  it('rebuilds against the single per-workspace source row via an atomic swap', () => {
     expect(src).toContain('getKBSourceByFilename(orgId, NOTION_SOURCE_FILENAME)')
-    expect(src).toContain('deleteKBSource(existing.id, orgId)')
+    expect(src).toContain('swapKBSource({')
+    expect(src).toContain('targetFilename: NOTION_SOURCE_FILENAME')
+    // No delete of the live source anywhere in the module.
+    expect(src).not.toContain('deleteKBSource(existing')
   })
 
-  it('captures the publish choice BEFORE the delete and restores it AFTER the rebuild', () => {
-    const wasIdx = src.indexOf('wasPublished')
-    const delIdx = src.indexOf('deleteKBSource(existing.id, orgId)')
-    const restoreIdx = src.indexOf('setKBSourcePublished(source.id, orgId, 1)')
+  it('does every Notion fetch BEFORE it creates or swaps any source row', () => {
+    const searchIdx = src.indexOf('notionSearchAll(token)')
+    const pageFetchIdx = src.indexOf('notionBlockChildren(token, item.id)')
+    const createIdx = src.indexOf('createKBSource({')
+    const swapIdx = src.indexOf('swapKBSource({')
+    expect(searchIdx).toBeGreaterThan(-1)
+    expect(pageFetchIdx).toBeGreaterThan(-1)
+    expect(searchIdx).toBeLessThan(createIdx)
+    expect(pageFetchIdx).toBeLessThan(createIdx)
+    expect(createIdx).toBeLessThan(swapIdx)
+  })
+
+  it('stages the rebuild under a distinct filename and clears a stale staging row first', () => {
+    expect(src).toContain("'notion:workspace:rebuilding'")
+    expect(src).toContain('deleteKBSourcesByFilename(orgId, NOTION_SOURCE_STAGING_FILENAME)')
+    const clearIdx = src.indexOf('deleteKBSourcesByFilename(orgId, NOTION_SOURCE_STAGING_FILENAME)')
+    const createIdx = src.indexOf('createKBSource({')
+    expect(clearIdx).toBeLessThan(createIdx)
+  })
+
+  it('captures the publish choice before the rebuild and applies it in the swap', () => {
+    const wasIdx = src.indexOf('const wasPublished')
+    const swapIdx = src.indexOf('swapKBSource({')
     expect(wasIdx).toBeGreaterThan(-1)
-    expect(wasIdx).toBeLessThan(delIdx)
-    expect(restoreIdx).toBeGreaterThan(delIdx)
-    expect(src).toMatch(/if \(wasPublished\) await setKBSourcePublished\(source\.id, orgId, 1\)/)
+    expect(wasIdx).toBeLessThan(swapIdx)
+    expect(src).toMatch(/published: wasPublished \? 1 : 0/)
   })
 
-  it('creates the source as file_type notion and imports it hidden (published: 0)', () => {
+  it('bins the staging row and rethrows if the build phase blows up', () => {
+    expect(src).toMatch(/catch \(err\) \{[\s\S]*deleteKBSourcesByFilename\(orgId, NOTION_SOURCE_STAGING_FILENAME\)[\s\S]*throw err/)
+  })
+
+  it('creates the staging source as file_type notion and hidden (published: 0)', () => {
     const idx = src.indexOf('createKBSource({')
     expect(idx).toBeGreaterThan(-1)
     const call = src.slice(idx, src.indexOf('})', idx))
@@ -76,10 +105,11 @@ describe('lib/notion/kb-sync.ts — syncNotionToKB', () => {
     expect(src).toContain('if (MOCK_EXTERNALS)')
   })
 
-  it('budgets articles as MAX_ARTICLES_PER_ORG minus the org current count', () => {
+  it('budgets articles as MAX_ARTICLES_PER_ORG minus every non-Notion article', () => {
     expect(src).toMatch(/MAX_ARTICLES_PER_ORG\s*=\s*2000/)
     expect(src).toContain('await countArticles(orgId)')
-    expect(src).toMatch(/Math\.max\(0, MAX_ARTICLES_PER_ORG - \(await countArticles\(orgId\)\)\)/)
+    expect(src).toContain('existingNotionChunks')
+    expect(src).toMatch(/MAX_ARTICLES_PER_ORG - \(\(await countArticles\(orgId\)\) - existingNotionChunks\)/)
   })
 
   it('records the sync state on notion_connections after the rebuild', () => {
@@ -97,7 +127,7 @@ describe('lib/notion/kb-sync.ts — syncNotionToKB', () => {
     for (const call of [
       'getNotionConnectionRow(orgId)',
       'getKBSourceByFilename(orgId, NOTION_SOURCE_FILENAME)',
-      'deleteKBSource(existing.id, orgId)',
+      'deleteKBSourcesByFilename(orgId, NOTION_SOURCE_STAGING_FILENAME)',
       'countArticles(orgId)',
       'updateNotionKbState(orgId,',
     ]) {
