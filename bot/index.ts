@@ -29,6 +29,7 @@ import { DEFAULT_ORG_ID } from '../lib/db/schema'
 import { startSlackPoller, reloadSlackPoller, stopSlackPoller } from '../lib/slack/poller'
 import { getOrgsPendingPurge, hardPurgeOrg } from '../lib/db/queries/orgs'
 import { getStuckPendingTickets } from '../lib/db/queries/tickets'
+import { claimNextKbSyncJob, reclaimStuckKbSyncJobs } from '../lib/db/queries/kb-sync-jobs'
 import { getDirectDatabaseUrl } from '../lib/db/direct-url'
 import { getDeploymentMode } from '../lib/billing/plans'
 import { getOrgIdsWithFlag } from '../lib/db/queries/feature-flags'
@@ -111,6 +112,63 @@ function startStuckTicketSweep(): void {
   }
   sweep().catch(() => {})
   setInterval(() => { sweep().catch(() => {}) }, STUCK_TICKET_SWEEP_INTERVAL_MS)
+}
+
+// KB sync worker. Notion/GitHub KB syncs are enqueued into kb_sync_jobs (by the
+// "Sync now" buttons and the GitHub push webhook) instead of running inline in
+// those requests. This sweep claims queued jobs and drives each one via
+// POST /api/kb/sync-jobs/run — same discover-claim-forward shape as the stuck
+// ticket sweep above, and for the same reason: the sync work needs a real app
+// request context (embeddings, KB queries) and must not run in the bot process
+// itself.
+const KB_SYNC_SWEEP_INTERVAL_MS = 15 * 1000
+const KB_SYNC_STUCK_THRESHOLD_MS = 15 * 60 * 1000
+const KB_SYNC_MAX_ATTEMPTS = 3
+const KB_SYNC_JOBS_PER_TICK = 3
+
+function startKbSyncSweep(): void {
+  const targetUrl = process.env.BOT_TARGET_URL ?? 'http://localhost:3000'
+  const botSecret = process.env.BOT_SECRET
+
+  const sweep = async () => {
+    if (!botSecret) return // the run route requires BOT_SECRET; nothing to do without it
+
+    try {
+      const reclaimed = await reclaimStuckKbSyncJobs(KB_SYNC_STUCK_THRESHOLD_MS, KB_SYNC_MAX_ATTEMPTS)
+      if (reclaimed > 0) logger.warn('kb sync sweep: reclaimed stuck jobs', { module: MOD, count: reclaimed })
+    } catch (err) {
+      logger.error('kb sync sweep: reclaim failed', { module: MOD, error: err })
+    }
+
+    for (let i = 0; i < KB_SYNC_JOBS_PER_TICK; i++) {
+      let job: Awaited<ReturnType<typeof claimNextKbSyncJob>>
+      try {
+        job = await claimNextKbSyncJob()
+      } catch (err) {
+        logger.error('kb sync sweep: claim failed', { module: MOD, error: err })
+        return
+      }
+      if (!job) return
+
+      try {
+        const res = await fetch(`${targetUrl}/api/kb/sync-jobs/run`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${botSecret}` },
+          body: JSON.stringify({ jobId: job.id }),
+        })
+        if (!res.ok) {
+          logger.warn('kb sync sweep: run request failed', { module: MOD, jobId: job.id, status: res.status })
+        }
+      } catch (err) {
+        // A failed forward leaves the job `running`; the reclaim above requeues
+        // it on a later tick. One job failing must not stop the rest.
+        logger.error('kb sync sweep: failed to drive job', { module: MOD, jobId: job.id, error: err })
+      }
+    }
+  }
+
+  sweep().catch(() => {})
+  setInterval(() => { sweep().catch(() => {}) }, KB_SYNC_SWEEP_INTERVAL_MS)
 }
 
 // How often to ping the dedicated LISTEN connection. Two jobs: (1) on Neon
@@ -642,6 +700,7 @@ async function main() {
   // channels an org has configured.
   startOrgPurgeSweep()
   startStuckTicketSweep()
+  startKbSyncSweep()
 
   client.login(initial.discordToken)
 }

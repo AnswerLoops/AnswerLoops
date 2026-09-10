@@ -8,7 +8,7 @@ description: Ingest GitHub Issues and Discussions as tickets, and sync repo mark
 The GitHub integration does three things:
 
 1. **Ticket ingest** — new Issues and Discussions become tickets in AnswerLoops. AI drafts a reply and posts it back as a GitHub comment automatically when confidence is high enough **and Automatic Deflections is turned on for that repo** (off by default — see [per-repo settings](#5-configure-per-repo-settings)). Issues, comments, and discussions authored by anyone with write access to the repo — owners, org members, and collaborators (GitHub's `author_association` field) — are skipped, so maintainers filing their own work-tracking issues never turn into support tickets or count against your deflection rate.
-2. **Markdown KB sync** — markdown files in a repo are embedded into the Knowledge Base. Syncs automatically on every push (when enabled) or manually via **Sync now**.
+2. **Markdown KB sync** — markdown files in a repo are embedded into the Knowledge Base. Syncs automatically on every push to the default branch (when enabled) or manually via **Sync now**. Both queue a background job rather than blocking the request.
 3. **Discussions KB sync** — answered GitHub Discussions become first-class KB articles: the discussion title is the question, the accepted answer is the answer, attributed to the answering user. A discussion syncs the moment it's marked answered, and un-marking an answer removes the article. **Sync now** also backfills every already-answered discussion in the repo.
 
 ## Prerequisites
@@ -81,9 +81,11 @@ Each connected repo has three controls:
 
 - **Monitored events** — choose Issues, Discussions, Both, or None. This governs *ticket ingest* only.
 - **Automatic Deflections** — off by default. While it's off, even a high-confidence answer is held as a draft on the dashboard awaiting Approve/Edit/Dismiss instead of posting as a GitHub comment automatically — the issue gets a brief acknowledgment comment instead. Turn it on per-repo once you trust the AI's answers going out unsupervised.
-- **Knowledge Base source** — toggle KB sync on/off; **Sync now** triggers an immediate sync
+- **Knowledge Base source** — toggle KB sync on/off; **Sync now** queues a sync
 
-When KB sync is enabled: every push to the default branch re-embeds all `.md` and `.mdx` files automatically, and every discussion marked as answered syncs into the KB immediately (independent of **Monitored events** — a repo can feed the KB from Discussions even if ticket ingest is set to `Issues` or `None`). **Sync now** re-syncs both markdown files and the full set of currently-answered discussions.
+When KB sync is enabled: every push **to the default branch** queues a re-embed of all `.md` and `.mdx` files (pushes to other branches, tags, or PR refs are ignored), and every discussion marked as answered syncs into the KB immediately (independent of **Monitored events** — a repo can feed the KB from Discussions even if ticket ingest is set to `Issues` or `None`). **Sync now** queues a re-sync of both markdown files and the full set of currently-answered discussions.
+
+Markdown/discussion syncs run in the background rather than inside the webhook or the button click — the KB page shows the job as queued, then syncing, then done, and it's safe to navigate away. Repeated triggers for the same repo while a sync is still running collapse to one job, so a burst of pushes (or a webhook redelivery) never starts overlapping syncs.
 
 ## Troubleshooting
 

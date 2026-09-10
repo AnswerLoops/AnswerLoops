@@ -49,10 +49,12 @@ Connect a GitHub repository and sync its markdown files into the KB.
 
 1. Go to **Knowledge Base → GitHub Sync**
 2. Select the repository from the picker (requires GitHub App installed on your org)
-3. Click **Sync now** to run an immediate import of all `.md` and `.mdx` files
-4. Optionally enable **Auto-sync on push** — AnswerLoops receives a webhook from GitHub on every push to the default branch and re-syncs changed files automatically
+3. Click **Sync now** to queue an import of all `.md` and `.mdx` files
+4. Optionally enable **Auto-sync on push** — AnswerLoops receives a webhook from GitHub on every push to the default branch and queues a re-sync automatically
 
 The sync respects the repo's file tree. Each markdown file becomes its own source entry.
+
+GitHub and Notion syncs run as background jobs — the Knowledge Base page shows each one as queued, then syncing, then done, and you can navigate away while it runs. Re-triggering a sync for the same source while one is still in progress does nothing; the running job finishes on its own.
 
 <Note>
   GitHub repo sync requires the GitHub App to be installed and `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET` to be configured. See [GitHub App setup](/docs/self-hosting/environment-variables#github) for details.

@@ -1,0 +1,60 @@
+import { describe, it, expect } from 'vitest'
+import fs from 'fs'
+import path from 'path'
+
+// The internal run route the bot sweep POSTs to. Next route modules can't be
+// imported in vitest (same convention as circle-webhook-route.test.ts), so
+// these are structural assertions on the security- and correctness-critical
+// shape.
+
+const ROOT = process.cwd()
+const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf-8')
+
+describe('app/api/kb/sync-jobs/run/route.ts', () => {
+  const src = read('app/api/kb/sync-jobs/run/route.ts')
+
+  it('is BOT_SECRET-gated, like retry-stuck', () => {
+    expect(src).toContain("request.headers.get('authorization')")
+    expect(src).toMatch(/bearer !== process\.env\.BOT_SECRET/)
+    expect(src).toContain("return new Response('Unauthorized', { status: 401 })")
+  })
+
+  it('only acts on a job the sweep has already claimed (status running)', () => {
+    expect(src).toMatch(/job\.status !== 'running'/)
+    expect(src).toContain('ran: false')
+  })
+
+  it('dispatches by kind — notion vs github_repo', () => {
+    expect(src).toContain("job.kind === 'notion'")
+    expect(src).toContain('syncNotionToKB(job.org_id)')
+    expect(src).toContain("job.kind === 'github_repo'")
+    const docsIdx = src.indexOf('await syncRepoToKB(')
+    const discIdx = src.indexOf('await syncDiscussionsToKB(')
+    expect(docsIdx).toBeGreaterThan(-1)
+    expect(discIdx).toBeGreaterThan(docsIdx) // sequential, count-race safe
+  })
+
+  it('records success/failure on the job and never 500s a terminal job', () => {
+    expect(src).toContain("finishKbSyncJob(job.id, { status: 'succeeded'")
+    expect(src).toContain("finishKbSyncJob(job.id, { status: 'failed'")
+    // failure path returns 200 (Response.json) not a 500
+    expect(src).toMatch(/catch \(err\) \{[\s\S]*finishKbSyncJob[\s\S]*Response\.json\(\{ ok: true, ran: true, failed: true \}\)/)
+  })
+
+  it('the run path is exempt from session auth (bot has no session)', () => {
+    expect(read('auth.ts')).toContain("'/api/kb/sync-jobs/run'")
+  })
+})
+
+describe('app/api/kb/sync-jobs/route.ts — status poll', () => {
+  const src = read('app/api/kb/sync-jobs/route.ts')
+
+  it('is session-gated and validates kind', () => {
+    expect(src).toContain('requireOrgAccess()')
+    expect(src).toMatch(/kind !== 'notion' && kind !== 'github_repo'/)
+  })
+
+  it('returns the latest job for the caller org only', () => {
+    expect(src).toContain('getLatestKbSyncJob(access.orgId')
+  })
+})

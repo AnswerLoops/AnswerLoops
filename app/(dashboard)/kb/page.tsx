@@ -19,6 +19,71 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+interface KbSyncJobStatus {
+  status: 'queued' | 'running' | 'succeeded' | 'failed'
+  detail: string | null
+  syncedCount: number
+}
+
+interface KbSyncResult {
+  ok: boolean
+  detail: string
+  syncedCount: number
+}
+
+// Poll a queued/running KB sync job to completion. `statusQuery` is the full
+// /api/kb/sync-jobs?... URL for the source. `onLabel` updates the button text.
+export function pollKbSyncJob(statusQuery: string, onLabel: (label: string) => void): Promise<KbSyncResult> {
+  return new Promise((resolve) => {
+    const startedAt = Date.now()
+    const tick = async () => {
+      if (Date.now() - startedAt > 15 * 60 * 1000) {
+        resolve({ ok: false, detail: 'Sync is taking longer than expected — check back shortly.', syncedCount: 0 })
+        return
+      }
+      let job: KbSyncJobStatus | null = null
+      try {
+        job = await fetch(statusQuery).then((r) => (r.ok ? r.json() : null))
+      } catch {
+        setTimeout(tick, 2500)
+        return
+      }
+      if (!job || job.status === 'queued') {
+        onLabel('Queued…')
+        setTimeout(tick, 2500)
+      } else if (job.status === 'running') {
+        onLabel('Syncing…')
+        setTimeout(tick, 2500)
+      } else if (job.status === 'succeeded') {
+        resolve({ ok: true, detail: job.detail ?? 'Sync complete', syncedCount: job.syncedCount ?? 0 })
+      } else {
+        resolve({ ok: false, detail: job.detail ?? 'Sync failed', syncedCount: 0 })
+      }
+    }
+    tick()
+  })
+}
+
+// Enqueue a sync and poll it to completion.
+export async function runKbSync(
+  enqueueUrl: string,
+  statusQuery: string,
+  onLabel: (label: string) => void,
+): Promise<KbSyncResult> {
+  let res: Response
+  try {
+    res = await fetch(enqueueUrl, { method: 'POST' })
+  } catch {
+    return { ok: false, detail: 'Could not reach the server.', syncedCount: 0 }
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string }
+    return { ok: false, detail: body.error ?? 'Could not queue the sync.', syncedCount: 0 }
+  }
+  onLabel('Queued…')
+  return pollKbSyncJob(statusQuery, onLabel)
+}
+
 function FileTypeIcon({ type }: { type: string }) {
   const colors: Record<string, string> = {
     pdf: 'text-red-500',
@@ -148,36 +213,35 @@ function SourcesList({ onDeleted }: { onDeleted: () => void }) {
 function GitHubKBSection({ onSynced }: { onSynced: () => void }) {
   const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [syncingId, setSyncingId] = useState<number | null>(null)
+  const [syncLabel, setSyncLabel] = useState<string>('Syncing…')
   const [toast, setToast] = useState<string | null>(null)
 
-  useEffect(() => {
+  const loadRepos = useCallback(() => {
     fetch('/api/github/repos')
       .then((r) => r.ok ? r.json() : [])
       .then((all: GitHubRepo[]) => setRepos(all.filter((r) => r.kb_enabled === 1)))
       .catch(() => setRepos([]))
   }, [])
 
+  useEffect(() => { loadRepos() }, [loadRepos])
+
   const sync = async (repo: GitHubRepo) => {
     setSyncingId(repo.id)
-    try {
-      const res = await fetch(`/api/github/sync-kb?repo_id=${repo.id}`)
-      const data = await res.json() as { synced?: number; error?: string }
-      if (data.error) {
-        setToast(data.error)
-      } else {
-        setToast(`Synced ${data.synced ?? 0} chunks from ${repo.owner}/${repo.repo}`)
-        onSynced()
-        // refresh repo list to update chunk count / last synced
-        fetch('/api/github/repos')
-          .then((r) => r.json())
-          .then((all: GitHubRepo[]) => setRepos(all.filter((r) => r.kb_enabled === 1)))
-      }
-    } catch {
-      setToast('Sync failed')
-    } finally {
-      setSyncingId(null)
-      setTimeout(() => setToast(null), 4000)
+    setSyncLabel('Queued…')
+    const result = await runKbSync(
+      `/api/github/sync-kb?repo_id=${repo.id}`,
+      `/api/kb/sync-jobs?kind=github_repo&repo_id=${repo.id}`,
+      setSyncLabel,
+    )
+    if (result.ok) {
+      setToast(`${repo.owner}/${repo.repo}: ${result.detail}`)
+      onSynced()
+      loadRepos()
+    } else {
+      setToast(`${repo.owner}/${repo.repo}: ${result.detail}`)
     }
+    setSyncingId(null)
+    setTimeout(() => setToast(null), 5000)
   }
 
   if (repos.length === 0) return null
@@ -213,7 +277,7 @@ function GitHubKBSection({ onSynced }: { onSynced: () => void }) {
               onClick={() => sync(repo)}
               disabled={syncingId === repo.id}
             >
-              {syncingId === repo.id ? 'Syncing…' : 'Sync now'}
+              {syncingId === repo.id ? syncLabel : 'Sync now'}
             </Button>
           </li>
         ))}
@@ -229,6 +293,7 @@ export function NotionKBSection({ onSynced }: { onSynced: () => void }) {
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [chunkCount, setChunkCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
+  const [syncLabel, setSyncLabel] = useState<string>('Syncing…')
   const [togglingPublish, setTogglingPublish] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [truncated, setTruncated] = useState(false)
@@ -247,26 +312,47 @@ export function NotionKBSection({ onSynced }: { onSynced: () => void }) {
 
   useEffect(() => { loadState() }, [loadState])
 
+  const onSyncedRef = useRef(onSynced)
+  onSyncedRef.current = onSynced
+
+  // Resume the progress display if a sync is already in flight (e.g. the user
+  // navigated away and came back, or the GitHub push webhook queued one).
+  // Mount-only — the refs keep the latest callbacks without re-running.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/kb/sync-jobs?kind=notion')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((job: KbSyncJobStatus | null) => {
+        if (cancelled || !job || (job.status !== 'queued' && job.status !== 'running')) return
+        setSyncing(true)
+        setSyncLabel(job.status === 'running' ? 'Syncing…' : 'Queued…')
+        pollKbSyncJob('/api/kb/sync-jobs?kind=notion', setSyncLabel).then((result) => {
+          if (cancelled) return
+          setToast(result.detail)
+          if (result.ok) { loadState(); onSyncedRef.current() }
+          setSyncing(false)
+          setTimeout(() => setToast(null), 5000)
+        })
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [loadState])
+
   const sync = async () => {
     setSyncing(true)
     setTruncated(false)
-    try {
-      const res = await fetch('/api/notion/sync-kb')
-      const data = (await res.json()) as { synced?: number; truncated?: boolean; error?: string }
-      if (data.error) {
-        setToast(data.error)
-      } else {
-        setToast(`Synced ${data.synced ?? 0} chunk${data.synced === 1 ? '' : 's'} from Notion`)
-        setTruncated(!!data.truncated)
-        await loadState()
-        onSynced()
-      }
-    } catch {
-      setToast('Sync failed')
-    } finally {
-      setSyncing(false)
-      setTimeout(() => setToast(null), 4000)
+    setSyncLabel('Queued…')
+    const result = await runKbSync('/api/notion/sync-kb', '/api/kb/sync-jobs?kind=notion', setSyncLabel)
+    if (result.ok) {
+      setToast(result.detail)
+      setTruncated(/cap was hit|wasn.t imported/i.test(result.detail))
+      await loadState()
+      onSynced()
+    } else {
+      setToast(result.detail)
     }
+    setSyncing(false)
+    setTimeout(() => setToast(null), 5000)
   }
 
   const togglePublish = async () => {
@@ -335,7 +421,7 @@ export function NotionKBSection({ onSynced }: { onSynced: () => void }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={sync} disabled={syncing}>
-            {syncing ? 'Syncing…' : 'Sync now'}
+            {syncing ? syncLabel : 'Sync now'}
           </Button>
           <Button
             size="sm"

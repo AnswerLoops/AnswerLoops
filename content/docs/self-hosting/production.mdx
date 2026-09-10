@@ -72,6 +72,10 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 Drizzle migrations run automatically against your production database on first start, same as local dev — no separate migration step.
 
+<Note>
+  The **bot** service must be running for knowledge-base syncs (Notion, GitHub) to complete — it's the worker that picks up queued sync jobs and drives them. It reaches the app at `BOT_TARGET_URL` (default `http://localhost:3000`) and authenticates with `BOT_SECRET`; set both if the two services aren't on the same host. The sync itself runs inside `POST /api/kb/sync-jobs/run` on the app, which does real work after responding to auth — deploy the app on a runtime without a short per-request timeout (the standard `pnpm start` Node server is fine; a serverless function platform may cut a large sync off).
+</Note>
+
 ## Health check
 
 ```bash
