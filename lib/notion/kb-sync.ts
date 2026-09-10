@@ -7,9 +7,9 @@ import { getNotionConnectionRow, updateNotionKbState } from '@/lib/db/queries/no
 import {
   createKBSource,
   getKBSourceByFilename,
-  deleteKBSource,
+  deleteKBSourcesByFilename,
   updateKBSourceChunkCount,
-  setKBSourcePublished,
+  swapKBSource,
 } from '@/lib/db/queries/kb-sources'
 import { createArticleFromSource, countArticles } from '@/lib/db/queries/kb'
 import {
@@ -26,6 +26,13 @@ const MAX_ARTICLES_PER_ORG = 2000
 /** The stable dedup key for the single per-workspace kb_sources row. */
 export const NOTION_SOURCE_FILENAME = 'notion:workspace'
 
+/**
+ * Filename the replacement source is built under before it is swapped into
+ * place. A run that dies mid-build leaves one of these orphaned; the next run
+ * clears any stale copy before starting.
+ */
+const NOTION_SOURCE_STAGING_FILENAME = 'notion:workspace:rebuilding'
+
 export interface NotionSyncResult {
   synced: number
   truncated: boolean
@@ -33,70 +40,54 @@ export interface NotionSyncResult {
 
 /**
  * Pull every page and database the connected Notion integration can see into
- * the KB. Delete-and-recreate, exactly like `syncRepoToKB`: one kb_sources row
- * for the whole workspace, wiped and rebuilt on each manual sync. Chunks land
- * `published: 0` — Notion is the one source that imports hidden until the
- * customer publishes it — but a prior publish choice is restored afterwards.
+ * the KB. One kb_sources row for the whole workspace, rebuilt on each manual
+ * sync. Chunks land `published: 0` — Notion is the one source that imports
+ * hidden until the customer publishes it — but a prior publish choice is
+ * restored afterwards.
+ *
+ * The rebuild is fetch-first, swap-last: every Notion API call (token decrypt,
+ * search, database rows, page bodies) happens before the live source is
+ * touched, then the fully-built replacement is swapped in atomically. A Notion
+ * outage, a revoked token, or a decrypt failure now aborts with the existing
+ * KB intact instead of wiping it and leaving an empty source behind.
  */
 export async function syncNotionToKB(orgId: number): Promise<NotionSyncResult> {
   const conn = await getNotionConnectionRow(orgId)
   if (!conn) throw new Error('Notion is not connected')
 
-  // Preserve the customer's publish choice across the delete-and-recreate.
   const existing = await getKBSourceByFilename(orgId, NOTION_SOURCE_FILENAME)
   const wasPublished = existing?.published === 1
-  if (existing) await deleteKBSource(existing.id, orgId)
 
-  const budget = Math.max(0, MAX_ARTICLES_PER_ORG - (await countArticles(orgId)))
+  // Budget is the org-wide article cap minus everything that isn't the current
+  // Notion source — those rows are about to be replaced, so they don't count.
+  const existingNotionChunks = existing?.chunk_count ?? 0
+  const budget = Math.max(0, MAX_ARTICLES_PER_ORG - ((await countArticles(orgId)) - existingNotionChunks))
   if (budget === 0) {
     logger.warn('kb full — skipping notion sync', { module: MOD, orgId })
-    await updateNotionKbState(orgId, { kbLastSynced: new Date().toISOString(), kbChunkCount: 0, kbSourceId: null })
-    return { synced: 0, truncated: true }
+    return { synced: existingNotionChunks, truncated: true }
   }
 
-  const source = await createKBSource({
-    orgId,
-    filename: NOTION_SOURCE_FILENAME,
-    fileType: 'notion',
-    sizeBytes: 0,
-    published: 0,
-  })
-
-  let created = 0
-
-  const writeChunks = async (markdown: string, title: string): Promise<void> => {
-    if (!markdown.trim()) return
-    for (const chunk of chunkMarkdown(markdown, title)) {
-      if (created >= budget) break
-      try {
-        const embedding = await embedText(`${chunk.question}\n\n${chunk.answer}`, orgId)
-        await createArticleFromSource(
-          {
-            question: chunk.question,
-            answer: chunk.answer,
-            embedding,
-            model: EMBEDDING_MODEL,
-            sourceId: source.id,
-            published: 0,
-          },
-          orgId
-        )
-        created++
-      } catch (err) {
-        logger.warn('notion chunk embed failed', { module: MOD, orgId, title, error: err })
-      }
-    }
+  // ---- Fetch phase: everything that can fail on Notion's side, up front. ----
+  interface NotionDoc {
+    title: string
+    markdown: string
   }
+  const docs: NotionDoc[] = []
+  let workCount = 0
 
   if (MOCK_EXTERNALS) {
-    await writeChunks('# Mock Notion Page\n\nThis is a mock Notion page body used in tests and local mock mode.', 'Mock Notion Page')
+    docs.push({
+      title: 'Mock Notion Page',
+      markdown: '# Mock Notion Page\n\nThis is a mock Notion page body used in tests and local mock mode.',
+    })
+    workCount = 1
   } else {
     const token = decryptToken(conn.accessToken)
     if (!token) throw new Error('Notion token could not be decrypted — reconnect the workspace')
 
     const { pages, databases } = await notionSearchAll(token)
 
-    // Build a de-duped work list: standalone pages + every row of every database.
+    // De-duped work list: standalone pages + every row of every database.
     const seen = new Set<string>()
     const work: { id: string; title: string }[] = []
     for (const page of pages) {
@@ -115,27 +106,78 @@ export async function syncNotionToKB(orgId: number): Promise<NotionSyncResult> {
         logger.warn('notion database query failed', { module: MOD, orgId, databaseId: db.id, error: err })
       }
     }
+    workCount = work.length
 
     for (const item of work) {
-      if (created >= budget) break
       try {
         const blocks = await notionBlockChildren(token, item.id)
         const markdown = await blocksToMarkdown(blocks, (blockId) => notionBlockChildren(token, blockId))
-        await writeChunks(markdown, item.title)
+        if (markdown.trim()) docs.push({ title: item.title, markdown })
       } catch (err) {
         logger.warn('notion page fetch failed', { module: MOD, orgId, pageId: item.id, error: err })
       }
     }
   }
 
+  // ---- Build phase: stage the replacement under a temp filename. ----
+  // Clear any leftover staging row from a previous run that died mid-build.
+  await deleteKBSourcesByFilename(orgId, NOTION_SOURCE_STAGING_FILENAME)
+
+  const source = await createKBSource({
+    orgId,
+    filename: NOTION_SOURCE_STAGING_FILENAME,
+    fileType: 'notion',
+    sizeBytes: 0,
+    published: 0,
+  })
+
+  let created = 0
+  try {
+    for (const doc of docs) {
+      if (created >= budget) break
+      for (const chunk of chunkMarkdown(doc.markdown, doc.title)) {
+        if (created >= budget) break
+        try {
+          const embedding = await embedText(`${chunk.question}\n\n${chunk.answer}`, orgId)
+          await createArticleFromSource(
+            {
+              question: chunk.question,
+              answer: chunk.answer,
+              embedding,
+              model: EMBEDDING_MODEL,
+              sourceId: source.id,
+              published: 0,
+            },
+            orgId
+          )
+          created++
+        } catch (err) {
+          logger.warn('notion chunk embed failed', { module: MOD, orgId, title: doc.title, error: err })
+        }
+      }
+    }
+  } catch (err) {
+    // Build blew up entirely — bin the staging row, leave the live source alone.
+    await deleteKBSourcesByFilename(orgId, NOTION_SOURCE_STAGING_FILENAME)
+    throw err
+  }
+
   await updateKBSourceChunkCount(source.id, created)
+
+  // ---- Swap phase: retire the old source and promote the new one atomically. ----
+  await swapKBSource({
+    orgId,
+    newSourceId: source.id,
+    targetFilename: NOTION_SOURCE_FILENAME,
+    published: wasPublished ? 1 : 0,
+  })
+
   await updateNotionKbState(orgId, {
     kbLastSynced: new Date().toISOString(),
     kbChunkCount: created,
     kbSourceId: source.id,
   })
-  if (wasPublished) await setKBSourcePublished(source.id, orgId, 1)
 
-  logger.info('notion kb sync done', { module: MOD, orgId, created })
+  logger.info('notion kb sync done', { module: MOD, orgId, created, workCount })
   return { synced: created, truncated: created >= budget }
 }

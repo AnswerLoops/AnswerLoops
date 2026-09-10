@@ -1,8 +1,8 @@
-import { type NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import { DEFAULT_ORG_ID } from '@/lib/db/schema'
+import { NextResponse } from 'next/server'
+import { requireOrgAccess } from '@/lib/auth/org'
+import { signOAuthState } from '@/lib/oauth/state'
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const rawSlug = process.env.GITHUB_APP_SLUG
   if (!rawSlug) {
     return NextResponse.json({ error: 'GITHUB_APP_SLUG not configured' }, { status: 503 })
@@ -15,12 +15,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'GITHUB_APP_SLUG is not a valid slug or URL' }, { status: 503 })
   }
 
-  const session = await auth()
-  const orgId = (session as { orgId?: number })?.orgId ?? DEFAULT_ORG_ID
+  const access = await requireOrgAccess()
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: 401 })
+  }
 
-  const state = Buffer.from(
-    JSON.stringify({ orgId, ts: Date.now() })
-  ).toString('base64url')
+  const state = signOAuthState({ orgId: access.orgId })
 
   const url = `https://github.com/apps/${slug}/installations/new?state=${state}`
   return NextResponse.json({ url })

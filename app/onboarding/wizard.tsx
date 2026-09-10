@@ -186,7 +186,7 @@ function DiscordFlow({ onDone, onBack, oauthGuildId }: { onDone: () => void; onB
   useEffect(() => {
     if (oauthGuildId) return
     setLoadingUrl(true)
-    fetch('/api/discord/invite-url')
+    fetch('/api/discord/invite-url?from=onboarding')
       .then((r) => r.json())
       .then((data: { url?: string; error?: string }) => {
         if (data.url) setInviteUrl(data.url)

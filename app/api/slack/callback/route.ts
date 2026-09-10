@@ -1,12 +1,13 @@
 import crypto from 'crypto'
 import { NextRequest } from 'next/server'
-import { auth } from '@/auth'
+import { requireOrgAccess } from '@/lib/auth/org'
+import { verifyOAuthState } from '@/lib/oauth/state'
 import { upsertIntegration, getIntegration } from '@/lib/db/queries/integrations'
 import { orgHasFeature } from '@/lib/billing/entitlements-server'
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return Response.redirect(new URL('/login', req.url))
+  const access = await requireOrgAccess()
+  if (!access.ok) return Response.redirect(new URL('/login', req.url))
 
   const { searchParams } = req.nextUrl
   const code = searchParams.get('code')
@@ -18,10 +19,8 @@ export async function GET(req: NextRequest) {
   let orgId: number
   let from: string | undefined
   try {
-    const decoded = JSON.parse(
-      Buffer.from(state ?? '', 'base64url').toString()
-    ) as { orgId: number; ts: number; from?: string }
-    if (Date.now() - decoded.ts > 10 * 60 * 1000) throw new Error('expired')
+    const decoded = verifyOAuthState(state)
+    if (decoded.orgId !== access.orgId) throw new Error('org mismatch')
     orgId = decoded.orgId
     from = decoded.from
   } catch {
