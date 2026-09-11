@@ -25,6 +25,7 @@ const STATIC_ROUTES: { path: string; priority: number; changeFrequency: ChangeFr
   { path: '/mcp-support-agents', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/open-source-support', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/pricing', priority: 0.9, changeFrequency: 'weekly' },
+  { path: '/alternatives', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/privacy', priority: 0.2, changeFrequency: 'yearly' },
   { path: '/self-hosted-ai-support', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/self-hosting-proof', priority: 0.6, changeFrequency: 'monthly' },
