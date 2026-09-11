@@ -62,7 +62,7 @@ export default function AlternativesPage() {
 
           <div className="mt-14 rounded-2xl border-2 border-gray-200 bg-gray-50 p-8 text-center">
             <h2 className="text-xl font-bold text-gray-900">Try AnswerLoops free</h2>
-            <p className="mt-2 text-sm text-gray-500">Self-host for free (AGPL-3.0), or start a 14-day trial on a hosted plan.</p>
+            <p className="mt-2 text-sm text-gray-500">Self-host, or start a 14-day free trial on a hosted plan.</p>
             <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                 Clone on GitHub
