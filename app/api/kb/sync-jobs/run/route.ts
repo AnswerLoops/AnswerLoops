@@ -2,7 +2,9 @@ import { z } from 'zod'
 import {
   getKbSyncJob,
   finishKbSyncJob,
+  updateKbSyncJobProgress,
 } from '@/lib/db/queries/kb-sync-jobs'
+import { throttleProgress } from '@/lib/kb-sync/progress'
 import { getRepoById } from '@/lib/db/queries/github'
 import { syncNotionToKB } from '@/lib/notion/kb-sync'
 import { syncRepoToKB, syncDiscussionsToKB } from '@/lib/github/kb-sync'
@@ -43,23 +45,42 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, ran: false, reason: job.status })
   }
 
+  // Progress writes are best-effort and throttled — a lost one just lags the
+  // KB page's number by a beat. `void` the promise so a slow write never
+  // stalls the sync loop.
+  const jobId = job.id
+  const progress = throttleProgress((done, total) => {
+    void updateKbSyncJobProgress(jobId, done, total)
+  })
+
   try {
     let syncedCount = 0
     let detail = ''
 
     if (job.kind === 'notion') {
-      const res = await syncNotionToKB(job.org_id)
+      const res = await syncNotionToKB(job.org_id, { onProgress: progress })
       syncedCount = res.synced
-      detail = res.truncated
-        ? `Synced ${res.synced} chunks — the knowledge-base article cap was hit, some content was skipped`
+      const notes: string[] = []
+      if (res.truncated) notes.push('the knowledge-base article cap was hit')
+      if (res.pagesCapped) notes.push('the page limit was hit')
+      if (res.databasesCapped) notes.push('the database limit was hit')
+      detail = notes.length
+        ? `Synced ${res.synced} chunks from Notion — ${notes.join(' and ')}, some content was skipped`
         : `Synced ${res.synced} chunks from Notion`
     } else if (job.kind === 'github_repo') {
       if (!job.repo_id) throw new Error('github_repo job has no repo_id')
       const repo = await getRepoById(job.repo_id, job.org_id)
       if (!repo) throw new Error('repo not found')
       // Sequential: both paths read-modify-write the repo's kbChunkCount.
-      const docs = await syncRepoToKB(repo.id, repo.owner, repo.repo, repo.installation_id, job.org_id)
-      const discussions = await syncDiscussionsToKB(repo.id, repo.owner, repo.repo, repo.installation_id, job.org_id)
+      // Discussion progress is offset past the repo-files total so the KB
+      // page's bar keeps climbing across the two phases.
+      let filesTotal = 0
+      const docs = await syncRepoToKB(repo.id, repo.owner, repo.repo, repo.installation_id, job.org_id, {
+        onProgress: (d, t) => { filesTotal = t; progress(d, t) },
+      })
+      const discussions = await syncDiscussionsToKB(repo.id, repo.owner, repo.repo, repo.installation_id, job.org_id, {
+        onProgress: (d, t) => progress(filesTotal + d, filesTotal + t),
+      })
       syncedCount = docs + discussions
       detail = `Synced ${docs} doc chunk${docs === 1 ? '' : 's'} and ${discussions} discussion chunk${discussions === 1 ? '' : 's'}`
     } else {

@@ -324,6 +324,8 @@ export const kbSyncJobs = pgTable(
     status: text('status').notNull().default('queued'), // queued | running | succeeded | failed
     detail: text('detail'),
     syncedCount: integer('synced_count').notNull().default(0),
+    progress: integer('progress').notNull().default(0),
+    total: integer('total').notNull().default(0),
     attempts: integer('attempts').notNull().default(0),
     createdAt: text('created_at').notNull().default(now),
     startedAt: text('started_at'),

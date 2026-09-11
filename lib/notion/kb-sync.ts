@@ -19,6 +19,7 @@ import {
   getNotionPageTitle,
 } from '@/lib/notion/client'
 import { blocksToMarkdown } from '@/lib/notion/blocks-to-markdown'
+import type { KbSyncProgressOpts } from '@/lib/kb-sync/progress'
 
 const MOD = 'notion/kb-sync'
 const MAX_ARTICLES_PER_ORG = 2000
@@ -36,7 +37,12 @@ const NOTION_SOURCE_STAGING_FILENAME = 'notion:workspace:rebuilding'
 export interface NotionSyncResult {
   synced: number
   truncated: boolean
+  /** A budget in lib/notion/client.ts was hit and some pages weren't fetched. */
+  pagesCapped: boolean
+  /** Ditto for databases. */
+  databasesCapped: boolean
 }
+
 
 /**
  * Pull every page and database the connected Notion integration can see into
@@ -51,9 +57,15 @@ export interface NotionSyncResult {
  * outage, a revoked token, or a decrypt failure now aborts with the existing
  * KB intact instead of wiping it and leaving an empty source behind.
  */
-export async function syncNotionToKB(orgId: number): Promise<NotionSyncResult> {
+export async function syncNotionToKB(
+  orgId: number,
+  opts: KbSyncProgressOpts = {},
+): Promise<NotionSyncResult> {
   const conn = await getNotionConnectionRow(orgId)
   if (!conn) throw new Error('Notion is not connected')
+
+  let pagesCapped = false
+  let databasesCapped = false
 
   const existing = await getKBSourceByFilename(orgId, NOTION_SOURCE_FILENAME)
   const wasPublished = existing?.published === 1
@@ -64,7 +76,7 @@ export async function syncNotionToKB(orgId: number): Promise<NotionSyncResult> {
   const budget = Math.max(0, MAX_ARTICLES_PER_ORG - ((await countArticles(orgId)) - existingNotionChunks))
   if (budget === 0) {
     logger.warn('kb full — skipping notion sync', { module: MOD, orgId })
-    return { synced: existingNotionChunks, truncated: true }
+    return { synced: existingNotionChunks, truncated: true, pagesCapped, databasesCapped }
   }
 
   // ---- Fetch phase: everything that can fail on Notion's side, up front. ----
@@ -85,7 +97,10 @@ export async function syncNotionToKB(orgId: number): Promise<NotionSyncResult> {
     const token = decryptToken(conn.accessToken)
     if (!token) throw new Error('Notion token could not be decrypted — reconnect the workspace')
 
-    const { pages, databases } = await notionSearchAll(token)
+    const search = await notionSearchAll(token)
+    const { pages, databases } = search
+    pagesCapped = search.pagesCapped
+    databasesCapped = search.databasesCapped
 
     // De-duped work list: standalone pages + every row of every database.
     const seen = new Set<string>()
@@ -133,7 +148,9 @@ export async function syncNotionToKB(orgId: number): Promise<NotionSyncResult> {
 
   let created = 0
   try {
-    for (const doc of docs) {
+    for (let d = 0; d < docs.length; d++) {
+      const doc = docs[d]
+      opts.onProgress?.(d, docs.length)
       if (created >= budget) break
       for (const chunk of chunkMarkdown(doc.markdown, doc.title)) {
         if (created >= budget) break
@@ -156,6 +173,7 @@ export async function syncNotionToKB(orgId: number): Promise<NotionSyncResult> {
         }
       }
     }
+    opts.onProgress?.(docs.length, docs.length)
   } catch (err) {
     // Build blew up entirely — bin the staging row, leave the live source alone.
     await deleteKBSourcesByFilename(orgId, NOTION_SOURCE_STAGING_FILENAME)
@@ -178,6 +196,6 @@ export async function syncNotionToKB(orgId: number): Promise<NotionSyncResult> {
     kbSourceId: source.id,
   })
 
-  logger.info('notion kb sync done', { module: MOD, orgId, created, workCount })
-  return { synced: created, truncated: created >= budget }
+  logger.info('notion kb sync done', { module: MOD, orgId, created, workCount, pagesCapped, databasesCapped })
+  return { synced: created, truncated: created >= budget, pagesCapped, databasesCapped }
 }

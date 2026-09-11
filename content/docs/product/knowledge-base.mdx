@@ -54,7 +54,7 @@ Connect a GitHub repository and sync its markdown files into the KB.
 
 The sync respects the repo's file tree. Each markdown file becomes its own source entry.
 
-GitHub and Notion syncs run as background jobs — the Knowledge Base page shows each one as queued, then syncing, then done, and you can navigate away while it runs. Re-triggering a sync for the same source while one is still in progress does nothing; the running job finishes on its own.
+GitHub and Notion syncs run as background jobs — the Knowledge Base page shows each one as queued, then `Syncing N/M` as it works through the files or pages, then done, and you can navigate away while it runs. Re-triggering a sync for the same source while one is still in progress does nothing; the running job finishes on its own.
 
 <Note>
   GitHub repo sync requires the GitHub App to be installed and `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET` to be configured. See [GitHub App setup](/docs/self-hosting/environment-variables#github) for details.

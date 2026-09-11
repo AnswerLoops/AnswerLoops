@@ -183,8 +183,13 @@ describe('lib/notion/client.ts', () => {
     expect(src).toContain("'2022-06-28'")
   })
 
-  it('caps the number of objects pulled from search', () => {
-    expect(src).toMatch(/MAX_NOTION_OBJECTS\s*=\s*500/)
+  it('caps pages and databases from search against separate budgets', () => {
+    expect(src).toMatch(/MAX_NOTION_PAGES\s*=\s*2000/)
+    expect(src).toMatch(/MAX_NOTION_DATABASES\s*=\s*500/)
+    // databases are no longer starved by a large page count
+    expect(src).not.toContain('MAX_NOTION_OBJECTS - pages.length')
+    expect(src).toContain('pagesCapped')
+    expect(src).toContain('databasesCapped')
   })
 
   it('validates the token with a live /users/me call', () => {
