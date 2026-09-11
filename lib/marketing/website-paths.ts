@@ -27,6 +27,8 @@ export const WEBSITE_PATHS = [
   '/agentic-support',
   '/vs',
   '/alternatives',
+  '/about',
+  '/blog',
   '/docs',
   '/privacy',
   '/terms',
