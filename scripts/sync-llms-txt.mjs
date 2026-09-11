@@ -17,6 +17,7 @@ const LABELS = {
   '': 'Marketing site',
   '/agentic-support': 'Agentic support overview',
   '/pricing': 'Pricing',
+  '/alternatives': 'Alternatives & comparisons',
   '/privacy': 'Privacy policy',
   '/terms': 'Terms of service',
   '/vs/chatbase': 'AnswerLoops vs Chatbase',
