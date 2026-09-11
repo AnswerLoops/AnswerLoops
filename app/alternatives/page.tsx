@@ -37,8 +37,7 @@ export default function AlternativesPage() {
           <h1 className="text-4xl font-bold text-white sm:text-5xl">AnswerLoops alternatives</h1>
           <p className="mt-5 text-lg text-white/60 max-w-2xl mx-auto">
             AnswerLoops answers support questions across Discord, Slack, Discourse, Circle, GitHub, Telegram, email, and a
-            website widget — one confidence-gated pipeline, one knowledge base, self-hostable under AGPL-3.0. Here&apos;s
-            how it compares to the tools people usually put next to it.
+            website widget — one confidence-gated pipeline, one knowledge base, and self-hostable so the data never leaves your environment.
           </p>
         </div>
       </section>
